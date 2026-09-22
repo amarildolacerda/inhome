@@ -4,8 +4,11 @@ import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/projects_screen.dart';
 import 'screens/tasks_screen.dart';
+import 'theme/app_theme.dart';
 
 void main() {
+  // FR-027: web bootstrap entrypoint (Chrome, Edge, Firefox, Safari) —
+  // frontend/web/index.html loads flutter_bootstrap.js which calls main().
   runApp(const ProjectManagerApp());
 }
 
@@ -15,24 +18,11 @@ class ProjectManagerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Project Manager',
+      title: 'Gestão de Contratos',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6366F1),
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        fontFamily: 'Inter',
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6366F1),
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-        fontFamily: 'Inter',
-      ),
+      // FR-028: accessible light/dark themes (contrast + touch targets).
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
       home: const AuthGate(),
     );
@@ -120,33 +110,39 @@ class _MainShellState extends State<MainShell> {
     return Scaffold(
       body: Row(
         children: [
-          NavigationRail(
-            selectedIndex: _selectedIndex,
-            onDestinationSelected: (index) {
-              setState(() => _selectedIndex = index);
-            },
-            leading: const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Icon(Icons.dashboard_rounded, size: 32),
+          // FR-028: named navigation region for screen readers; each
+          // destination exposes its Text label for semantics + keyboard use.
+          Semantics(
+            container: true,
+            label: 'Navegação principal',
+            child: NavigationRail(
+              selectedIndex: _selectedIndex,
+              onDestinationSelected: (index) {
+                setState(() => _selectedIndex = index);
+              },
+              leading: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Icon(Icons.dashboard_rounded, size: 32),
+              ),
+              labelType: NavigationRailLabelType.all,
+              destinations: const [
+                NavigationRailDestination(
+                  icon: Icon(Icons.bar_chart_outlined),
+                  selectedIcon: Icon(Icons.bar_chart),
+                  label: Text('Dashboard'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.folder_outlined),
+                  selectedIcon: Icon(Icons.folder),
+                  label: Text('Contratos'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.task_outlined),
+                  selectedIcon: Icon(Icons.task),
+                  label: Text('Tarefas'),
+                ),
+              ],
             ),
-            labelType: NavigationRailLabelType.all,
-            destinations: const [
-              NavigationRailDestination(
-                icon: Icon(Icons.bar_chart_outlined),
-                selectedIcon: Icon(Icons.bar_chart),
-                label: Text('Dashboard'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.folder_outlined),
-                selectedIcon: Icon(Icons.folder),
-                label: Text('Projetos'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.task_outlined),
-                selectedIcon: Icon(Icons.task),
-                label: Text('Tarefas'),
-              ),
-            ],
           ),
           const VerticalDivider(width: 1),
           Expanded(child: _screens[_selectedIndex]),

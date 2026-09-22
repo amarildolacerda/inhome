@@ -11,3 +11,10 @@ frontend/.packages
 frontend/build/
 frontend/pubspec.lock
 .git_token
+.implement-state
+data/
+backend/uploads/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,74 +1,145 @@
+'use strict';
+
 const express = require('express');
 const router = express.Router();
-const { getAll, count, getOne } = require('../config/database');
-const { authenticateToken } = require('../middleware/auth');
+const Contract = require('../models/Contract');
+const { authenticateToken, requireRole } = require('../middleware/auth');
+const { getDomainDb } = require('../config/database');
+
+function summarizeTasks(rows) {
+  const byStatus = {};
+  const byPriority = {};
+  const today = new Date().toISOString().slice(0, 10);
+  let completed = 0;
+  let inProgress = 0;
+  let urgent = 0;
+  let overdue = 0;
+  for (const row of rows) {
+    byStatus[row.status] = (byStatus[row.status] || 0) + 1;
+    if (row.status === 'Concluída') {
+      completed += 1;
+    } else {
+      byPriority[row.priority] = (byPriority[row.priority] || 0) + 1;
+      if (row.priority === 'urgent') urgent += 1;
+      if (row.due_date && row.due_date < today) overdue += 1;
+    }
+    if (row.status === 'Em Progresso') inProgress += 1;
+  }
+  const total = rows.length;
+  return {
+    total,
+    byStatus,
+    byPriority: Object.entries(byPriority).map(([priority, count]) => ({ priority, count })),
+    byStatusList: Object.entries(byStatus).map(([status, count]) => ({ status, count })),
+    completed,
+    inProgress,
+    urgent,
+    overdue,
+    completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
+  };
+}
+
+function summarizeContracts(rows) {
+  const counts = { vigente: 0, atrasado: 0, encerrado: 0 };
+  for (const row of rows) {
+    counts[Contract.effectiveStatus(row)] += 1;
+  }
+  return counts;
+}
+
+// FR-019 / SC-011: role-scoped metrics. admin/gestor → whole domain;
+// prestador → only their own tasks (and their linked contracts).
+function getDomainMetrics(db, user) {
+  if (user.role === 'prestador') {
+    const tasks = summarizeTasks(
+      db.all('SELECT status, priority, due_date FROM tasks WHERE assignee_id = ?', [user.id])
+    );
+    const contracts = summarizeContracts(
+      db.all(
+        `SELECT c.status, c.forecast_date FROM contracts c
+         JOIN contract_prestadores cp ON cp.contract_id = c.id AND cp.user_id = ?`,
+        [user.id]
+      )
+    );
+    const linked = db.get(
+      'SELECT COUNT(*) AS c FROM contract_prestadores WHERE user_id = ?',
+      [user.id]
+    ).c;
+    return {
+      scope: 'own',
+      stats: {
+        totalProjects: linked,
+        activeProjects: contracts.vigente,
+        totalTasks: tasks.total,
+        completedTasks: tasks.completed,
+        inProgressTasks: tasks.inProgress,
+        urgentTasks: tasks.urgent,
+        completionRate: tasks.completionRate,
+        tasksOverdue: tasks.overdue,
+        contractsAtrasado: contracts.atrasado,
+        contractsEncerrado: contracts.encerrado,
+        usersTotal: null,
+        prestadoresTotal: null,
+      },
+      tasksByPriority: tasks.byPriority,
+      tasksByStatus: tasks.byStatusList,
+      recentProjects: [],
+    };
+  }
+
+  const allContracts = db.all('SELECT id, name, status, forecast_date, updated_at FROM contracts ORDER BY id');
+  const contracts = summarizeContracts(allContracts);
+  const tasks = summarizeTasks(db.all('SELECT status, priority, due_date FROM tasks'));
+  const usersTotal = db.get('SELECT COUNT(*) AS c FROM users').c;
+  const prestadoresTotal = db.get("SELECT COUNT(*) AS c FROM users WHERE role = 'prestador'").c;
+
+  const recentProjects = allContracts
+    .slice(-5)
+    .reverse()
+    .map((row) => ({
+      ...row,
+      effective_status: Contract.effectiveStatus(row),
+      task_count: db.get('SELECT COUNT(*) AS c FROM tasks WHERE contract_id = ?', [row.id]).c,
+      completed_count: db.get(
+        "SELECT COUNT(*) AS c FROM tasks WHERE contract_id = ? AND status = 'Concluída'",
+        [row.id]
+      ).c,
+    }));
+
+  return {
+    scope: 'domain',
+    stats: {
+      totalProjects: allContracts.length,
+      activeProjects: contracts.vigente,
+      totalTasks: tasks.total,
+      completedTasks: tasks.completed,
+      inProgressTasks: tasks.inProgress,
+      urgentTasks: tasks.urgent,
+      completionRate: tasks.completionRate,
+      tasksOverdue: tasks.overdue,
+      contractsAtrasado: contracts.atrasado,
+      contractsEncerrado: contracts.encerrado,
+      usersTotal,
+      prestadoresTotal,
+    },
+    tasksByPriority: tasks.byPriority,
+    tasksByStatus: tasks.byStatusList,
+    recentProjects,
+  };
+}
 
 router.use(authenticateToken);
 
 // GET /api/dashboard/stats
-router.get('/stats', (req, res) => {
+router.get('/stats', requireRole('admin', 'gestor', 'prestador'), (req, res) => {
   try {
-    const userId = req.user.id;
-
-    const myProjects = getAll('projects', p => p.owner_id === userId);
-    const totalProjects = myProjects.length;
-    const activeProjects = myProjects.filter(p => p.status === 'active').length;
-
-    const myProjectIds = myProjects.map(p => p.id);
-    const myTasks = getAll('tasks', t => myProjectIds.includes(t.project_id));
-
-    const totalTasks = myTasks.length;
-    const completedTasks = myTasks.filter(t => t.status === 'done').length;
-    const inProgressTasks = myTasks.filter(t => t.status === 'in_progress').length;
-    const urgentTasks = myTasks.filter(t => t.priority === 'urgent' && t.status !== 'done').length;
-
-    // Tasks by priority
-    const priorityMap = {};
-    myTasks.filter(t => t.status !== 'done').forEach(t => {
-      priorityMap[t.priority] = (priorityMap[t.priority] || 0) + 1;
-    });
-    const tasksByPriority = Object.entries(priorityMap).map(([priority, count]) => ({ priority, count }));
-
-    // Tasks by status
-    const statusMap = {};
-    myTasks.forEach(t => {
-      statusMap[t.status] = (statusMap[t.status] || 0) + 1;
-    });
-    const tasksByStatus = Object.entries(statusMap).map(([status, count]) => ({ status, count }));
-
-    // Recent projects
-    const recentProjects = myProjects
-      .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
-      .slice(0, 5)
-      .map(p => {
-        const taskCount = count('tasks', t => t.project_id === p.id);
-        const completedCount = count('tasks', t => t.project_id === p.id && t.status === 'done');
-        const owner = getOne('users', u => u.id === p.owner_id);
-        return {
-          ...p,
-          owner_name: owner?.name || null,
-          task_count: taskCount,
-          completed_count: completedCount
-        };
-      });
-
-    res.json({
-      stats: {
-        totalProjects,
-        activeProjects,
-        totalTasks,
-        completedTasks,
-        inProgressTasks,
-        urgentTasks,
-        completionRate: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
-      },
-      tasksByPriority,
-      tasksByStatus,
-      recentProjects
-    });
+    const db = getDomainDb(req.user.domainId);
+    res.json(getDomainMetrics(db, req.user));
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
+
+router.getDomainMetrics = getDomainMetrics;
 
 module.exports = router;

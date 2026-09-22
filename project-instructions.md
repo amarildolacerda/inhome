@@ -34,8 +34,8 @@ All agent output MUST be concise and outcome-oriented. This principle supersedes
 
 - **Language/Runtime**: Dart 3 (Flutter Web) frontend; Node.js 22+ backend
 - **Frameworks**: Flutter Web; Express + Socket.io
-- **Storage**: JSON file storage with a SQLite-shaped access layer (no native DB driver)
-- **Infrastructure**: local only (backend port 3001, frontend dev port 8080/3000)
+- **Storage**: SQLite via `sql.js` (WASM, no native build) — one database file per domain (`data/domains/<id>.db`) plus a platform database (`data/platform.db`); `better-sqlite3` only if the native build succeeds in this environment
+- **Infrastructure**: local only (backend port 3001, frontend dev port 8080/3000); multi-domain platform where each domain isolates its data in its own database file; file uploads on disk under `backend/uploads/`
 - **Auth**: JWT (`jsonwebtoken`) with `bcryptjs` password hashing
 
 ## Testing & Quality Policy
@@ -73,4 +73,7 @@ All agent output MUST be concise and outcome-oriented. This principle supersedes
 
 [GOVERNANCE_ADDITIONAL_RULES]
 
-**Version**: 1 | **Last Amended**: 2026-09-22
+**Version**: 2 | **Last Amended**: 2026-09-22
+
+- v2 (2026-09-22): Storage changed from JSON file to per-domain SQLite (`sql.js`) with a platform database; added multi-domain isolation and disk uploads. Scope source: `docs/approved-scope-draft.md`.
+- v1 (2026-09-22): Initial governance.
