@@ -1,73 +1,62 @@
 # Sistema de Gestão de Contratos de Terceiros
 
-Dashboard multi-domínio para administrar contratos de terceiros: vigência, tarefas com conclusão documentada, evidências e relatório por contrato.
+Organize contratos de terceiros, acompanhe o trabalho contratado e mantenha a execução documentada — tudo em um só lugar.
 
-## Visão
+## Para quem é
 
-Cada **domínio** é um cliente com isolamento físico de dados (SQLite por domínio). O `system_admin` habilita e suspende domínios na plataforma; dentro do domínio, `admin` e `gestor` administram contratos e tarefas; o `prestador` executa e conclui apenas as tarefas atribuídas a ele.
+- **Gestores** que administram contratos e precisam ver prazos, prestadores e o que está em andamento
+- **Prestadores de serviço** que executam as tarefas do contrato e registram a conclusão com fotos
+- **Administradores** que controlam usuários, finalidades e o andamento geral do contrato
 
-```
-system_admin
-  └── Domínio (habilitado | suspenso)
-        ├── Contratos → prestadores vinculados → tarefas
-        └── Usuários (admin, gestor, prestador)
-```
+## O que você pode fazer
 
-## Escopo MVP
+### Contratos sob controle
+- Cadastre o contrato com objeto, finalidade, data de início e previsão de término
+- Vincule os prestadores que participam do contrato
+- Prorrogue ou encerre quando necessário
+- Contrato vencido aparece sinalizado como atrasado — sem travar o trabalho em andamento
 
-- **Domínios** — habilitar cria banco + primeiro `admin`; suspender preserva dados; reabilitar restaura
-- **Papéis** — `system_admin` (só plataforma), `admin`, `gestor`, `prestador` (só suas tarefas)
-- **Contratos** — nome/objeto, finalidade, datas, status; vincular/desvincular prestadores; prorrogação e encerramento; atraso só sinalizado
-- **Tarefas** — fluxo A Fazer → Em Progresso → Revisão → Concluída; conclusão exige texto + fotos opcionais; reabertura com motivo no histórico; comentários e anexos
-- **Busca e filtros** — contrato, status, prioridade, prestador, finalidade, prazo
-- **E-mail opt-in** — quatro gatilhos (atribuição, conclusão, reabertura, vencimento); inerte sem `SMTP_*`
-- **Relatório** — PDF por contrato (+ CSV) com tarefas, conclusão, executor, datas e fotos
-- **Dashboard** — métricas do domínio; prestador vê só as próprias
-- **Realtime** — Socket.io sem reload; validação backend + formulários
+### Tarefas com registro do que foi feito
+- Crie tarefas no contrato e atribua a quem vai executar
+- Acompanhe o fluxo: **A Fazer → Em Progresso → Revisão → Concluída**
+- Na conclusão, o prestador descreve o que feito e anexa fotos como evidência
+- Precisou refazer? O gestor reabre a tarefa com o motivo registrado no histórico
+- Comentários e anexos ficam junto da tarefa
 
-## Stack
+### Visão clara do que importa
+- **Busca e filtros** por contrato, status, prioridade, prestador, finalidade e prazo
+- **Painel (dashboard)** com o andamento do domínio; cada prestador vê só o que é seu
+- **Relatório em PDF** por contrato: o que foi feito, quem executou, datas e fotos
 
-| Camada | Tecnologia |
-|--------|-----------|
-| Frontend | Flutter Web (Dart) — porta 8080/3000 |
-| Backend | Node.js 22+ / Express — porta 3001 |
-| Banco | sql.js — `data/domains/<id>.db` + `data/platform.db` |
-| Auth | JWT com papel + `domainId` |
-| Realtime | Socket.io |
-| Testes backend | `node:test` + supertest (28/28 verdes) |
+### Trabalho em equipe no mesmo ritmo
+- Atualizações aparecem na tela dos outros na hora, sem precisar recarregar
+- Avisos por e-mail (opcional) em atribuição, conclusão, reabertura e vencimento
 
-## Estrutura
+## Como funciona na prática
 
-```
-inhome/
-├── backend/          # API Node/Express, testes co-localizados
-├── frontend/         # App Flutter Web
-├── data/             # SQLite por domínio (gitignored)
-├── specs/            # Artefatos SDD (spec, plan, tasks)
-├── docs/             # Escopo, referência, workflow SDD
-└── scripts/          # Gates e validação
-```
+1. O administrador da plataforma habilita o **domínio** (área de cada cliente) e cria o primeiro usuário administrador
+2. O admin do domínio cadastra usuários e o dicionário de finalidades
+3. O gestor cria o contrato, vincula prestadores e distribui as tarefas
+4. O prestador executa e conclui com texto e fotos
+5. O gestor acompanha pelo painel, reabre se preciso e gera o relatório do contrato
 
-## Como rodar
+## Quem pode o quê
 
-```bash
-# Backend (porta 3001)
-cd backend && npm install && npm start
-# Testes: npm test
+| Ação | system_admin | admin | gestor | prestador |
+|------|:---:|:---:|:---:|:---:|
+| Habilitar/suspender domínio | ✅ | ❌ | ❌ | ❌ |
+| Gerenciar usuários e finalidades | ❌ | ✅ | ❌ | ❌ |
+| Criar contratos, prorrogar, encerrar | ❌ | ✅ | ✅ | ❌ |
+| Criar e atribuir tarefas | ❌ | ✅ | ✅ | ❌ |
+| Concluir tarefa com texto e fotos | ❌ | ✅ | ✅ | só as suas |
+| Reabrir tarefa com motivo | ❌ | ✅ | ✅ | ❌ |
+| Relatório PDF | ❌ | ✅ | ✅ | ❌ |
+| Dashboard | ❌ | completo | completo | só as suas tarefas |
 
-# Frontend (requer Flutter SDK — ausente neste ambiente)
-cd frontend && flutter run -d chrome
-```
-
-## Status
-
-- MVP implementado: 33/34 tarefas; gates spec/plan/tasks PASS
-- Pendência: T031 (testes de widget) aguarda instalação do Flutter SDK
-- Branch `dev` sincronizada com `origin/dev`
+Cada cliente (domínio) tem os dados separados: o que acontece em um domínio não aparece em outro. Suspender um domínio bloqueia o acesso, mas **nunca apaga** os dados.
 
 ## Documentação
 
-- [Documentação técnica](TECHNICAL.md) — API, modelos, endpoints
-- [Escopo aprovado](docs/approved-scope-draft.md) — regras de negócio e matriz de permissões
-- [Workspace da feature](specs/00001-contratos-mvp/spec.md) — requisitos e critérios
-- [Workflow SDD](docs/sdd-pilot.md) — ciclo Specify → QC e gates deste repositório
+- [Escopo aprovado](docs/approved-scope-draft.md) — regras de negócio em detalhe
+- [Documentação técnica](TECHNICAL.md) — para a equipe de desenvolvimento
+- [Workflow SDD](docs/sdd-pilot.md) — processo de desenvolvimento deste repositório
