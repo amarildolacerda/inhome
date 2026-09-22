@@ -1,21 +1,21 @@
 <!-- template-version: 2 -->
-# [PROJECT_NAME] Project Instructions
+# InHome Project Instructions
 
 ## Core Principles
 
 <!-- 3–7 non-negotiable principles. Each: succinct name, MUST/SHOULD rule, rationale. Add or remove ### blocks as needed. -->
 
-### I. [PRINCIPLE_NAME]
+### I. Development On `dev`
 
-[PRINCIPLE_RULE] — [PRINCIPLE_RATIONALE]
+All changes MUST land on `dev` first — `main` stays production-only. Feature branches are created from `dev` and merged back into `dev`; nothing is pushed directly to `main`. Merging `dev` → `main` requires explicit approval from the project owner.
 
-### II. [PRINCIPLE_NAME]
+### II. Test-Gated Promotion
 
-[PRINCIPLE_RULE] — [PRINCIPLE_RATIONALE]
+The unit test suite MUST pass before any `dev` → `main` promotion — a failing unit test blocks the promotion, no exceptions. Rationale: production only ever receives verified code.
 
-### III. [PRINCIPLE_NAME]
+### III. Session TODO Intake
 
-[PRINCIPLE_RULE] — [PRINCIPLE_RATIONALE]
+At the start of every session, read `TODO.md` and surface any new custom TODOs before beginning other work — custom tasks stay visible instead of being lost between sessions.
 
 ### IV. Agent Output Style
 
@@ -32,31 +32,34 @@ All agent output MUST be concise and outcome-oriented. This principle supersedes
 
 <!-- Downstream phases (Plan, QC, Autopilot) read this section as the authoritative tech-stack reference. -->
 
-- **Language/Runtime**: [e.g., TypeScript 5.x / Node 22, Python 3.12, Rust 1.78, Go 1.22]
-- **Frameworks**: [e.g., Next.js 15, Django 5, Actix-web]
-- **Storage**: [e.g., PostgreSQL 16, Redis 7, SQLite — or "none"]
-- **Infrastructure**: [e.g., Docker, AWS ECS, Vercel, bare metal — or "local only"]
+- **Language/Runtime**: Dart 3 (Flutter Web) frontend; Node.js 22+ backend
+- **Frameworks**: Flutter Web; Express + Socket.io
+- **Storage**: JSON file storage with a SQLite-shaped access layer (no native DB driver)
+- **Infrastructure**: local only (backend port 3001, frontend dev port 8080/3000)
+- **Auth**: JWT (`jsonwebtoken`) with `bcryptjs` password hashing
 
 ## Testing & Quality Policy
 
 <!-- QC extracts enforcement rules from this section. Use the keywords below so automated checks activate correctly. -->
 <!-- Keywords recognised by QC: lint, static analysis, code quality, coverage, security, vulnerability, OWASP, WCAG, accessibility, benchmark, performance -->
 
-- **Coverage Target**: [e.g., 80% | 100% | none — omit to skip coverage enforcement]
-- **Required QC Categories**: [e.g., linting, security scanning, accessibility — omit categories you do not require]
-- **Test Strategy**: [e.g., Unit + integration; E2E for critical paths; TDD mandatory]
-- **Linting / Formatting**: [e.g., ESLint + Prettier strict, Clippy, Ruff — or "none"]
+- **Coverage Target**: none until a formal suite exists — then raise deliberately
+- **Required QC Categories**: linting, unit tests before promotion
+- **Test Strategy**: Unit tests are mandatory before every `dev` → `main` promotion; integration/E2E for critical paths (auth, CRUD) should follow
+- **Linting / Formatting**: `flutter analyze` for the frontend; Node syntax/lint for the backend — or "none" where no tool is configured
 
 ## Source Code Layout
 
-- **Policy**: [ENFORCE_SRC_ROOT | PRESERVE_EXISTING_LAYOUT]
-- **Convention**: [e.g., Source code under /src; tests co-located in __tests__/; config at repo root]
+- **Policy**: PRESERVE_EXISTING_LAYOUT
+- **Convention**: Backend under `backend/src/` (config, middleware, models, routes, `server.js`); frontend under `frontend/lib/` (models, screens, services, `main.dart`); SDD scripts under `scripts/`; feature artifacts under `specs/`; governance at repo root (`AGENTS.md`, `project-instructions.md`, `TODO.md`)
 
 ## Development Workflow
 
-- **Branching**: [e.g., Feature branches from main, squash merge]
-- **Commit Convention**: [e.g., Conventional Commits, free-form]
-- **CI Requirements**: [e.g., All tests pass, lint clean, no type errors before merge]
+- **Branching**: Feature branches from `dev`, merge back into `dev`; `main` only via approved promotion
+- **Commit Convention**: Conventional Commits — `<type>: <description>`, types `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+- **CI Requirements**: unit tests pass before merge; `dev` → `main` promotion is blocked while any unit test fails
+- **Versioning**: Semantic Versioning (MAJOR.MINOR.PATCH), initial `v0.0.1`, stored in `backend/.env` (`APP_VERSION`); increment on promotion — `fix:` patch, `feat:` minor, breaking change major
+- **Session start**: read `TODO.md` for new custom TODOs before other work
 
 <!-- Optional: add additional sections below (Security Requirements, Performance Standards, Compliance, etc.) -->
 
@@ -66,7 +69,8 @@ All agent output MUST be concise and outcome-oriented. This principle supersedes
 - Amendments require a version bump with ISO-dated changelog entry.
 - All implementations MUST pass the Instructions Check gate during planning.
 - Complexity beyond these principles MUST be justified and documented.
+- `AGENTS.md` holds only the universal SDD sections; project-specific rules live here.
 
 [GOVERNANCE_ADDITIONAL_RULES]
 
-**Version**: [INSTRUCTIONS_VERSION] | **Last Amended**: [LAST_AMENDED_DATE]
+**Version**: 1 | **Last Amended**: 2026-09-22

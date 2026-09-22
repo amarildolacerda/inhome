@@ -51,61 +51,35 @@ Markers:
 - `qc-report.md` records QC results.
 - `.qc-passed` means current QC has passed only when its report/evidence SHA-256 digests, Git baseline, and repository-state digest validate; pending manual verification and deferred CRITICAL/ERROR bugs block it.
 
-## Git Workflow
+## Artifact Conventions
 
-- **Branch `dev`**: Development branch. All changes MUST be made here first.
-- **Branch `main`**: Production branch. Code only enters `main` after explicit authorization.
-- **Merge `dev` → `main`**: Requires explicit approval from project owner.
-- **Feature branches**: Create from `dev`, merge back into `dev`.
-- **Never push directly to `main`**.
+Ambient primer for edits to files under `specs/<feature-folder>/`. Expanded reference (exceptional lookups only): `.github/skills/artifact-conventions/SKILL.md`.
 
-## Versioning
+### Format Grammars
 
-- **Initial version**: v0.0.1
-- **Config file**: `backend/.env` (variable `APP_VERSION`)
-- **Rule**: Increment version when promoting `dev` → `main`
-  - `fix:` → increment patch (v0.0.1 → v0.0.2)
-  - `feat:` → increment minor (v0.0.1 → v0.1.0)
-  - Breaking changes → increment major (v0.0.1 → v1.0.0)
-- **Format**: Semantic Versioning (MAJOR.MINOR.PATCH)
+- Task: `- [ ] T### [P?] [US#|OBJ#?] {(FR|TR|OR|RR)-###?} [COMPLETES req?] Description [after:T###?] [← T###:Symbol?] [→ exports: Symbol?] [VERIFY: <command>]?*`
+- Requirement: `- **(FR|TR|OR|RR)-###** [US#|OBJ#]: ...`
+- Success criterion: `SC-### [US#|OBJ#]: [Measurable, technology-agnostic outcome]`
+- Checklist item: `- [ ] CHK### <question> [Quality Dimension, Spec §X.Y]`
+- Bug task: `- [ ] T### [BUG:severity] [RECURRING?] [ESCALATED?] [DEFERRED?] {(FR|TR|OR|RR)-###} [category] Description — file:line`
+- Stress-test finding: `STF-###: [Category] (Severity) — Affected: [IDs] — [summary]`
 
-## Commit Convention
+### Immutable IDs
 
-- Format: `<type>: <description>` (e.g., `feat: add user authentication`)
-- Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-- Messages must be clear and descriptive.
+Never change, renumber, or delete cross-referenced `T###`, `CHK###`, `FR-###`, `TR-###`, `OR-###`, `RR-###`, `SC-###`, `AD-###`, `ADR-NNNN`, or `STF-###` IDs. `[VERIFY: <command>]` command text is an executable assertion, not a stable ID; correcting a broken command is allowed. Respect `[NEEDS CLARIFICATION]` markers until the user approves an answer.
 
-## Technology Stack
+### Checkbox Transition
 
-- **Frontend**: Flutter Web (Dart)
-- **Backend**: Node.js (Express)
-- **Database**: SQLite (via JSON file storage)
-- **Real-time**: Socket.io
-- **Auth**: JWT (jsonwebtoken)
+The only valid completion transition is `- [ ]` → `- [X]`. Never revert `[X]` → `[ ]` or delete a checkbox line without explicit user approval.
 
-## Project Structure
+### Spec Section Rules
 
-```
-/mnt/c/git/inhome
-├── backend/          # Node.js API
-│   ├── src/
-│   │   ├── config/   # Database config
-│   │   ├── middleware/ # Auth middleware
-│   │   ├── models/   # Data models
-│   │   ├── routes/   # API routes
-│   │   └── server.js # Entry point
-│   └── package.json
-├── frontend/         # Flutter Web
-│   ├── lib/
-│   │   ├── models/   # Data models
-│   │   ├── screens/  # UI screens
-│   │   ├── services/ # API services
-│   │   └── main.dart # Entry point
-│   └── pubspec.yaml
-├── scripts/          # SDD Pilot validation scripts
-├── specs/            # Feature workspace artifacts
-└── project-instructions.md
-```
+Product specs require `Problem Statement`, `Scope`, `User Scenarios & Testing`, `Requirements`, `Assumptions & Risks`, `Implementation Signals`, and `Success Criteria`; technical specs use `Technical Objectives` and `Integration Points`; operational specs use `Operational Objectives` and `Integration Points`. Mandatory sections stay even when empty. Size budget: ≤ **10KB**.
+
+### Plan and Tasks Size Limits
+
+- `plan.md`: preserve `Instructions Check`, `Technical Context`, `Requirement Coverage Map`, and `Acceptance Test Stubs`; populate coverage paths and symbols. Size limit: ≤ **10KB**.
+- `tasks.md`: preserve `Dependencies` and existing phase headers. Size limit: ≤ **6KB** and 40 tasks.
 
 ## Communication Style
 
@@ -165,3 +139,6 @@ Resume compact mode after the risky section is clear.
 ## Continuous Execution Policy
 
 Execute routine repository operations for real: file edits, build/test/lint commands, git commands, task updates, marker files, and local package installs. Do not simulate completion, test results, QC results, or pass states. Stop only for ambiguity, destructive actions, system-level installs, or actions outside the project boundary. Report progress at phase boundaries.
+
+- At session start, read `TODO.md` and surface any new custom TODOs before beginning other work.
+- Unit tests gate production: run the unit test suite before any `dev` → `main` promotion and do not promote while any test fails.
