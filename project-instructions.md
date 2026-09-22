@@ -69,10 +69,19 @@ All agent output MUST be concise and outcome-oriented.
 - Feature branches → `dev`: Após revisão de código
 - Nunca fazer push direto em `main`
 
+### Versionamento
+- **Versão inicial**: v0.0.1
+- **Arquivo de configuração**: `backend/.env` (variável `APP_VERSION`)
+- **Regra**: Ao promover `dev` → `main`, incrementar a versão
+  - `fix:` → incrementar patch (v0.0.1 → v0.0.2)
+  - `feat:` → incrementar minor (v0.0.1 → v0.1.0)
+  - Breaking changes → incrementar major (v0.0.1 → v1.0.0)
+- **Formato**: Semantic Versioning (MAJOR.MINOR.PATCH)
+
 ## Governance
 
 - Project instructions supersede all other documentation and practices.
 - Amendments require a version bump with ISO-dated changelog entry.
 - All implementations MUST pass the Instructions Check gate during planning.
 
-**Version**: 1.0.0 | **Last Amended**: 2026-09-22
+**Version**: 0.0.1 | **Last Amended**: 2026-09-22
