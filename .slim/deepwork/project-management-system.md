@@ -68,6 +68,12 @@
 - Verificação de fluxo completo
 - Deploy preparation
 
+## Git Workflow
+- **Branch `dev`**: Desenvolvimento (todas as alterações vão aqui)
+- **Branch `main`**: Produção (merge requer autorização explícita)
+- **Commits**: Conventional Commits (`feat:`, `fix:`, etc.)
+- **Feature Branches**: Criar a partir de `dev`, mergear de volta em `dev`
+
 ## Status
 - **Fase Atual:** Setup
 - **Bloqueios:** Nenhum
