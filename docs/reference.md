@@ -1,6 +1,6 @@
 # SDD Pilot — Reference
 
-This document contains detailed reference material for SDD Pilot internals, agent mappings, configuration, and conventions. For an overview and getting started guide, see [README.md](../README.md).
+This document contains detailed reference material for SDD Pilot internals, agent mappings, configuration, and conventions. For an overview and getting started guide, see [SDD Pilot documentation](./sdd-pilot.md).
 
 ## Artifact Taxonomy
 

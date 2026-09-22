@@ -1,306 +1,73 @@
-# SDD Pilot
+# Sistema de Gestão de Contratos de Terceiros
 
-[![License: MIT](https://img.shields.io/github/license/attilaszasz/sdd-pilot)](LICENSE)
-[![Latest Release](https://img.shields.io/github/v/release/attilaszasz/sdd-pilot)](https://github.com/attilaszasz/sdd-pilot/releases/latest)
-[![VS Code](https://img.shields.io/badge/VS%20Code-%E2%89%A5%201.109-007ACC?logo=visualstudiocode&logoColor=white)](https://code.visualstudio.com/)
-[![GitHub Copilot](https://img.shields.io/badge/GitHub%20Copilot-native-8957e5?logo=githubcopilot&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=GitHub.copilot)
-[![OpenAI Codex](https://img.shields.io/badge/OpenAI%20Codex-skills-412991?logo=openai&logoColor=white)](https://developers.openai.com/codex)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/attilaszasz/sdd-pilot/pulls)
+Dashboard multi-domínio para administrar contratos de terceiros: vigência, tarefas com conclusão documentada, evidências e relatório por contrato.
 
-Enhance your AI coding tool with a structured, spec-driven delivery workflow.
+## Visão
 
-## What is SDD Pilot?
+Cada **domínio** é um cliente com isolamento físico de dados (SQLite por domínio). O `system_admin` habilita e suspende domínios na plataforma; dentro do domínio, `admin` e `gestor` administram contratos e tarefas; o `prestador` executa e conclui apenas as tarefas atribuídas a ele.
 
-Most AI coding tools jump straight to code. SDD Pilot adds a [spec-driven development](https://www.linkedin.com/pulse/ai-augmented-spec-driven-development-lifecycle-attila-szász-64e9f/) layer on top — so you specify *what* to build before *how* to build it.
-
-- **Phase-by-phase process** — each feature moves through Specify → Plan → Tasks → Implement → QC
-- **Quality gates** — you cannot skip ahead; each phase requires the previous phase's artifacts
-- **Structured artifacts** — specs, plans, tasks, and QC reports live under `specs/<feature-folder>/`
-- **Specialized agents** — a dedicated role (Product Manager, Architect, Engineer, QC) handles each phase
-- **Autopilot mode** — run the full pipeline unattended with a single command
-
-> **Runtime output:** Workflow and sub-agent communication is compact by default. Milestone updates prefer `done / issues / next`, while safety warnings, destructive actions, and parser-sensitive artifacts stay explicit.
-
-> **Compatibility:** Works with **GitHub Copilot**, **Antigravity**, **Windsurf**, **OpenCode**, **Claude Code**, and **OpenAI Codex**.
-
-> **Codex behavior:** Codex wrappers explicitly stop for user answers at interactive decision points instead of inferring the recommended option. `/sddp-autopilot` remains the explicit unattended exception.
-
-> **Heritage:** SDD Pilot evolved from [Spec Kit](https://github.com/github/spec-kit) ([0.0.90](https://github.com/github/spec-kit/releases/tag/v0.0.90)).
-
----
-
-## How It Works
-
-SDD Pilot has two workflows: an optional **project bootstrap** to set up shared context, and the **feature delivery** lifecycle you repeat for each feature.
-
-### Project Bootstrap (optional)
-
-Set up reusable product, architecture, and operations context before building features.
-
-```mermaid
-flowchart TB
-   B((Start)) --> PRD["/sddp-prd · Product Discovery"]
-   B -.-> SA
-   PRD --> SA["/sddp-systemdesign · Architecture"]
-   SA --> DO["/sddp-devops · Operations"]
-   SA --> PP["/sddp-projectplan · Epic Planning"]
-   DO -.-> PP
-   PP --> Init["/sddp-init · Governance"]
-   PP -.-> Amend["/sddp-amend · Cross-Artifact Amend"]
-   Init -.-> Amend
-   B --> Init
-
-   style B fill:#455A64,stroke:#263238,color:#fff
-   style PRD fill:#6D4C41,stroke:#3E2723,color:#fff
-   style SA fill:#5D4037,stroke:#3E2723,color:#fff
-   style DO fill:#00796B,stroke:#004D40,color:#fff
-   style PP fill:#283593,stroke:#1A237E,color:#fff
-   style Amend fill:#00838F,stroke:#006064,color:#fff
-   style Init fill:#512DA8,stroke:#311B92,color:#fff
+```
+system_admin
+  └── Domínio (habilitado | suspenso)
+        ├── Contratos → prestadores vinculados → tarefas
+        └── Usuários (admin, gestor, prestador)
 ```
 
-| Command | What it does |
-|---------|-------------|
-| `/sddp-prd` | Creates or refines the canonical PRD through quick or adaptive, resumable product discovery |
-| `/sddp-systemdesign` | Adaptively designs and validates the SAD, architecture views, major data flows, and standalone MADR records |
-| `/sddp-devops` | Defines deployment & operations context (`specs/dod.md`) |
-| `/sddp-projectplan` | Decomposes the project into prioritized epics (`specs/project-plan.md`) |
-| `/sddp-amend` | Propagates a new project-level change across existing bootstrap artifacts and the project plan |
-| `/sddp-init` | Sets up project governance rules (`project-instructions.md`) |
-| `/sddp-regen` | Archives a completed prototype and regenerates all canonical bootstrap artifacts from scratch, informed by learnings |
+## Escopo MVP
 
-All bootstrap steps except `/sddp-init` are optional. Once bootstrap artifacts exist, use `/sddp-amend` to keep them aligned when scope or strategy changes. You can still jump straight to `/sddp-init` and start delivering features.
+- **Domínios** — habilitar cria banco + primeiro `admin`; suspender preserva dados; reabilitar restaura
+- **Papéis** — `system_admin` (só plataforma), `admin`, `gestor`, `prestador` (só suas tarefas)
+- **Contratos** — nome/objeto, finalidade, datas, status; vincular/desvincular prestadores; prorrogação e encerramento; atraso só sinalizado
+- **Tarefas** — fluxo A Fazer → Em Progresso → Revisão → Concluída; conclusão exige texto + fotos opcionais; reabertura com motivo no histórico; comentários e anexos
+- **Busca e filtros** — contrato, status, prioridade, prestador, finalidade, prazo
+- **E-mail opt-in** — quatro gatilhos (atribuição, conclusão, reabertura, vencimento); inerte sem `SMTP_*`
+- **Relatório** — PDF por contrato (+ CSV) com tarefas, conclusão, executor, datas e fotos
+- **Dashboard** — métricas do domínio; prestador vê só as próprias
+- **Realtime** — Socket.io sem reload; validação backend + formulários
 
-#### Product discovery modes
+## Stack
 
-With no mode flag, `/sddp-prd` uses `--quick`: at most two focused question batches, useful research only when needed, then validator-backed creation or refinement of the canonical PRD. The default path is `specs/prd.md`; an already registered custom Product Document remains the sole write target. The validated path is registered in `.github/sddp-config.md`.
+| Camada | Tecnologia |
+|--------|-----------|
+| Frontend | Flutter Web (Dart) — porta 8080/3000 |
+| Backend | Node.js 22+ / Express — porta 3001 |
+| Banco | sql.js — `data/domains/<id>.db` + `data/platform.db` |
+| Auth | JWT com papel + `domainId` |
+| Realtime | Socket.io |
+| Testes backend | `node:test` + supertest (28/28 verdes) |
 
-- `--quick` runs the focused default path.
-- `--discover` starts or reopens adaptive discovery, moving through framing, evidence, stakeholder, scope, decision, readiness, and synthesis stages as needed.
-- `--resume` continues an active or paused discovery from its durable ledger.
-- `--skip-research` skips external research and can modify quick, discover, or resume mode.
+## Estrutura
 
-Quick mode creates neither discovery artifact. Discover/resume maintains `specs/prd-discovery.md`; if external research runs, it also writes `specs/prd-research.md`. Interactive questions always require an explicit answer. Recommendations are guidance only, and free-form answers remain available where permitted.
-
-The workflow validates both a temporary candidate and the live PRD with `scripts/validate-prd.mjs` before registration. `prd_maturity: draft` records a structurally valid but incomplete product definition. `/sddp-projectplan` and `/sddp-autopilot` require the validator's `planning-ready` profile, completed matching discovery, and canonical registration; project planning also requires the Technical Context Document.
-
-See the [`/sddp-prd` user guide](docs/sddp-prd-user-guide.md) for theoretical examples covering simple products, research-free runs, multi-sided discovery, regulated products, resumed sessions, and safe PRD refinement.
-
-See the [`/sddp-systemdesign` user guide](docs/sddp-systemdesign-user-guide.md) for theoretical examples covering simple applications, compound SaaS platforms, regulated systems, streaming architectures, and brownfield refinement.
-
-### Feature Delivery
-
-The core lifecycle you run for each feature:
-
-```mermaid
-flowchart TB
-   S["/sddp-specify · Specify"] --> C["/sddp-clarify · Clarify"]
-   S --> P["/sddp-plan · Plan"]
-   C --> P
-   P --> CH["/sddp-checklist · Checklist ⚬"]
-   P --> T["/sddp-tasks · Tasks"]
-   CH --> T
-   T --> A["/sddp-analyze · Analyze ⚬"]
-   T --> I["/sddp-implement · Implement"]
-   A --> I
-   I --> QC["/sddp-qc · QC"]
-   QC -->|PASS| R["Release Ready ✓"]
-   QC -->|FAIL| I
-
-   Auto["/sddp-autopilot"] -.-> S
-   Loop["/sddp-implement-qc-loop"] -.-> I
-
-   style S fill:#1976D2,stroke:#0D47A1,color:#fff
-   style C fill:#F57C00,stroke:#E65100,color:#fff
-   style P fill:#00796B,stroke:#004D40,color:#fff
-   style CH fill:#7B1FA2,stroke:#4A148C,color:#fff
-   style T fill:#D32F2F,stroke:#B71C1C,color:#fff
-   style A fill:#0288D1,stroke:#01579B,color:#fff
-   style I fill:#37474F,stroke:#263238,color:#fff
-   style QC fill:#C62828,stroke:#B71C1C,color:#fff
-   style R fill:#2E7D32,stroke:#1B5E20,color:#fff
-   style Auto fill:#00695C,stroke:#004D40,color:#fff
-   style Loop fill:#6A1B9A,stroke:#4A148C,color:#fff
+```
+inhome/
+├── backend/          # API Node/Express, testes co-localizados
+├── frontend/         # App Flutter Web
+├── data/             # SQLite por domínio (gitignored)
+├── specs/            # Artefatos SDD (spec, plan, tasks)
+├── docs/             # Escopo, referência, workflow SDD
+└── scripts/          # Gates e validação
 ```
 
-*Phases marked ⚬ are optional but recommended.*
-
-| Phase | Command | What it produces |
-|-------|---------|-----------------|
-| **Specify** | `/sddp-specify` | `spec.md` — user stories, requirements, success criteria |
-| **Clarify** | `/sddp-clarify` | Updated `spec.md` with resolved ambiguities |
-| **Plan** | `/sddp-plan` | `plan.md` — architecture decisions, tech context |
-| **Checklist** | `/sddp-checklist` | `checklists/*.md` — requirements quality checks |
-| **Tasks** | `/sddp-tasks` | `tasks.md` — phased, dependency-ordered task list |
-| **Analyze** | `/sddp-analyze` | Consistency report (no files modified) |
-| **Implement** | `/sddp-implement` | Source code with tasks marked complete |
-| **QC** | `/sddp-qc` | `qc-report.md` — tests, lint, security, traceability |
-
-### Quality Gates
-
-Each phase requires the previous phase's output. Three handoffs also run mandatory structural validators:
-
-- **Spec → Plan:** the Spec Validator requires complete frontmatter, concrete P1 acceptance criteria, no more than three unresolved clarification markers, and no unresolved CRITICAL/HIGH stress-test finding.
-- **Plan → Tasks:** the Plan Validator requires complete P1 coverage in the Requirement Coverage Map, no orphaned architecture decisions, and installable declared dependencies.
-- **Tasks → Implement:** the Tasks Validator requires valid phased tasks, at most 40 tasks, P1 task coverage, no circular dependencies, and a `tasks.md` size of at most 6 KB.
-- A failed validator blocks the next phase. Interactive runs may explicitly choose “Proceed anyway”; autopilot stops.
-- No planning without `spec.md`, no tasks without `plan.md`, and no implementation without `tasks.md`.
-- Unfinished checklists block implementation unless the user explicitly overrides.
-- No QC without `.completed` (set when all tasks pass)
-- No release without a `.qc-passed` marker whose report/evidence SHA-256 digests, Git baseline, and repository-state digest validate
-- If QC fails, `.completed` is removed and `[BUG]` tasks are injected into `tasks.md`
-- `project-instructions.md` rules are enforced throughout
-
-### Writing quality
-
-Every phase applies the writing-quality contract in `AGENTS.md` while composing user-facing text and artifact prose. The pass removes stock AI phrasing, filler, and vague claims before structural validation. It edits only prose created or changed by the current task and preserves artifact structure, IDs, commands, evidence, quoted text, and machine-readable content.
-
-The expanded rules live in `.github/skills/writing-quality/SKILL.md`. They are ambient workflow guidance, not a public command or a separate lifecycle phase.
-
-### Autopilot
-
-Run the entire feature-delivery pipeline unattended:
-
-```text
-/sddp-autopilot Build user authentication with email/password
-```
-
-**Requires:** Autopilot enabled in `.github/sddp-config.md`, plus a registered Product Document and Technical Context Document. The setting authorizes `/sddp-autopilot`; it does not make standalone commands unattended. If either document is missing, run `/sddp-prd` and/or `/sddp-systemdesign` first.
-
-For OpenAI Codex, this unattended behavior is specific to `/sddp-autopilot`. The other Codex commands ask and wait at workflow decision points.
-
-Autopilot is provided through the repository's tool-specific workflow wrappers; there is no separate standalone `orchestrator/` package.
-
----
-
-## Getting Started
-
-### Prerequisites
-
-| Tool | Requirements |
-|------|-------------|
-| **Runtime** | Node.js 22 or newer installed and available as `node`; use a supported LTS release; workflows execute bundled validation and lifecycle scripts |
-| **GitHub Copilot** | VS Code ≥ 1.109, Copilot Chat extension, active Copilot access |
-| **Antigravity** | Antigravity installed |
-| **Windsurf** | Windsurf IDE installed |
-| **OpenCode** | OpenCode IDE or CLI installed |
-| **OpenAI Codex** | Codex CLI installed (`npm i -g @openai/codex`), active ChatGPT plan or OpenAI API key |
-| **Claude Code** | Claude Code CLI, active Anthropic API key or Claude Max subscription |
-
-> **Tip — environment setup:** Run `/sddp-devsetup` to analyze your repo and get a guided setup walkthrough.
-
-> **Tip — model choice:** You do not need the most expensive tiers. Recommended **GPT-5.4** or **Claude Sonnet 4.6**  
-
-### Installation
-
-1. Go to the [Releases page](https://github.com/attilaszasz/sdd-pilot/releases/latest).
-2. Download the archive for your tool:
-   - **GitHub Copilot** → `sdd-pilot-copilot-vX.Y.Z.zip`
-   - **Antigravity** → `sdd-pilot-antigravity-vX.Y.Z.zip`
-   - **Windsurf** → `sdd-pilot-windsurf-vX.Y.Z.zip`
-   - **OpenCode** → `sdd-pilot-opencode-vX.Y.Z.zip`
-   - **OpenAI Codex** → `sdd-pilot-codex-vX.Y.Z.zip`
-   - **Claude Code** → `sdd-pilot-claude-code-vX.Y.Z.zip`
-
-3. Extract the archive contents directly to your project root. Hidden discovery directories such as `.github/`, `.opencode/`, or `.claude/` are already at the archive root; no wrapper directory needs to be moved or renamed.
-
-> **Do not copy only Markdown files.** The workflows call the archive's `scripts/*.mjs` files for structural validation, task parsing, feature resolution, completion state, and QC evidence. A missing `node` executable or `scripts/` directory blocks the affected phase rather than substituting model judgment for those checks.
-
-### Quick Start
+## Como rodar
 
 ```bash
-# 1. Initialize project governance
-#    (optionally run /sddp-prd and /sddp-systemdesign first for richer context)
-```
-```text
-/sddp-init My project is a Node.js monorepo using TypeScript.
-```
+# Backend (porta 3001)
+cd backend && npm install && npm start
+# Testes: npm test
 
-```bash
-# 2. Create a feature branch and deliver a feature
-git checkout -b 00001-user-auth
-```
-```text
-/sddp-specify Build user authentication with email/password
-/sddp-clarify
-/sddp-plan
-/sddp-tasks
-/sddp-implement
-/sddp-qc
+# Frontend (requer Flutter SDK — ausente neste ambiente)
+cd frontend && flutter run -d chrome
 ```
 
-Or replace the feature commands with a single autopilot run:
-```text
-/sddp-autopilot Build user authentication with email/password
-```
+## Status
 
-> **QC feedback loop:** If `/sddp-qc` fails, it injects `[BUG]` tasks and removes `.completed`. Run `/sddp-implement` again, then re-run `/sddp-qc`. Or use `/sddp-implement-qc-loop` to automate this cycle (up to 10 iterations).
+- MVP implementado: 33/34 tarefas; gates spec/plan/tasks PASS
+- Pendência: T031 (testes de widget) aguarda instalação do Flutter SDK
+- Branch `dev` sincronizada com `origin/dev`
 
-> **Interrupted?** Re-run `/sddp-implement` in a new chat. Completed tasks (marked `[X]`) are automatically skipped.
+## Documentação
 
-> **Same chat or new chat?** Both work. Each command resets its context. A new chat is only recommended for `/sddp-specify` when starting a brand-new feature.
-
-### Safe Markdown Compression
-
-Every release archive includes an optional markdown compressor for narrative-heavy docs. It is not required for SDD lifecycle execution:
-
-```bash
-node scripts/compress-markdown.mjs --check docs/reference.md
-node scripts/compress-markdown.mjs docs/reference.md
-```
-
-It is intentionally narrow. Allowed targets are `README.md`, `docs/**/*.md`, and feature-level `research.md`, `analysis-report.md`, and `manual-test.md`. Governance files are admitted only through the exact manifest in `scripts/lib/markdown-compression.mjs`; the first gated target is `.github/sddp/workflows/implement-tasks/WORKFLOW.md`, where only `<rules>` and `<workflow>` prose can change. All other workflow, instruction, and parser-sensitive files remain blocked. The validator preserves frontmatter, headings, fenced code, inline code, links, IDs, tables, checkbox lines, list structure, and lines outside gated blocks exactly. Use `--idempotent` to make CI fail when an allowlisted file can still be compressed; in-place writes retain a one-time `.original.md` backup.
-
----
-
-## Feature Workspaces
-
-Each feature gets its own workspace under `specs/`. The workspace name is derived from your git branch:
-
-```text
-Branch: 00001-user-auth  →  specs/00001-user-auth/
-```
-
-New workspaces must use the `#####-feature-name` format (e.g. `00001-user-auth`). If your branch doesn't match this pattern, `/sddp-specify` will prompt you for a name.
-
-## Repository Validation
-
-The repository now treats wrapper propagation and ambient governance hoists as checkable contracts. CI runs `scripts/drift-report.mjs` and fails if any supported wrapper surface is missing, points at the wrong canonical target, diverges from its expected tool-specific behavior, or reloads a hoisted runtime contract.
-
-Release validation also permits support-tool imports only from explicit `node:` built-ins and repository-relative modules. Any proposed exception changes the consumer dependency model and requires explicit maintainer review with an updated policy test; do not weaken the existing cases ad hoc.
-
-Run the same validation locally with:
-
-```bash
-# Full source checkout
-node scripts/drift-report.mjs --output .build/drift-report --strict
-
-# Host-specific release installation
-node scripts/drift-report.mjs --host opencode --output .build/drift-report --strict
-```
-
-The drift report writes three artifacts under `.build/drift-report/`:
-
-- `drift-report.json` — machine-readable inventory, statuses, and findings
-- `drift-report.md` — workflow matrix, agent matrix, findings, and embedded Mermaid diagram
-- `drift-report.mmd` — raw Mermaid source for reuse in other tooling
-
-The source release manifest declares four script inventories: core lifecycle runtime, installed diagnostics (`drift-report.mjs`, `compress-markdown.mjs`, and the v0.33 migration helper), release documentation/legal files, and source-only maintainer tooling. Archives contain the first three categories only.
-
-The workflow matrix covers every public command across Copilot, Claude Code, Codex, Antigravity, OpenCode, and Windsurf. Canonical command orchestration lives under `.github/sddp/workflows/`; reusable support skills remain under `.github/skills/`. Validation recursively checks canonical delegates and enforces one-to-one wrapper inventories. The agent matrix consumes the immutable registry in `scripts/lib/delegated-agents.mjs` and shows Copilot, Claude, OpenCode, and Codex availability around canonical `.github/agents/` files.
-
-Status meanings:
-
-- `in-sync` — target, delegate mapping, and surface contract matched expectations
-- `missing` — an expected wrapper file is absent
-- `stale-reference` — a wrapper points at the wrong canonical workflow or delegate target
-- `normalized-drift` — a wrapper still points at the right target but its tool-specific behavior contract drifted
-- `unsupported-extra` — an unexpected wrapper file exists outside the supported inventory
-
-## Reference
-
-- [Full reference documentation](docs/reference.md) — agent role mapping, artifact taxonomy, sddp-config internals, workspace conventions
-- [Glossary](docs/glossary.md) — definitions of SDD Pilot workflow, artifact, validation, and traceability terms
-- [Lifecycle and governance rules](AGENTS.md)
-- [Shared project context](.github/sddp-config.md)
-- [Specs file conventions](.github/instructions/sddp-specs.instructions.md)
+- [Documentação técnica](TECHNICAL.md) — API, modelos, endpoints
+- [Escopo aprovado](docs/approved-scope-draft.md) — regras de negócio e matriz de permissões
+- [Workspace da feature](specs/00001-contratos-mvp/spec.md) — requisitos e critérios
+- [Workflow SDD](docs/sdd-pilot.md) — ciclo Specify → QC e gates deste repositório
