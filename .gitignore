@@ -10,3 +10,4 @@ frontend/.dart_tool/
 frontend/.packages
 frontend/build/
 frontend/pubspec.lock
+.git_token
