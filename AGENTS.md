@@ -1,4 +1,4 @@
-# SDD Pilot — Agent Context
+# AGENTS.md — Project Manager
 
 Apply the Spec-Driven Development rules below during feature delivery. Enforce the lifecycle order, phase gates, conventions, and execution policy. If any rule here conflicts with `project-instructions.md`, follow `project-instructions.md`.
 
@@ -51,49 +51,61 @@ Markers:
 - `qc-report.md` records QC results.
 - `.qc-passed` means current QC has passed only when its report/evidence SHA-256 digests, Git baseline, and repository-state digest validate; pending manual verification and deferred CRITICAL/ERROR bugs block it.
 
-## Artifact Conventions
+## Git Workflow
 
-The rules below are the ambient runtime primer for feature artifacts. The expanded canonical reference is `.github/skills/artifact-conventions/SKILL.md`; read it only for rationale, exceptions, or remediation details not covered here. `scripts/drift-report.mjs --strict` checks that this primer retains the required contract sentinels.
+- **Branch `dev`**: Development branch. All changes MUST be made here first.
+- **Branch `main`**: Production branch. Code only enters `main` after explicit authorization.
+- **Merge `dev` → `main`**: Requires explicit approval from project owner.
+- **Feature branches**: Create from `dev`, merge back into `dev`.
+- **Never push directly to `main`**.
 
-These rules apply to `specs/<feature-folder>/` feature artifacts and standalone ADRs under `specs/adrs/`. They do not apply to project context specs such as `specs/prd.md`, `specs/sad.md`, `specs/dod.md`, `specs/project-plan.md`, or epic detail files under `specs/plan/`.
+## Versioning
 
-### Preservation
+- **Initial version**: v0.0.1
+- **Config file**: `backend/.env` (variable `APP_VERSION`)
+- **Rule**: Increment version when promoting `dev` → `main`
+  - `fix:` → increment patch (v0.0.1 → v0.0.2)
+  - `feat:` → increment minor (v0.0.1 → v0.1.0)
+  - Breaking changes → increment major (v0.0.1 → v1.0.0)
+- **Format**: Semantic Versioning (MAJOR.MINOR.PATCH)
 
-- Do not reorder product story or non-product objective priorities (`P1`, `P2`, `P3`) without explicit user approval.
-- Do not change `T###`, `CHK###`, `FR-###`, `TR-###`, `OR-###`, `RR-###`, `SC-###`, `AD-###`, `ADR-NNNN`, or `STF-###` IDs.
-- Do not rename, renumber, or delete standalone ADR files; do not write them outside the ADR Author subagent.
-- `[VERIFY: <command>]` text is executable and may be corrected; it is not a cross-referenced ID.
-- Resolve `[NEEDS CLARIFICATION]` only with user-approved answers.
-- Feature reruns default to refinement: preserve existing IDs, checkbox lines/state, phase headers, checklist paths, BUG history, and downstream references. Autopilot never authorizes destructive regeneration.
-- Destructive regeneration is an interactive-only migration: require explicit user approval, snapshot affected artifacts, provide a complete old-ID → new-ID mapping, update every downstream reference atomically, and validate that no checked line or unmapped ID was lost. Otherwise halt without writes.
+## Commit Convention
 
-### Checkbox State
+- Format: `<type>: <description>` (e.g., `feat: add user authentication`)
+- Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+- Messages must be clear and descriptive.
 
-- The only valid implementation transition is `- [ ]` → `- [X]`.
-- Never reverse `- [X]` → `- [ ]` or delete a checkbox line without explicit user approval.
+## Technology Stack
 
-### Format Grammars
+- **Frontend**: Flutter Web (Dart)
+- **Backend**: Node.js (Express)
+- **Database**: SQLite (via JSON file storage)
+- **Real-time**: Socket.io
+- **Auth**: JWT (jsonwebtoken)
 
-- Task: `- [ ] T### [P?] [US#|OBJ#?] {(FR|TR|OR|RR)-###?} [COMPLETES req?] Description [after:T###?] [← T###:Symbol?] [→ exports: Symbol?] [VERIFY: <command>]?*`
-- Requirement: `- **(FR|TR|OR|RR)-###** [US#|OBJ#]: ...` (owner determines priority)
-- Success criterion: `SC-### [US#|OBJ#]: [Measurable, technology-agnostic outcome]`
-- Checklist item: `- [ ] CHK### <question> [Quality Dimension, Spec §X.Y]`
-- Bug task: `- [ ] T### [BUG:severity] [RECURRING?] [ESCALATED?] [DEFERRED?] {(FR|TR|OR|RR)-###} [category] Description — file:line`
-- Stress-test finding: `STF-###: [Category] (Severity) — Affected: [IDs] — [summary]`
-- Bug severities are `CRITICAL` | `ERROR` | `WARNING`; categories are `test-failure` | `lint-error` | `security-vuln` | `coverage-gap` | `requirement-gap` | `pi-violation` | `runtime-error`.
+## Project Structure
 
-### Required Structure
-
-- `spec.md`: honor `spec_type` (default `product`), keep its type-specific mandatory top-level sections, and do not add unauthorized top-level sections.
-- Product specs require `Problem Statement`, `Scope`, `User Scenarios & Testing`, `Requirements`, `Assumptions & Risks`, `Implementation Signals`, and `Success Criteria`; technical specs use `Technical Objectives` and `Integration Points`; operational specs use `Operational Objectives` and `Integration Points`.
-- `plan.md`: preserve `Instructions Check`, `Technical Context`, `Requirement Coverage Map`, and `Acceptance Test Stubs`; populate coverage paths and symbols. Size limit: ≤ **10KB**.
-- `tasks.md`: preserve `Dependencies` and existing phase headers. Size limit: ≤ **6KB** and 40 tasks.
-- Checklist files: preserve `CHK###` IDs and quality-dimension tags.
-- Checklist output paths are immutable. Every new checklist uses a unique path; never overwrite an existing checklist file.
-- `qc-report.md` is generated only by `/sddp-qc`; `.completed` and `.qc-passed` are managed only by `/sddp-implement` and `/sddp-qc`.
-- `divergence-log.md` and `autopilot-log.md` are append-only; self-healing artifact edits are limited to `/sddp-implement`.
-
-Violations are **CRITICAL** for changed cross-referenced IDs, unauthorized priority changes, removed required sections, or ADR file mutations; **HIGH** for ADR writes outside the ADR Author, removed clarification markers, or reversed checkboxes; **MEDIUM** for unauthorized spec sections or format deviations.
+```
+/mnt/c/git/inhome
+├── backend/          # Node.js API
+│   ├── src/
+│   │   ├── config/   # Database config
+│   │   ├── middleware/ # Auth middleware
+│   │   ├── models/   # Data models
+│   │   ├── routes/   # API routes
+│   │   └── server.js # Entry point
+│   └── package.json
+├── frontend/         # Flutter Web
+│   ├── lib/
+│   │   ├── models/   # Data models
+│   │   ├── screens/  # UI screens
+│   │   ├── services/ # API services
+│   │   └── main.dart # Entry point
+│   └── pubspec.yaml
+├── scripts/          # SDD Pilot validation scripts
+├── specs/            # Feature workspace artifacts
+└── project-instructions.md
+```
 
 ## Communication Style
 
@@ -121,7 +133,7 @@ Runtime communication from any skill or sub-agent MUST also follow the contract 
 
 ### Writing Quality
 
-Apply a writing-quality pass to user-facing text and newly written or changed prose before delivery. The expanded reference is `.github/skills/writing-quality/SKILL.md`; do not reload it during routine workflow execution.
+Apply a writing-quality pass to user-facing text and newly written or changed prose before delivery.
 
 - Preserve meaning, scope, certainty, evidence, citations, and the user's voice.
 - Prefer concrete facts, plain words, active voice, and natural sentence rhythm. Remove puffery, stock AI phrasing, filler, vague attribution, forced symmetry, and generic conclusions.
@@ -149,7 +161,6 @@ Resume compact mode after the risky section is clear.
 - Never compress or mutate artifact grammars, IDs, checkbox state, or required section headers.
 - For parser-sensitive files under `specs/`, write concise normal prose; do not rewrite them into stylized shorthand.
 - Readability beats maximum compression for persisted artifacts.
-- For allowlisted narrative Markdown, prefer validator-backed compression via `.github/skills/markdown-compression/SKILL.md` instead of ad hoc rewrites.
 
 ## Continuous Execution Policy
 
