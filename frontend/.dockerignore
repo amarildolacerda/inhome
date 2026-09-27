@@ -1,0 +1,7 @@
+# Frontend build context
+build
+.dart_tool
+.flutter-plugins
+.flutter-plugins-dependencies
+Dockerfile
+.dockerignore

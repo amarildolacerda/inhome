@@ -4,7 +4,9 @@ mode: subagent
 hidden: true
 permission:
   edit: "allow"
-  bash: "deny"
+  bash:
+    "*": deny
+    "echo *": allow
   task:
     "*": deny
 ---

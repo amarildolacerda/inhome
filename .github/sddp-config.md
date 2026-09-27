@@ -4,11 +4,11 @@
 
 ## Product Document
 
-**Path**: 
+**Path**: specs/prd.md
 
 ## Technical Context Document
 
-**Path**: 
+**Path**: specs/sad.md
 
 ## Deployment & Operations Document
 
@@ -16,7 +16,10 @@
 
 ## Project Plan
 
-**Path**: 
+<!-- A high-level decomposition of the project into epics with dependency ordering and execution waves. -->
+<!-- Registered by /sddp-projectplan when specs/project-plan.md is created. -->
+
+**Path**: specs/project-plan.md
 
 ## Checklist Settings
 
@@ -43,4 +46,4 @@
 <!-- Managed by /sddp-init. QC reads this section — do not edit manually. -->
 
 **Coverage Target**: 
-**Required Categories**: 
+**Required Categories**: linting, security

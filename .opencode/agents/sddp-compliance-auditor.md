@@ -3,7 +3,9 @@ description: Perform non-destructive cross-artifact consistency and quality anal
 mode: subagent
 permission:
   edit: "allow"
-  bash: "deny"
+  bash:
+    "*": deny
+    "echo *": allow
   task:
     "*": deny
     sddp-context-gatherer: allow

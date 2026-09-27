@@ -55,15 +55,15 @@ test.before(async () => {
   await request(app)
     .post('/api/users')
     .set(as(adminToken))
-    .send({ name: 'Gilda', email: 'gilda@epsilon.test', password: 'Secret1!', role: 'gestor' });
+    .send({ name: 'Gilda', email: 'gilda@epsilon.test', password: 'Secret1!', role: 'gestor', username: 'gilda' });
   await request(app)
     .post('/api/users')
     .set(as(adminToken))
-    .send({ name: 'Paulo', email: 'paulo@epsilon.test', password: 'Secret1!', role: 'prestador' });
+    .send({ name: 'Paulo', email: 'paulo@epsilon.test', password: 'Secret1!', role: 'prestador', username: 'paulo' });
   await request(app)
     .post('/api/users')
     .set(as(adminToken))
-    .send({ name: ' Paula', email: 'paula@epsilon.test', password: 'Secret1!', role: 'prestador' });
+    .send({ name: ' Paula', email: 'paula@epsilon.test', password: 'Secret1!', role: 'prestador', username: 'paula' });
 
   gestorToken = await login('gilda@epsilon.test', 'Secret1!', domainId);
   prestadorToken = await login('paulo@epsilon.test', 'Secret1!', domainId);

@@ -3,7 +3,9 @@ description: Generate a custom requirements quality checklist for the current fe
 mode: subagent
 permission:
   edit: "allow"
-  bash: "deny"
+  bash:
+    "*": deny
+    "echo *": allow
   task:
     "*": deny
     sddp-context-gatherer: allow

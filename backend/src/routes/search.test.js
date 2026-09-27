@@ -66,7 +66,7 @@ test.before(async () => {
     const res = await request(app)
       .post('/api/users')
       .set(as(adminToken))
-      .send({ name, email, password: 'Secret1!', role });
+      .send({ name, email, password: 'Secret1!', role, username: email.split('@')[0] });
     assert.strictEqual(res.status, 201);
   }
   gestorToken = await login('guto@teta.test', 'Secret1!', domainId);

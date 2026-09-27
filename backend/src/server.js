@@ -11,7 +11,7 @@ const { initDatabase } = require('./config/database');
 const app = express();
 const server = http.createServer(app);
 
-const CORS_ORIGINS = ['http://localhost:8080', 'http://localhost:3000'];
+const CORS_ORIGINS = ['http://localhost', 'http://localhost:80', 'http://localhost:8080', 'http://localhost:3000'];
 const DEFAULT_PORT = 3001; // FR-029: backend binds 3001; frontend runs on 8080/3000
 
 const io = new Server(server, {
@@ -23,7 +23,19 @@ const io = new Server(server, {
 
 // Middleware
 app.use(cors({ origin: CORS_ORIGINS, credentials: true }));
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '2mb' }),
+  //debugging middleware to log incoming requests
+  (req, res, next) => {
+    console.log(`${req.method} ${req.url}`);
+    // se for uma requisição POST ou PUT, logar o corpo da requisição
+    if (req.method === 'POST' || req.method === 'PUT') {
+      console.log('Request body:', req.body);
+    }
+    console.log(`---------------------------------------------`);
+    next();
+  }
+
+);
 
 // Make io accessible to routes
 app.set('io', io);
@@ -68,7 +80,7 @@ io.on('connection', (socket) => {
     socket.leave(`domain_${domainId}`);
   });
 
-  socket.on('disconnect', () => {});
+  socket.on('disconnect', () => { });
 });
 
 // Error handling
@@ -83,7 +95,7 @@ async function start(port = Number(process.env.PORT) || DEFAULT_PORT) {
   await initDatabase();
   // FR-017 trigger 4/4: due-task sweep — hourly; inert without SMTP_* (AD-004).
   const { runDueSweep } = require('./services/email');
-  const sweep = () => runDueSweep().catch(() => {});
+  const sweep = () => runDueSweep().catch(() => { });
   sweep();
   setInterval(sweep, 60 * 60 * 1000).unref();
   return new Promise((resolve, reject) => {

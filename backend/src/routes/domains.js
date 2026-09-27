@@ -51,6 +51,8 @@ function enableDomain({ name, adminName, adminEmail, adminPassword }) {
   const domain = platform.get('SELECT id, name, slug, status, created_at FROM domains WHERE slug = ?', [slug]);
 
   const db = createDomainDb(domain.id);
+  // The enable dialog only collects name/email, so the first admin is created
+  // without a username (column is nullable); it can log in by email alone.
   db.run('INSERT INTO users(name, email, password_hash, role) VALUES (?, ?, ?, ?)', [
     String(adminName).trim(),
     String(adminEmail).trim().toLowerCase(),

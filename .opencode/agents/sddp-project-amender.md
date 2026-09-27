@@ -3,7 +3,9 @@ description: Propagate a project-level bootstrap change across canonical artifac
 mode: subagent
 permission:
   edit: "allow"
-  bash: "deny"
+  bash:
+    "*": deny
+    "echo *": allow
   task:
     "*": deny
     sddp-adr-author: allow

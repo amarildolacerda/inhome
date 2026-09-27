@@ -16,15 +16,29 @@ class User {
     return db.get('SELECT * FROM users WHERE email = ?', [email]);
   }
 
+  // Login identifier (routes/auth.js): exact match on email OR username.
+  // Both columns are stored lowercase; the caller normalizes the input.
+  static findAuthByIdentifier(db, identifier) {
+    return db.get('SELECT * FROM users WHERE email = ? OR username = ?', [
+      identifier,
+      identifier,
+    ]);
+  }
+
+  static findByUsername(db, username) {
+    return db.get('SELECT * FROM users WHERE username = ?', [username]);
+  }
+
   static findByEmail(db, email) {
     return User.findAuth(db, email);
   }
 
-  static create(db, { name, email, password, role }) {
+  static create(db, { name, email, password, role, username = null }) {
     const password_hash = bcrypt.hashSync(password, 10);
-    db.run('INSERT INTO users(name, email, password_hash, role) VALUES (?, ?, ?, ?)', [
+    db.run('INSERT INTO users(name, email, username, password_hash, role) VALUES (?, ?, ?, ?, ?)', [
       name,
       email,
+      username,
       password_hash,
       role,
     ]);
@@ -38,7 +52,7 @@ class User {
   }
 
   static update(db, id, fields) {
-    const allowed = ['name', 'email', 'role', 'active'];
+    const allowed = ['name', 'email', 'username', 'role', 'active'];
     const sets = [];
     const params = [];
     for (const key of allowed) {
@@ -60,7 +74,7 @@ class User {
 
   static list(db) {
     return db
-      .all('SELECT id, name, email, role, active, created_at, updated_at FROM users ORDER BY id')
+      .all('SELECT id, name, email, username, role, active, created_at, updated_at FROM users ORDER BY id')
       .map((row) => ({ ...row, active: row.active === undefined ? 1 : row.active }));
   }
 }

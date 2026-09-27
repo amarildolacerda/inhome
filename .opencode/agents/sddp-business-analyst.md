@@ -3,7 +3,9 @@ description: Identify underspecified areas in a feature spec and resolve them th
 mode: subagent
 permission:
   edit: "allow"
-  bash: "deny"
+  bash:
+    "*": deny
+    "echo *": allow
   task:
     "*": deny
     sddp-context-gatherer: allow

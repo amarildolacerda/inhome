@@ -54,3 +54,40 @@ test('FR-025 sql.js', async () => {
   // idempotent init; no native better-sqlite3 build required (AD-001)
   assert.strictEqual(await database.initSqlDriver(), SQL);
 });
+
+// Domain databases created before the username column gain it on open
+// (nullable; the UNIQUE constraint only exists on fresh schemas).
+test('username migration for legacy domain dbs', async () => {
+  const SQL = await database.initSqlDriver();
+  const platform = database.getPlatformDb();
+  platform.run('INSERT INTO domains(name, slug) VALUES (?, ?)', ['Legacy', 'legacy']);
+  const legacy = platform.get('SELECT id FROM domains WHERE slug = ?', ['legacy']);
+
+  // pre-username users table written straight to disk
+  const file = path.join(dataDir, 'domains', `${legacy.id}.db`);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const raw = new SQL.Database();
+  raw.run(`CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('admin','gestor','prestador')),
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  fs.writeFileSync(file, Buffer.from(raw.export()));
+  raw.close();
+
+  // opening through getDomainDb migrates the column in
+  const db = database.getDomainDb(legacy.id);
+  const columns = db.all('PRAGMA table_info(users)').map((column) => column.name);
+  assert.ok(columns.includes('username'), 'username column migrated');
+
+  db.run(
+    "INSERT INTO users(name, email, password_hash, role) VALUES ('Old', 'old@legacy.test', 'x', 'admin')"
+  );
+  const row = db.get('SELECT username FROM users WHERE email = ?', ['old@legacy.test']);
+  assert.strictEqual(row.username, null, 'migrated column is nullable');
+});

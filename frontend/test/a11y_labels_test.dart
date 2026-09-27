@@ -16,5 +16,6 @@ void main() {
     );
     expect(find.text('Contraste ok'), findsOneWidget);
     expect(AppTheme.light.scaffoldBackgroundColor, isNotNull);
-  }, skip: 'pending T031 — Flutter SDK not installed in this environment');
+    // pending T031 — Flutter SDK not installed in this environment
+  }, skip: true);
 }

@@ -4,13 +4,20 @@ Custom project TODOs. Agents read this file at session start.
 
 ## Pending
 
-- [ ] Backend HTTP end-to-end test (register → login → project → task → dashboard)
-- [ ] Formal unit test suite + `npm test` script (required by the production gate rule)
-- [ ] Fase 6: Real-time — wire Socket.io events to the Flutter frontend
-- [ ] Fase 7: Validação
-- [ ] SDD bootstrap: `/sddp-init`, `/sddp-prd`, `/sddp-systemdesign`, `/sddp-projectplan` (fill `.github/sddp-config.md` paths; create `specs/`)
-- [ ] Flutter SDK local install (frontend not buildable in this environment yet)
-- [ ] Update `.slim/deepwork/project-management-system.md` progress file
-- [ ] Remove unused `sql.js` dependency from `backend/package.json` — now obsolete: `sql.js` is the chosen driver (keep it)
-- [ ] Remodel backend/frontend: projects → contratos; add domínios, papéis (system_admin/admin/gestor/prestador), vínculo prestador↔contrato, conclusão documentada + fotos, reabertura justificada, comentários/anexos, busca/filtros, e-mail (SMTP opt-in), relatório PDF por contrato, SQLite por domínio (fonte: `docs/approved-scope-draft.md`)
-- [ ] Reiniciar OpenCode para aplicar os modelos corrigidos (`mimo-v2.6-flash-free`) — lanes designer/fixer ainda falham com `mimo-v2.5-free`/`hy3-free` do processo em memória
+- [ ] Commit do bootstrap SDD + governança — arquivos alterados sem commit: `.github/sddp-config.md` (paths prd/sad/project-plan + Derived QC Policy), `project-instructions.md` (v2.1.0), `specs/{prd,sad,project-plan}.md` + `specs/plan/E001..E010.md` + `specs/prd-discovery.md` (novos), fix dos agents `.opencode/agents/sddp-*.md` (bash workaround) — aguarda pedido explícito do usuário
+- [ ] Próximo passo do ciclo SDD: `/sddp-specify E001` (epic P1, wave 1 de `specs/project-plan.md`) — ou continuar `specs/00001-contratos-mvp/` (`tasks.md` com T031 aberto) com `/sddp-implement`
+- [ ] Autopilot: `**Enabled**: false` em `.github/sddp-config.md` (único pré-requisito para AUTOPILOT_READY; ativar só se o usuário quiser execução sem interação)
+
+## Done
+
+- [X] SDD bootstrap: `/sddp-prd` → `specs/prd.md` (valid, CAP-001..009, digest `79217e…00ca`); `/sddp-systemdesign` → `specs/sad.md` (valid, 7 boundaries, 10 vistas, BQ1..BQ4/Q1..Q6 decididos); `/sddp-projectplan` → `specs/project-plan.md` + `specs/plan/E001..E010.md` (freshness PASS, 10 épicas/3 ondas, CAP 9/9); `/sddp-init` → `project-instructions.md` v2.1.0 + `## Derived QC Policy` (`linting, security`) — paths registrados em `.github/sddp-config.md`
+- [X] Reiniciar OpenCode — config corrigida (`opencode.json` modelo `opencode/mimo-v2.6-flash-free`) + workaround `bash: {"*": deny, "echo *": allow}` em 24 agents `sddp-*`; restart feito, lanes `sddp-*` operacionais
+
+- [X] Fase 7: Validação — E2E 28/28 no stack publicado (nginx :80): login plataforma → habilitar domínio → auto-resolução → finalidade → prestador c/ username → contrato → vínculo → tarefa → fluxo de status → conclusão c/ foto → reabertura c/ motivo → comentário → anexo → busca → PDF/CSV → dashboard → escopos 403/401. Script: `backend/test.sh` (16 checks, isolado) — preparação de deploy = compose + proxy já em produção local
+- [X] Backend HTTP end-to-end test — `backend/test.sh` reescrito (DATA_DIR temporário, porta 3199, 16/16 checks: login → domínio → auto-resolução → username → contrato → tarefa → dashboard)
+- [X] Formal unit test suite + `npm test` script — `node --test 'src/**/*.test.js'`, 35 testes passando (`server.test.js` requer porta 3001 livre)
+- [X] Fase 6: Real-time — Socket.io ligado em sessões de domínio (`main.dart:_resolveRole`) e consumido em `tasks_screen` + `contract_detail_screen` via `domainEvents`
+- [X] Flutter SDK local install — obsoleto: frontend builda via Docker (`frontend/Dockerfile`) neste ambiente
+- [X] Update `.slim/deepwork/project-management-system.md` progress file
+- [X] `sql.js` dependency — resolvido: `sql.js` é o driver escolhido, manter
+- [X] Remodel backend/frontend: projects → contratos; domínios, papéis (system_admin/admin/gestor/prestador), vínculo prestador↔contrato, conclusão documentada + fotos, reabertura justificada, comentários/anexos, busca/filtros, e-mail (SMTP opt-in), relatório PDF por contrato, SQLite por domínio (fonte: `docs/approved-scope-draft.md`)

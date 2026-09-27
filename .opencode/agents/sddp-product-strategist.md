@@ -3,7 +3,9 @@ description: Create or refine the canonical project-level Product Requirements D
 mode: subagent
 permission:
   edit: "allow"
-  bash: "deny"
+  bash:
+    "*": deny
+    "echo *": allow
   task:
     "*": deny
     sddp-technical-researcher: allow

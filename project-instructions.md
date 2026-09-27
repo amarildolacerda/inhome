@@ -3,8 +3,6 @@
 
 ## Core Principles
 
-<!-- 3–7 non-negotiable principles. Each: succinct name, MUST/SHOULD rule, rationale. Add or remove ### blocks as needed. -->
-
 ### I. Development On `dev`
 
 All changes MUST land on `dev` first — `main` stays production-only. Feature branches are created from `dev` and merged back into `dev`; nothing is pushed directly to `main`. Merging `dev` → `main` requires explicit approval from the project owner.
@@ -43,10 +41,11 @@ All agent output MUST be concise and outcome-oriented. This principle supersedes
 <!-- QC extracts enforcement rules from this section. Use the keywords below so automated checks activate correctly. -->
 <!-- Keywords recognised by QC: lint, static analysis, code quality, coverage, security, vulnerability, OWASP, WCAG, accessibility, benchmark, performance -->
 
-- **Coverage Target**: none until a formal suite exists — then raise deliberately
-- **Required QC Categories**: linting, unit tests before promotion
+- **Coverage Target**: none — no numeric gate; the mandatory pre-promotion unit test suite is the current quality bar; raise to a numeric target deliberately
+- **Required QC Categories**: linting, security scanning, unit tests before promotion
 - **Test Strategy**: Unit tests are mandatory before every `dev` → `main` promotion; integration/E2E for critical paths (auth, CRUD) should follow
 - **Linting / Formatting**: `flutter analyze` for the frontend; Node syntax/lint for the backend — or "none" where no tool is configured
+- **Security Scanning**: backend dependencies MUST pass `npm audit --audit-level=high` before every `dev` → `main` promotion; `frontend/pubspec.yaml` has no maintained Dart scanner, so dependency and route review (auth, uploads, per-domain data isolation) is manual against OWASP Top 10 and SHOULD run before each promotion
 
 ## Source Code Layout
 
@@ -61,8 +60,6 @@ All agent output MUST be concise and outcome-oriented. This principle supersedes
 - **Versioning**: Semantic Versioning (MAJOR.MINOR.PATCH), initial `v0.0.1`, stored in `backend/.env` (`APP_VERSION`); increment on promotion — `fix:` patch, `feat:` minor, breaking change major
 - **Session start**: read `TODO.md` for new custom TODOs before other work
 
-<!-- Optional: add additional sections below (Security Requirements, Performance Standards, Compliance, etc.) -->
-
 ## Governance
 
 - Project instructions supersede all other documentation and practices.
@@ -71,9 +68,8 @@ All agent output MUST be concise and outcome-oriented. This principle supersedes
 - Complexity beyond these principles MUST be justified and documented.
 - `AGENTS.md` holds only the universal SDD sections; project-specific rules live here.
 
-[GOVERNANCE_ADDITIONAL_RULES]
+**Version**: 2.1.0 | **Last Amended**: 2026-09-27
 
-**Version**: 2 | **Last Amended**: 2026-09-22
-
+- v2.1.0 (2026-09-27): Added `security scanning` to Required QC Categories (npm audit gate for backend dependencies plus manual OWASP Top 10 review); clarified that the coverage target stays empty; removed the unused governance-rules placeholder; `## Derived QC Policy` in `.github/sddp-config.md` is now maintained by `/sddp-init`.
 - v2 (2026-09-22): Storage changed from JSON file to per-domain SQLite (`sql.js`) with a platform database; added multi-domain isolation and disk uploads. Scope source: `docs/approved-scope-draft.md`.
 - v1 (2026-09-22): Initial governance.

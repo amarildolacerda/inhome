@@ -3,7 +3,9 @@ description: Generate an actionable task list from a feature implementation plan
 mode: subagent
 permission:
   edit: "allow"
-  bash: "deny"
+  bash:
+    "*": deny
+    "echo *": allow
   task:
     "*": deny
     sddp-context-gatherer: allow

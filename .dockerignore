@@ -1,0 +1,18 @@
+# Root build-context ignore (compose builds use ./backend and ./frontend as
+# contexts; those have their own .dockerignore files).
+.git
+.git_token
+.env
+.env.*
+node_modules
+data
+backend/uploads
+specs
+docs
+scripts
+frontend/build
+frontend/.dart_tool
+.build
+.slim
+.opencode
+*.log

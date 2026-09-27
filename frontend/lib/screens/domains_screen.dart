@@ -42,84 +42,15 @@ class _DomainsScreenState extends State<DomainsScreen> {
     }
   }
 
+  /// Abre o diálogo de habilitação e recarrega a lista só quando o diálogo
+  /// devolve sucesso (POST feito de dentro dele, com erro visível lá dentro).
   Future<void> _showEnableDialog() async {
-    final nameController = TextEditingController();
-    final adminNameController = TextEditingController();
-    final adminEmailController = TextEditingController();
-    final adminPasswordController = TextEditingController();
-
     final created = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Habilitar Domínio'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nome do domínio',
-                  border: OutlineInputBorder(),
-                ),
-                autofocus: true,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: adminNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nome do primeiro admin',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: adminEmailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email do admin',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: adminPasswordController,
-                decoration: const InputDecoration(
-                  labelText: 'Senha do admin',
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Habilitar'),
-          ),
-        ],
-      ),
+      builder: (context) => const _EnableDomainDialog(),
     );
-
-    if (created == true && nameController.text.isNotEmpty) {
-      try {
-        await api.post('/domains/enable', body: {
-          'name': nameController.text,
-          'adminName': adminNameController.text,
-          'adminEmail': adminEmailController.text,
-          'adminPassword': adminPasswordController.text,
-        });
-        _loadDomains();
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-        }
-      }
+    if (created == true && mounted) {
+      _loadDomains();
     }
   }
 
@@ -182,6 +113,167 @@ class _DomainsScreenState extends State<DomainsScreen> {
         icon: const Icon(Icons.add),
         label: const Text('Habilitar Domínio'),
       ),
+    );
+  }
+}
+
+/// Diálogo de habilitação [FR-001]: valida no cliente (as mesmas regras de
+/// enableDomain em backend/src/routes/domains.js), envia POST /domains/enable
+/// de dentro do diálogo e só fecha no sucesso — em erro o diálogo permanece
+/// aberto com os valores digitados e a mensagem aparece ali dentro.
+class _EnableDomainDialog extends StatefulWidget {
+  const _EnableDomainDialog();
+
+  @override
+  State<_EnableDomainDialog> createState() => _EnableDomainDialogState();
+}
+
+class _EnableDomainDialogState extends State<_EnableDomainDialog> {
+  final api = ApiService();
+  final _nameController = TextEditingController();
+  final _adminNameController = TextEditingController();
+  final _adminEmailController = TextEditingController();
+  final _adminPasswordController = TextEditingController();
+
+  bool _submitting = false;
+  String? _apiError;
+  String? _nameError;
+  String? _adminNameError;
+  String? _emailError;
+  String? _passwordError;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _adminNameController.dispose();
+    _adminEmailController.dispose();
+    _adminPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final name = _nameController.text.trim();
+    final adminName = _adminNameController.text.trim();
+    final adminEmail = _adminEmailController.text.trim();
+    final password = _adminPasswordController.text;
+
+    // Espelha enableDomain (backend/src/routes/domains.js) — erro aparece no
+    // campo, sem fechar o diálogo e sem chamada de rede.
+    setState(() {
+      _nameError = name.isEmpty ? 'Informe o nome do domínio' : null;
+      _adminNameError = adminName.isEmpty ? 'Informe o nome do admin' : null;
+      _emailError = adminEmail.contains('@') ? null : 'Email inválido';
+      _passwordError = password.length >= 6 ? null : 'Mínimo 6 caracteres';
+      _apiError = null;
+    });
+    if (_nameError != null ||
+        _adminNameError != null ||
+        _emailError != null ||
+        _passwordError != null) {
+      return;
+    }
+
+    setState(() => _submitting = true);
+    try {
+      await api.post('/domains/enable', body: {
+        'name': name,
+        'adminName': adminName,
+        'adminEmail': adminEmail,
+        'adminPassword': password,
+      });
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      // Diálogo continua aberto com os campos preenchidos.
+      setState(() {
+        _submitting = false;
+        _apiError = _message(e);
+      });
+    }
+  }
+
+  /// Texto do backend sem o invólucro 'Exception: '.
+  String _message(Object error) {
+    final text = error.toString();
+    return text.startsWith('Exception: ')
+        ? text.substring('Exception: '.length)
+        : text;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Habilitar Domínio'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_apiError != null) ...[
+              Text(
+                _apiError!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+              const SizedBox(height: 12),
+            ],
+            TextField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                labelText: 'Nome do domínio',
+                border: const OutlineInputBorder(),
+                errorText: _nameError,
+              ),
+              autofocus: true,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _adminNameController,
+              decoration: InputDecoration(
+                labelText: 'Nome do primeiro admin',
+                border: const OutlineInputBorder(),
+                errorText: _adminNameError,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _adminEmailController,
+              decoration: InputDecoration(
+                labelText: 'Email do admin',
+                border: const OutlineInputBorder(),
+                errorText: _emailError,
+              ),
+              keyboardType: TextInputType.emailAddress,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _adminPasswordController,
+              decoration: InputDecoration(
+                labelText: 'Senha do admin',
+                border: const OutlineInputBorder(),
+                errorText: _passwordError,
+              ),
+              obscureText: true,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed:
+              _submitting ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _submitting ? null : _submit,
+          child: _submitting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Habilitar'),
+        ),
+      ],
     );
   }
 }

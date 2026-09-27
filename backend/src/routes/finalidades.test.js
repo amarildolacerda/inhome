@@ -46,7 +46,7 @@ test.before(async () => {
   const prestador = await request(app)
     .post('/api/users')
     .set('Authorization', `Bearer ${adminToken}`)
-    .send({ name: 'Pedro', email: 'pedro@delta.test', password: 'Secret1!', role: 'prestador' });
+    .send({ name: 'Pedro', email: 'pedro@delta.test', password: 'Secret1!', role: 'prestador', username: 'pedro' });
   assert.strictEqual(prestador.status, 201);
   const pLogin = await request(app)
     .post('/api/auth/login')

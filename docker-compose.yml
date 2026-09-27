@@ -1,0 +1,26 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "3001:3001"
+    volumes:
+      # dataDir() → DATA_DIR (see backend/src/config/database.js)
+      - ./data:/app/data
+      # UPLOAD_DIR (see backend/src/middleware/upload.js)
+      - ./backend/uploads:/app/uploads
+    environment:
+      DATA_DIR: /app/data
+      UPLOAD_DIR: /app/uploads
+    env_file:
+      # JWT_SECRET, PORT, SMTP_* — copy backend/.env.example to backend/.env.
+      - path: ./backend/.env
+        required: false
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped

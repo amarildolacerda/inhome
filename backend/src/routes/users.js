@@ -14,8 +14,9 @@ function httpError(status, message) {
   return err;
 }
 
-function createUser(db, { name, email, password, role }) {
+function createUser(db, { name, username, email, password, role }) {
   if (!name || !String(name).trim()) throw httpError(400, 'name is required');
+  if (!username || !String(username).trim()) throw httpError(400, 'username is required');
   if (!email || !String(email).includes('@')) throw httpError(400, 'email is invalid');
   if (!password || String(password).length < 6) {
     throw httpError(400, 'password must be at least 6 characters');
@@ -24,15 +25,21 @@ function createUser(db, { name, email, password, role }) {
   if (User.findAuth(db, String(email).trim().toLowerCase())) {
     throw httpError(409, 'Email already registered');
   }
+  const handle = String(username).trim().toLowerCase();
+  if (User.findByUsername(db, handle)) {
+    throw httpError(409, 'Username already registered');
+  }
   return User.create(db, {
     name: String(name).trim(),
     email: String(email).trim().toLowerCase(),
+    username: handle,
     password,
     role,
   });
 }
 
-// FR-004: admin creates users with role admin/gestor/prestador.
+// FR-004: admin creates users with role admin/gestor/prestador. username is
+// required and unique per domain (case-insensitive after normalization).
 function create(req, res) {
   try {
     const db = getDomainDb(req.user.domainId);
@@ -62,6 +69,13 @@ function update(req, res) {
     const fields = {};
     if (Object.hasOwn(req.body || {}, 'name')) fields.name = req.body.name;
     if (Object.hasOwn(req.body || {}, 'email')) fields.email = String(req.body.email).toLowerCase();
+    if (Object.hasOwn(req.body || {}, 'username')) {
+      const handle = String(req.body.username ?? '').trim().toLowerCase();
+      if (!handle) return res.status(400).json({ error: 'username is required' });
+      const clash = db.get('SELECT id FROM users WHERE username = ? AND id != ?', [handle, id]);
+      if (clash) return res.status(409).json({ error: 'Username already registered' });
+      fields.username = handle;
+    }
     if (Object.hasOwn(req.body || {}, 'role')) {
       if (!ROLES.includes(req.body.role)) {
         return res.status(400).json({ error: `role must be one of ${ROLES.join(', ')}` });

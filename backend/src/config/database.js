@@ -105,6 +105,7 @@ const DOMAIN_SCHEMA = [
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE,
+    username TEXT UNIQUE,
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL CHECK (role IN ('admin','gestor','prestador')),
     active INTEGER NOT NULL DEFAULT 1,
@@ -208,11 +209,24 @@ function applySchema(wrapper, statements) {
   for (const sql of statements) wrapper.db.run(sql);
 }
 
+// Domain databases created before the username column: SQLite cannot add a
+// UNIQUE constraint through ALTER, so the column lands nullable and
+// uniqueness is enforced app-level in routes/users.js (plus the UNIQUE
+// constraint in DOMAIN_SCHEMA for freshly created databases).
+function migrateSchema(wrapper) {
+  if (wrapper.kind !== 'domain') return;
+  const columns = wrapper.all('PRAGMA table_info(users)').map((column) => column.name);
+  if (!columns.includes('username')) {
+    wrapper.run('ALTER TABLE users ADD COLUMN username TEXT');
+  }
+}
+
 function openDb(file, kind, schema) {
   const exists = fs.existsSync(file);
   const db = exists ? new SQL.Database(fs.readFileSync(file)) : new SQL.Database();
   const wrapper = new Sqlite(db, file, kind);
   applySchema(wrapper, schema);
+  migrateSchema(wrapper);
   ensureIndexes(wrapper);
   if (!exists) wrapper.persist();
   return wrapper;

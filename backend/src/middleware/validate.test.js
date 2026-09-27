@@ -72,7 +72,7 @@ test.before(async () => {
   const gestor = await request(app)
     .post('/api/users')
     .set(as(adminToken))
-    .send({ name: 'Guto', email: 'guto@teta.test', password: 'Secret1!', role: 'gestor' });
+    .send({ name: 'Guto', email: 'guto@teta.test', password: 'Secret1!', role: 'gestor', username: 'guto' });
   assert.strictEqual(gestor.status, 201);
   gestorToken = await login('guto@teta.test', 'Secret1!', domainId);
 });

@@ -3,7 +3,9 @@ description: Archive a completed prototype and regenerate all canonical bootstra
 mode: subagent
 permission:
   edit: "allow"
-  bash: "deny"
+  bash:
+    "*": deny
+    "echo *": allow
   task:
     "*": deny
     sddp-adr-author: allow

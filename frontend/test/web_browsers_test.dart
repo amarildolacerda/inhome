@@ -11,5 +11,6 @@ void main() {
     await tester.pumpWidget(const ProjectManagerApp());
     await tester.pump();
     expect(find.byType(ProjectManagerApp), findsOneWidget);
-  }, skip: 'pending T031 — Flutter SDK not installed in this environment');
+    // pending T031 — Flutter SDK not installed in this environment
+  }, skip: true);
 }
