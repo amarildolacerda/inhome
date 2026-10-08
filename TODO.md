@@ -5,10 +5,13 @@ Custom project TODOs. Agents read this file at session start.
 ## Pending
 
 - [ ] Commit do bootstrap SDD + governança — arquivos alterados sem commit: `.github/sddp-config.md` (paths prd/sad/project-plan + Derived QC Policy), `project-instructions.md` (v2.1.0), `specs/{prd,sad,project-plan}.md` + `specs/plan/E001..E010.md` + `specs/prd-discovery.md` (novos), fix dos agents `.opencode/agents/sddp-*.md` (bash workaround) — aguarda pedido explícito do usuário
-- [ ] Próximo passo do ciclo SDD: `/sddp-specify E001` (epic P1, wave 1 de `specs/project-plan.md`) — ou continuar `specs/00001-contratos-mvp/` (`tasks.md` com T031 aberto) com `/sddp-implement`
-- [ ] Autopilot: `**Enabled**: false` em `.github/sddp-config.md` (único pré-requisito para AUTOPILOT_READY; ativar só se o usuário quiser execução sem interação)
+- [ ] Padronização de nomenclatura em inglês no banco: fases 2–5 pendentes (coluna `finalidade_id` + chaves de resposta, enums de dado, papéis, superfície de API) — inventário, ordem e critérios em `docs/naming-conventions.md`; fase 1 (tabelas) concluída em 2026-10-06
 
 ## Done
+
+- [X] Ciclo SDD de E001 concluído: `specs/00002-e001-ciclo-dominio-papeis-e-acesso` fechado com `.completed` + `.qc-passed` (QC PASS, 2026-10-06)
+- [X] Feature 00003 concluída: `specs/00003-workflow-assistido-contrato` com 40/40 tasks, checklists 87/87, `.completed` + `.qc-passed` (QC PASS, 2026-10-08)
+- [X] `specs/00001-contratos-mvp`: T031 (FR-027/FR-028) destravado — `web_browsers_test`/`a11y_labels_test` sem `skip`, flutter 13/13 e analyze limpo; 34/34 tasks e `.completed` gravado (2026-10-08). QC deste workspace ainda não executado
 
 - [X] SDD bootstrap: `/sddp-prd` → `specs/prd.md` (valid, CAP-001..009, digest `79217e…00ca`); `/sddp-systemdesign` → `specs/sad.md` (valid, 7 boundaries, 10 vistas, BQ1..BQ4/Q1..Q6 decididos); `/sddp-projectplan` → `specs/project-plan.md` + `specs/plan/E001..E010.md` (freshness PASS, 10 épicas/3 ondas, CAP 9/9); `/sddp-init` → `project-instructions.md` v2.1.0 + `## Derived QC Policy` (`linting, security`) — paths registrados em `.github/sddp-config.md`
 - [X] Reiniciar OpenCode — config corrigida (`opencode.json` modelo `opencode/mimo-v2.6-flash-free`) + workaround `bash: {"*": deny, "echo *": allow}` em 24 agents `sddp-*`; restart feito, lanes `sddp-*` operacionais

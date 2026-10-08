@@ -6,7 +6,9 @@ const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
-const { initDatabase } = require('./config/database');
+const jwt = require('jsonwebtoken');
+const { initDatabase, getDomainDb } = require('./config/database');
+const { jwtSecret, assertDomainActive } = require('./middleware/auth');
 
 const app = express();
 const server = http.createServer(app);
@@ -47,7 +49,17 @@ function emitDomainEvent(event, domainId, payload = {}) {
 }
 require('./services/events').setEmitter(emitDomainEvent);
 
+// FR-021: estado da geração para o polling de GET /api/contracts/:id/analysis
+// (recurso consultado pelo frontend sem recarregar; null = sem análise ainda).
+function getAnalysisStatus(domainId, contractId) {
+  if (!Number.isInteger(contractId) || contractId <= 0) return null;
+  const db = getDomainDb(domainId);
+  return require('./models/TaskSuggestion').analysisState(db, contractId);
+}
+
 // SC-005: completion photos stay on disk (FR-023) and are served by reference.
+// E001 exception (spec Excluded): /uploads stays outside token and suspension
+// checks — the accepted risk covers the API only.
 app.use('/uploads', express.static(require('./middleware/upload').UPLOAD_DIR));
 
 // Routes
@@ -56,9 +68,17 @@ app.use('/api/domains', require('./routes/domains'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/finalidades', require('./routes/finalidades'));
 app.use('/api/contracts', require('./routes/contracts')); // AD-003: projects remodeled to contratos
+app.use('/api/contracts', require('./routes/definitions')); // 00003 FR-001/FR-017: definições versionadas
+app.use('/api/contracts', require('./routes/workflow')); // 00003 FR-010: opt-in + workflow ativo
+app.use('/api/contracts', require('./routes/review')); // 00003 US7: revisão na vigência
+const suggestionsRouter = require('./routes/suggestions'); // 00003: análise + sugestões
+app.use('/api/contracts', suggestionsRouter.nested); // POST /api/contracts/:id/analysis
+app.use('/api/suggestions', suggestionsRouter);
+app.use('/api/opencode', require('./routes/opencodeConfig')); // 00003 NEW-CONFIG: timeout/flags
 const tasksRouter = require('./routes/tasks');
 app.use('/api/contracts', tasksRouter.nested); // POST /api/contracts/:contractId/tasks
 app.use('/api/tasks', tasksRouter);
+app.use('/api/tasks', require('./routes/executionPlan')); // 00003 FR-014/FR-015: /:id/execution-plan
 app.use('/api/tasks', require('./routes/comments')); // FR-015: /:id/comments
 app.use('/api/tasks', require('./routes/attachments')); // FR-015: /:id/attachments
 app.use('/api/search', require('./routes/search')); // FR-016: combined filters
@@ -69,15 +89,53 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// WebSocket — domain rooms (FR-020). join_domain binds a socket to a tenant
-// room; mutations from routes emit into the same room.
+// WebSocket — domain rooms (FR-020). A sessão entra pelo handshake: sem JWT
+// válido a conexão nem chega aqui, e o domínio da sala vem do token — nunca do
+// cliente (FR-005/FR-014). O domínio suspenso cai junto, como na API.
+io.use((socket, next) => {
+  const { auth, query } = socket.handshake;
+  const token = (auth && auth.token) || (query && query.token);
+  if (!token || typeof token !== 'string') {
+    return next(new Error('unauthorized'));
+  }
+  try {
+    const user = jwt.verify(token, jwtSecret());
+    if (user.domainId !== null && user.domainId !== undefined) {
+      assertDomainActive(user.domainId);
+    }
+    socket.data.user = user;
+    return next();
+  } catch (err) {
+    return next(new Error(err.code === 'DOMAIN_SUSPENDED' ? 'domain suspended' : 'unauthorized'));
+  }
+});
+
 io.on('connection', (socket) => {
-  socket.on('join_domain', (domainId) => {
-    socket.join(`domain_${domainId}`);
+  const user = socket.data.user;
+
+  // Só a sala que o token carrega — domainId divergente é recusado antes de
+  // entrar na room.
+  const bindable = (domainId) => {
+    const own = user?.domainId;
+    const id = Number(domainId);
+    if (own === null || own === undefined) return 0;
+    return Number.isInteger(id) && id > 0 && id === Number(own) ? id : 0;
+  };
+
+  socket.on('join_domain', (domainId, ack) => {
+    const id = bindable(domainId);
+    if (!id) {
+      if (typeof ack === 'function') ack({ ok: false, error: 'Forbidden' });
+      return;
+    }
+    socket.join(`domain_${id}`);
+    if (typeof ack === 'function') ack({ ok: true });
   });
 
-  socket.on('leave_domain', (domainId) => {
-    socket.leave(`domain_${domainId}`);
+  socket.on('leave_domain', (domainId, ack) => {
+    const id = bindable(domainId);
+    if (id) socket.leave(`domain_${id}`);
+    if (typeof ack === 'function') ack({ ok: id > 0 });
   });
 
   socket.on('disconnect', () => { });
@@ -115,4 +173,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { app, server, io, start, emitDomainEvent, DEFAULT_PORT, CORS_ORIGINS };
+module.exports = { app, server, io, start, emitDomainEvent, getAnalysisStatus, DEFAULT_PORT, CORS_ORIGINS };

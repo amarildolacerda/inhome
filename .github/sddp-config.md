@@ -28,7 +28,7 @@
 ## Autopilot
 
 <!-- Permission for /sddp-autopilot only. Standalone commands remain interactive. -->
-**Enabled**: false
+**Enabled**: true
 
 ## Loop Settings
 

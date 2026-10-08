@@ -2,6 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
+const jwt = require('jsonwebtoken');
 const request = require('supertest');
 const { setupDataDir, initTestDb } = require('../support/testenv');
 
@@ -90,6 +91,29 @@ test('wrong credentials stay 401 Invalid credentials', async () => {
   });
   assert.strictEqual(explicit.status, 401);
   assert.strictEqual(explicit.body.error, 'Invalid credentials');
+});
+
+// spec §Edge Cases & Boundaries: domínio inexistente responde como
+// credenciais erradas (401/403 sem revelar qual falhou) — nunca 404.
+test('unknown domainId answers 401 Invalid credentials', async () => {
+  const res = await login({
+    email: 'ghost@nowhere.test',
+    password: 'Secret1!',
+    domainId: 999999,
+  });
+  assert.strictEqual(res.status, 401, JSON.stringify(res.body));
+  assert.strictEqual(res.body.error, 'Invalid credentials');
+
+  // mesma resposta para o chamador que erra a senha no mesmo domínio —
+  // não há como distinguir "sem domínio" de "senha errada"
+  const domain = await enable('Erro Senha Dif', 'dif@senha.test');
+  const wrongPassword = await login({
+    email: 'dif@senha.test',
+    password: 'nope!',
+    domainId: domain.id,
+  });
+  assert.strictEqual(wrongPassword.status, 401);
+  assert.strictEqual(wrongPassword.body.error, 'Invalid credentials');
 });
 
 test('suspended domain does not auto-resolve', async () => {
@@ -184,4 +208,56 @@ test('login accepts email or username (domain sessions)', async () => {
   const bad = await login({ email: 'caiouser', password: 'nope!' });
   assert.strictEqual(bad.status, 401);
   assert.strictEqual(bad.body.error, 'Invalid credentials');
+});
+
+// E001 (spec 00002) — RED stub; T005 turns it GREEN.
+test('FR-002 JWT 24h e login', async () => {
+  const domain = await enable('JWT Vinte Quatro', 'jwt@24.test');
+  const adminLogin = await login({ email: 'jwt@24.test', password: 'Secret1!' });
+  assert.strictEqual(adminLogin.status, 200, JSON.stringify(adminLogin.body));
+
+  // admin creates a gestor with a username — role must resolve automatically
+  const created = await request(app)
+    .post('/api/users')
+    .set('Authorization', `Bearer ${adminLogin.body.token}`)
+    .send({
+      name: 'Gestor JWT',
+      email: 'gestor@jwt.test',
+      password: 'Secret1!',
+      role: 'gestor',
+      username: 'gestor.jwt',
+    });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.body));
+
+  const assertJwt24h = (token, expectedRole, expectedDomainId) => {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    assert.strictEqual(decoded.role, expectedRole, 'role claim');
+    assert.strictEqual(decoded.domainId, expectedDomainId, 'domainId claim');
+    assert.strictEqual(decoded.exp - decoded.iat, 24 * 60 * 60, 'JWT valid for 24h');
+  };
+
+  // login by e-mail → admin role, domainId of the owning domain
+  const byEmail = await login({ email: 'jwt@24.test', password: 'Secret1!' });
+  assert.strictEqual(byEmail.status, 200, JSON.stringify(byEmail.body));
+  assert.strictEqual(byEmail.body.domainId, domain.id);
+  assertJwt24h(byEmail.body.token, 'admin', domain.id);
+
+  // login by username → same shape, role resolved automatically
+  const byUsername = await login({ email: 'gestor.jwt', password: 'Secret1!' });
+  assert.strictEqual(byUsername.status, 200, JSON.stringify(byUsername.body));
+  assert.strictEqual(byUsername.body.user.role, 'gestor');
+  assert.strictEqual(byUsername.body.domainId, domain.id);
+  assertJwt24h(byUsername.body.token, 'gestor', domain.id);
+
+  // platform session keeps domainId null + system_admin role
+  const platform = await login({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  assert.strictEqual(platform.status, 200);
+  assertJwt24h(platform.body.token, 'system_admin', null);
+
+  // the issued token opens the session
+  const me = await request(app)
+    .get('/api/auth/me')
+    .set('Authorization', `Bearer ${byUsername.body.token}`);
+  assert.strictEqual(me.status, 200, JSON.stringify(me.body));
+  assert.strictEqual(me.body.user.role, 'gestor');
 });

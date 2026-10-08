@@ -107,6 +107,9 @@ function scopeDomain(param = 'domainId') {
 module.exports = {
   authenticateToken,
   signJwt,
+  // Também consumido pela camada Socket.io (server.js) — mesmo segredo,
+  // mesma verificação do handshake.
+  jwtSecret,
   requireRole,
   requireSystemAdmin,
   scopeDomain,

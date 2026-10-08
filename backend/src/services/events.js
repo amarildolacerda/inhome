@@ -19,4 +19,10 @@ function emitDomainEvent(event, domainId, payload = {}) {
   }
 }
 
-module.exports = { setEmitter, emitDomainEvent };
+// FR-012/SC-005: emitted only AFTER the approval transaction commits — the
+// room learns about the new official workflow exactly when it exists.
+function emitWorkflowActivated(domainId, payload = {}) {
+  return emitDomainEvent('workflow_activated', domainId, payload);
+}
+
+module.exports = { setEmitter, emitDomainEvent, emitWorkflowActivated };

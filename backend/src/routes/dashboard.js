@@ -57,12 +57,12 @@ function getDomainMetrics(db, user) {
     const contracts = summarizeContracts(
       db.all(
         `SELECT c.status, c.forecast_date FROM contracts c
-         JOIN contract_prestadores cp ON cp.contract_id = c.id AND cp.user_id = ?`,
+         JOIN contract_providers cp ON cp.contract_id = c.id AND cp.user_id = ?`,
         [user.id]
       )
     );
     const linked = db.get(
-      'SELECT COUNT(*) AS c FROM contract_prestadores WHERE user_id = ?',
+      'SELECT COUNT(*) AS c FROM contract_providers WHERE user_id = ?',
       [user.id]
     ).c;
     return {

@@ -289,7 +289,7 @@ test('FR-010 flow+link', async () => {
   assert.strictEqual(overdue.status, 201);
   const db2 = getDomainDb(domainId);
   db2.run(
-    `INSERT INTO contract_prestadores(contract_id, user_id) VALUES (?, ?)`,
+    `INSERT INTO contract_providers(contract_id, user_id) VALUES (?, ?)`,
     [overdue.body.contract.id, movId]
   );
   const lateTask = await request(app)

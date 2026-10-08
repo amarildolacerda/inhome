@@ -281,7 +281,7 @@ test('FR-009 admin delete', async () => {
   assert.strictEqual(db.get('SELECT COUNT(*) AS c FROM contracts WHERE id = ?', [contract.id]).c, 0);
   assert.strictEqual(db.get('SELECT COUNT(*) AS c FROM tasks WHERE contract_id = ?', [contract.id]).c, 0);
   assert.strictEqual(
-    db.get('SELECT COUNT(*) AS c FROM contract_prestadores WHERE contract_id = ?', [contract.id]).c,
+    db.get('SELECT COUNT(*) AS c FROM contract_providers WHERE contract_id = ?', [contract.id]).c,
     0
   );
 
@@ -351,4 +351,105 @@ test('FR-026 1000 rows', async () => {
   assert.strictEqual(search.status, 200, JSON.stringify(search.body));
   assert.strictEqual(search.body.total, 500, '500 vigente rows match "Perf Lote"');
   assert.ok(searchElapsed < 2000, `search took ${searchElapsed}ms (limit 2000ms)`);
+});
+
+// E001 (spec 00002) — RED stub; T012 turns it GREEN.
+test('FR-006 matriz dos quatro papéis', async () => {
+  const sys = await request(app).post('/api/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  assert.strictEqual(sys.status, 200, JSON.stringify(sys.body));
+  const sysToken = sys.body.token;
+
+  const contractBody = (name) => ({
+    name,
+    finalidade_id: finalidadeId,
+    start_date: futureDate(1),
+    forecast_date: futureDate(30),
+  });
+  const post = (url, token, body) =>
+    request(app).post(url).set(as(token)).send(body || {});
+
+  // criar contratos: admin ✅ gestor ✅ prestador ❌ system_admin ❌
+  const byAdmin = await post('/api/contracts', adminToken, contractBody('Matriz Admin'));
+  assert.strictEqual(byAdmin.status, 201, JSON.stringify(byAdmin.body));
+  const contractId = byAdmin.body.contract.id;
+  const byGestor = await post('/api/contracts', gestorToken, contractBody('Matriz Gestor'));
+  assert.strictEqual(byGestor.status, 201, JSON.stringify(byGestor.body));
+  const byPrestador = await post('/api/contracts', prestadorToken, contractBody('Matriz Prestador'));
+  assert.strictEqual(byPrestador.status, 403, JSON.stringify(byPrestador.body));
+  const bySys = await post('/api/contracts', sysToken, contractBody('Matriz Sysadmin'));
+  assert.strictEqual(bySys.status, 403, JSON.stringify(bySys.body));
+  assert.strictEqual(bySys.body.contract, undefined, 'no contract payload for system_admin');
+
+  // listagem de contratos: os três papéis do domínio leem, system_admin não
+  for (const [token, label] of [[adminToken, 'admin'], [gestorToken, 'gestor'], [prestadorToken, 'prestador']]) {
+    const list = await request(app).get('/api/contracts').set(as(token));
+    assert.strictEqual(list.status, 200, `${label} list contracts: ${list.status}`);
+  }
+  const sysList = await request(app).get('/api/contracts').set(as(sysToken));
+  assert.strictEqual(sysList.status, 403, `system_admin list contracts: ${sysList.status}`);
+  assert.strictEqual(sysList.body.contracts, undefined, 'no contract payload for system_admin');
+
+  // relatório PDF: admin ✅ gestor ✅ prestador ❌ system_admin ❌
+  const pdfAdmin = await request(app).get(`/api/contracts/${contractId}/report.pdf`).set(as(adminToken));
+  assert.strictEqual(pdfAdmin.status, 200, `admin pdf: ${pdfAdmin.status}`);
+  const pdfGestor = await request(app).get(`/api/contracts/${contractId}/report.pdf`).set(as(gestorToken));
+  assert.strictEqual(pdfGestor.status, 200, `gestor pdf: ${pdfGestor.status}`);
+  const pdfPrestador = await request(app).get(`/api/contracts/${contractId}/report.pdf`).set(as(prestadorToken));
+  assert.strictEqual(pdfPrestador.status, 403, `prestador pdf: ${pdfPrestador.status}`);
+  const pdfSys = await request(app).get(`/api/contracts/${contractId}/report.pdf`).set(as(sysToken));
+  assert.strictEqual(pdfSys.status, 403, `system_admin pdf: ${pdfSys.status}`);
+
+  // prorrogar: admin ✅ gestor ✅ prestador ❌ system_admin ❌
+  const extGestor = await post(`/api/contracts/${contractId}/prorrogar`, gestorToken, {
+    forecast_date: futureDate(60),
+  });
+  assert.strictEqual(extGestor.status, 200, JSON.stringify(extGestor.body));
+  const extPrestador = await post(`/api/contracts/${contractId}/prorrogar`, prestadorToken, {
+    forecast_date: futureDate(60),
+  });
+  assert.strictEqual(extPrestador.status, 403, `prestador prorrogar: ${extPrestador.status}`);
+  const extSys = await post(`/api/contracts/${contractId}/prorrogar`, sysToken, {
+    forecast_date: futureDate(60),
+  });
+  assert.strictEqual(extSys.status, 403, `system_admin prorrogar: ${extSys.status}`);
+
+  // excluir contrato: admin ✅ gestor ❌ system_admin ❌
+  const delGestor = await request(app).delete(`/api/contracts/${contractId}`).set(as(gestorToken));
+  assert.strictEqual(delGestor.status, 403, `gestor delete: ${delGestor.status}`);
+  const delPrestador = await request(app).delete(`/api/contracts/${contractId}`).set(as(prestadorToken));
+  assert.strictEqual(delPrestador.status, 403, `prestador delete: ${delPrestador.status}`);
+  const delSys = await request(app).delete(`/api/contracts/${contractId}`).set(as(sysToken));
+  assert.strictEqual(delSys.status, 403, `system_admin delete: ${delSys.status}`);
+
+  // usuários e finalidades: só admin cria; gestor/prestador/system_admin 403
+  const userBody = (email, username) => ({
+    name: 'Matriz User',
+    email,
+    password: 'Secret1!',
+    role: 'prestador',
+    username,
+  });
+  const userAdmin = await post('/api/users', adminToken, userBody('madmin@matriz.test', 'madmin'));
+  assert.strictEqual(userAdmin.status, 201, JSON.stringify(userAdmin.body));
+  const userGestor = await post('/api/users', gestorToken, userBody('mgestor@matriz.test', 'mgestor'));
+  assert.strictEqual(userGestor.status, 403, `gestor create user: ${userGestor.status}`);
+  const userPrestador = await post('/api/users', prestadorToken, userBody('mprest@matriz.test', 'mprest'));
+  assert.strictEqual(userPrestador.status, 403, `prestador create user: ${userPrestador.status}`);
+  const userSys = await post('/api/users', sysToken, userBody('msys@matriz.test', 'msys'));
+  assert.strictEqual(userSys.status, 403, `system_admin create user: ${userSys.status}`);
+  assert.strictEqual(userSys.body.user, undefined, 'no user payload for system_admin');
+
+  const finAdmin = await post('/api/finalidades', adminToken, { name: 'Matriz Finalidade Admin' });
+  assert.strictEqual(finAdmin.status, 201, JSON.stringify(finAdmin.body));
+  const finGestor = await post('/api/finalidades', gestorToken, { name: 'Matriz Finalidade Gestor' });
+  assert.strictEqual(finGestor.status, 403, `gestor create finalidade: ${finGestor.status}`);
+  const finPrestador = await post('/api/finalidades', prestadorToken, { name: 'Matriz Finalidade Prestador' });
+  assert.strictEqual(finPrestador.status, 403, `prestador create finalidade: ${finPrestador.status}`);
+  const finSys = await post('/api/finalidades', sysToken, { name: 'Matriz Finalidade Sys' });
+  assert.strictEqual(finSys.status, 403, `system_admin create finalidade: ${finSys.status}`);
+
+  // system_admin também fica fora da rota de tarefas (ciclo é a única superfície)
+  const tasksSys = await request(app).get('/api/tasks').set(as(sysToken));
+  assert.strictEqual(tasksSys.status, 403, `system_admin list tasks: ${tasksSys.status}`);
+  assert.strictEqual(tasksSys.body.tasks, undefined, 'no task payload for system_admin');
 });

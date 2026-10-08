@@ -44,7 +44,7 @@ function createContract(req, res) {
 
     let finalidadeId = null;
     if (body.finalidade_id !== undefined && body.finalidade_id !== null) {
-      const finalidade = db.get('SELECT id, active FROM finalidades WHERE id = ?', [
+      const finalidade = db.get('SELECT id, active FROM purposes WHERE id = ?', [
         Number(body.finalidade_id),
       ]);
       if (!finalidade) throw httpError(400, 'finalidade_id does not exist');
@@ -86,7 +86,7 @@ function listContracts(req, res) {
     let params;
     if (req.user.role === 'prestador') {
       base = `FROM contracts c
-              JOIN contract_prestadores cp ON cp.contract_id = c.id AND cp.user_id = ?`;
+              JOIN contract_providers cp ON cp.contract_id = c.id AND cp.user_id = ?`;
       params = [req.user.id];
     } else {
       base = 'FROM contracts c';
@@ -128,7 +128,7 @@ function getContract(req, res) {
     const row = getContractOr404(db, req.params.id);
     if (req.user.role === 'prestador') {
       const linked = db.get(
-        'SELECT 1 AS ok FROM contract_prestadores WHERE contract_id = ? AND user_id = ?',
+        'SELECT 1 AS ok FROM contract_providers WHERE contract_id = ? AND user_id = ?',
         [row.id, req.user.id]
       );
       if (!linked) return res.status(404).json({ error: 'Contract not found' });
@@ -191,11 +191,11 @@ function linkPrestador(req, res) {
       return res.status(400).json({ error: 'Only prestador users can be linked' });
     }
     const existing = db.get(
-      'SELECT 1 AS ok FROM contract_prestadores WHERE contract_id = ? AND user_id = ?',
+      'SELECT 1 AS ok FROM contract_providers WHERE contract_id = ? AND user_id = ?',
       [row.id, userId]
     );
     if (existing) return res.status(409).json({ error: 'Prestador already linked' });
-    db.run('INSERT INTO contract_prestadores(contract_id, user_id) VALUES (?, ?)', [row.id, userId]);
+    db.run('INSERT INTO contract_providers(contract_id, user_id) VALUES (?, ?)', [row.id, userId]);
     res.status(201).json({ contract: Contract.decorate(db, getContractOr404(db, row.id)) });
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
@@ -209,7 +209,7 @@ function unlinkPrestador(req, res) {
     const row = getContractOr404(db, req.params.id);
     const userId = Number(req.params.userId);
     const linked = db.get(
-      'SELECT 1 AS ok FROM contract_prestadores WHERE contract_id = ? AND user_id = ?',
+      'SELECT 1 AS ok FROM contract_providers WHERE contract_id = ? AND user_id = ?',
       [row.id, userId]
     );
     if (!linked) return res.status(404).json({ error: 'Prestador not linked' });
@@ -223,7 +223,7 @@ function unlinkPrestador(req, res) {
         .status(400)
         .json({ error: 'Tarefas abertas travam desvinculação', open_tasks: open });
     }
-    db.run('DELETE FROM contract_prestadores WHERE contract_id = ? AND user_id = ?', [
+    db.run('DELETE FROM contract_providers WHERE contract_id = ? AND user_id = ?', [
       row.id,
       userId,
     ]);
@@ -286,7 +286,7 @@ function deleteContract(req, res) {
       db.run('DELETE FROM task_history WHERE task_id = ?', [taskId]);
     }
     db.run('DELETE FROM tasks WHERE contract_id = ?', [row.id]);
-    db.run('DELETE FROM contract_prestadores WHERE contract_id = ?', [row.id]);
+    db.run('DELETE FROM contract_providers WHERE contract_id = ?', [row.id]);
     db.run('DELETE FROM contracts WHERE id = ?', [row.id]);
     res.json({ message: 'Contract deleted' });
   } catch (error) {

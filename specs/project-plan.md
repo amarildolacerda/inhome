@@ -15,6 +15,7 @@ dod_source: none
 | **Status** | active |
 | **Epics** | 10 — 8 × P1, 2 × P2 |
 | **Categories** | 10 PRODUCT, 0 TECHNICAL, 0 OPERATIONAL |
+| **Author** | Amarildo de Lacerda |
 | **Waves** | 3 |
 
 ## Epic Checklist

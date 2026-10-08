@@ -133,5 +133,6 @@ router.enableDomain = enableDomain;
 router.suspendDomain = suspendDomain;
 router.reactivateDomain = reactivateDomain;
 router.listDomains = listDomains;
+router.requireSystemAdmin = requireSystemAdmin;
 
 module.exports = router;

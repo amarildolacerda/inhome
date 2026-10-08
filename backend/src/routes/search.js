@@ -42,11 +42,11 @@ function searchContracts(req, res) {
     }
     let base = 'FROM contracts c';
     if (req.query.prestador_id) {
-      base += ' JOIN contract_prestadores cp ON cp.contract_id = c.id AND cp.user_id = ?';
+      base += ' JOIN contract_providers cp ON cp.contract_id = c.id AND cp.user_id = ?';
       params.unshift(Number(req.query.prestador_id));
     }
     if (req.user.role === 'prestador') {
-      base += ' JOIN contract_prestadores cp2 ON cp2.contract_id = c.id AND cp2.user_id = ?';
+      base += ' JOIN contract_providers cp2 ON cp2.contract_id = c.id AND cp2.user_id = ?';
       params.unshift(req.user.id);
     }
     const whereSql = where.length ? ` WHERE ${where.join(' AND ')}` : '';

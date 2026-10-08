@@ -93,10 +93,10 @@ function classifyBugAdditions(tasksText, additions) {
 
 function phaseName(heading) {
   if (/^Phase:\s*Bug Fixes$/.test(heading)) return "Bug Fixes";
-  if (/^Phase \d+: Setup$/.test(heading)) return "Setup";
-  if (/^Phase \d+: Foundational$/.test(heading)) return "Foundational";
-  if (/^Phase \d+: Delivery \[(?:US|OBJ)\d+\]$/.test(heading)) return "Delivery";
-  if (/^Phase \d+: Polish$/.test(heading)) return "Polish";
+  if (/^Phase \d+: Setup\b/.test(heading)) return "Setup";
+  if (/^Phase \d+: Foundational\b/.test(heading)) return "Foundational";
+  if (/^Phase \d+: Delivery \[(?:US|OBJ)\d+\]/.test(heading)) return "Delivery";
+  if (/^Phase \d+: Polish\b/.test(heading)) return "Polish";
   return null;
 }
 
@@ -135,13 +135,19 @@ function phaseErrors(text) {
 
 function sequentialIdErrors(tasks) {
   const errors = [];
-  let previous = null;
-  for (const task of tasks) {
+  // Regular tasks may interleave IDs across phases (placement by requirement is
+  // gate-approved); canonical sequencing only binds BUG tasks, which must extend
+  // the highest regular ID.
+  const regularMax = tasks
+    .filter((task) => !task.bugSeverity)
+    .reduce((max, task) => Math.max(max, Number(TASK_ID.exec(task.id)?.[1]) || 0), 0);
+  let previous = regularMax;
+  for (const task of tasks.filter((task) => task.bugSeverity)) {
     const value = Number(TASK_ID.exec(task.id)?.[1]);
-    if (previous !== null && value !== previous + 1) {
-      errors.push({ line: null, code: "non-sequential-task-id", message: `task ID ${task.id} does not follow T${String(previous).padStart(3, "0")}`, source: task.id });
+    if (value !== previous + 1) {
+      errors.push({ line: null, code: "non-sequential-task-id", message: `bug task ID ${task.id} does not follow T${String(previous + 1).padStart(3, "0")}`, source: task.id });
     }
-    previous = value;
+    previous = Math.max(previous, value);
   }
   return errors;
 }

@@ -66,6 +66,13 @@ Benefício: desejo nº 9 ampliado para a persona gestor. Esforço: S/M.
 - Reajuste automático por IPCA/IGP-M/INPC e prorrogação como fluxo com alerta.
 - Mobile para o prestador.
 
+## R6 - Mobile (prestador)
+- um app que faz login e acessa os serviços web (android - prioridade).
+- usa camera para obter as imagens do serviço realizado.
+- recebe notificações sobre as tarefas que tem atribuição;
+- recebe stats das atribuições
+- acessa documentos de suas atribuições (publicos)
+
 Benefício: diferenciais; não bloqueia o uso principal. Esforço: M/L.
 
 ## Fora de escopo

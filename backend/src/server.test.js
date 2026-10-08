@@ -23,6 +23,7 @@ let domainId;
 let adminToken;
 let contractId;
 let otherDomainId;
+let otherAdminToken;
 
 function as(token) {
   return { Authorization: `Bearer ${token}` };
@@ -42,8 +43,14 @@ function onceEvent(socket, event, timeoutMs = 3000) {
   });
 }
 
-function connectClient(url) {
-  const client = ioc(url, { forceNew: true, transports: ['websocket'] });
+// Handshake autenticado (T021): o cliente abre o socket com o JWT da sessão —
+// sem token o servidor recusa com connect_error.
+function connectClient(url, token) {
+  const client = ioc(url, {
+    forceNew: true,
+    transports: ['websocket'],
+    auth: { token },
+  });
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('socket connect timeout')), 3000);
     client.once('connect', () => {
@@ -95,8 +102,13 @@ test.before(async () => {
       adminEmail: 'otto@outro.test',
       adminPassword: 'Secret1!',
     });
-  assert.strictEqual(other.status, 201);
+  assert.strictEqual(other.status, 201, JSON.stringify(other.body));
   otherDomainId = other.body.domain.id;
+  const otherLogin = await request(app)
+    .post('/api/auth/login')
+    .send({ email: 'otto@outro.test', password: 'Secret1!', domainId: otherDomainId });
+  assert.strictEqual(otherLogin.status, 200, JSON.stringify(otherLogin.body));
+  otherAdminToken = otherLogin.body.token; // sessão do outro domínio, para o socket "outsider"
 
   const contract = await request(app)
     .post('/api/contracts')
@@ -118,10 +130,14 @@ test('FR-020 socket', async () => {
   await listen(server, 0);
   const url = `http://127.0.0.1:${server.address().port}`;
 
-  const clientA = await connectClient(url);
-  const clientB = await connectClient(url);
-  const outsider = await connectClient(url);
+  let clientA;
+  let clientB;
+  let outsider;
   try {
+    clientA = await connectClient(url, adminToken);
+    clientB = await connectClient(url, adminToken);
+    outsider = await connectClient(url, otherAdminToken);
+
     clientA.emit('join_domain', domainId);
     clientB.emit('join_domain', domainId);
     outsider.emit('join_domain', otherDomainId);
@@ -169,9 +185,10 @@ test('FR-020 socket', async () => {
     const secondPayload = await aWait;
     assert.strictEqual(secondPayload.taskId, second.body.task.id);
   } finally {
-    clientA.close();
-    clientB.close();
-    outsider.close();
+    // fecha sempre — socket aberto segura o processo do teste
+    clientA?.close();
+    clientB?.close();
+    outsider?.close();
     await closeSrv(server);
   }
 });

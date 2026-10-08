@@ -10,15 +10,13 @@ import 'package:socket_io_client/socket_io_client.dart' show Socket;
 class ApiService {
   static const String baseUrl = '/api';
 
-  /// [FR-020]: singleton Socket.io do domínio. Criado sem auto-connect —
-  /// só liga em [connectSocket], quando a sessão tem domainId.
-  static final Socket? socket = io.io(
-    Uri.base.origin,
-    io.OptionBuilder()
-        .setTransports(['websocket'])
-        .disableAutoConnect()
-        .build(),
-  );
+  /// [FR-020]: singleton Socket.io do domínio. Criado sem auto-connect e com
+  /// o JWT da sessão no handshake — o servidor recusa conexão sem token e só
+  /// aceita a sala que o token carrega (T021/F-01).
+  static Socket? get socket => _socket;
+
+  static Socket? _socket;
+  static String? _socketToken;
 
   static final StreamController<Map<String, dynamic>> _domainEventController =
       StreamController<Map<String, dynamic>>.broadcast();
@@ -161,11 +159,15 @@ class ApiService {
     await prefs.remove('auth_domain');
     if (_socketWired) {
       _domainRoom = null;
+      _socketWired = false;
       try {
-        socket?.disconnect();
+        _socket?.disconnect();
       } catch (_) {
         // Sessão já encerrada — desconexão falha em silêncio.
       }
+      // Sem sessão não há token para o handshake; o próximo domínio recria.
+      _socket = null;
+      _socketToken = null;
     }
   }
 
@@ -261,6 +263,194 @@ class ApiService {
     return _mapList(result['tasks']);
   }
 
+  // ---- Workflow assistido por OpenCode (E0003, T029) ---------------------
+
+  /// [FR-001]: GET /contracts/:id/definitions — última versão salva; null
+  /// quando o contrato ainda não tem definições (404 Definitions not found).
+  Future<Map<String, dynamic>?> getDefinitions(int contractId) async {
+    try {
+      final result = await get('/contracts/$contractId/definitions');
+      return _asNullableMap(result['definitions']);
+    } catch (e) {
+      if (e.toString().contains('Definitions not found')) return null;
+      rethrow;
+    }
+  }
+
+  /// [FR-002]: PUT /contracts/:id/definitions — anexa uma nova versão com os
+  /// 6 campos obrigatórios; 400 devolve a lista `missing`.
+  Future<Map<String, dynamic>> saveDefinitions(
+    int contractId, {
+    required String finalidade,
+    required String limitacoes,
+    required String alvo,
+    required String escopo,
+    required String premissas,
+    required String entregaveis,
+  }) async {
+    final result = await put(
+      '/contracts/$contractId/definitions',
+      body: {
+        'finalidade': finalidade,
+        'limitacoes': limitacoes,
+        'alvo': alvo,
+        'escopo': escopo,
+        'premissas': premissas,
+        'entregaveis': entregaveis,
+      },
+    );
+    return _asMap(result['definitions']);
+  }
+
+  /// [FR-017]: GET /contracts/:id/definitions/history — versões com autor e
+  /// data, mais nova primeiro.
+  Future<List<Map<String, dynamic>>> getDefinitionsHistory(int contractId) async {
+    final result = await get('/contracts/$contractId/definitions/history');
+    return _mapList(result['history']);
+  }
+
+  /// [FR-024]: POST /contracts/:id/review — gatilho manual do gestor (202,
+  /// entra na fila durante uma análise em andamento, sem reanálise).
+  Future<Map<String, dynamic>> startReview(int contractId) async {
+    final result = await post('/contracts/$contractId/review');
+    return _asMap(result['review']);
+  }
+
+  /// [FR-022]: GET /contracts/:id/review — resumos das revisões, mais nova
+  /// primeiro.
+  Future<List<Map<String, dynamic>>> listReviews(int contractId) async {
+    final result = await get('/contracts/$contractId/review');
+    return _mapList(result['reviews']);
+  }
+
+  /// [FR-023]: GET /contracts/:id/review/:reviewId — contexto, propostas e
+  /// conflitos da revisão.
+  Future<Map<String, dynamic>> getReview(int contractId, int reviewId) async {
+    final result = await get('/contracts/$contractId/review/$reviewId');
+    return _asMap(result['review']);
+  }
+
+  /// [FR-023]: POST /contracts/:id/review/:reviewId/apply — só tarefas 'A
+  /// Fazer'; devolve {review, applied:{edited,created}, conflicts}.
+  Future<Map<String, dynamic>> applyReview(int contractId, int reviewId) {
+    return post('/contracts/$contractId/review/$reviewId/apply');
+  }
+
+  /// [FR-024]: POST /contracts/:id/review/:reviewId/retry — liberado só após
+  /// falha (409 em qualquer outro estado).
+  Future<Map<String, dynamic>> retryReview(int contractId, int reviewId) async {
+    final result = await post('/contracts/$contractId/review/$reviewId/retry');
+    return _asMap(result['review']);
+  }
+
+  /// [FR-015]: GET /tasks/:id/execution-plan — null enquanto a tarefa não tem
+  /// plano (shell 'pendente' da ativação também conta como plano).
+  Future<Map<String, dynamic>?> getExecutionPlan(int taskId) async {
+    final result = await get('/tasks/$taskId/execution-plan');
+    return _asNullableMap(result['plan']);
+  }
+
+  /// [FR-014]: POST /tasks/:id/execution-plan — 202 e geração assíncrona; o
+  /// caller acompanha o status pelo GET.
+  Future<Map<String, dynamic>> requestExecutionPlan(int taskId) async {
+    final result = await post('/tasks/$taskId/execution-plan');
+    return _asMap(result['plan']);
+  }
+
+  /// [FR-015]: POST /tasks/:id/execution-plan/regenerate — liberado só após
+  /// falha.
+  Future<Map<String, dynamic>> regenerateExecutionPlan(int taskId) async {
+    final result = await post('/tasks/$taskId/execution-plan/regenerate');
+    return _asMap(result['plan']);
+  }
+
+  // ---- Análise e sugestão (E0003, T039) -----------------------------------
+
+  /// [FR-021]: GET /contracts/:id/analysis — estado da geração; null quando o
+  /// contrato ainda não tem análise (404 Analysis not found).
+  Future<Map<String, dynamic>?> getAnalysis(int contractId) async {
+    try {
+      final result = await get('/contracts/$contractId/analysis');
+      return _asNullableMap(result['analysis']);
+    } catch (e) {
+      if (e.toString().contains('Analysis not found')) return null;
+      rethrow;
+    }
+  }
+
+  /// [FR-004]: POST /contracts/:id/analysis — 202 com o estado recém-enfileirado.
+  Future<Map<String, dynamic>> startAnalysis(int contractId) async {
+    final result = await post('/contracts/$contractId/analysis');
+    return _asMap(result['analysis']);
+  }
+
+  /// [FR-018]: POST /contracts/:id/analysis/retry — liberado só após falha.
+  Future<Map<String, dynamic>> retryAnalysis(int contractId) async {
+    final result = await post('/contracts/$contractId/analysis/retry');
+    return _asMap(result['analysis']);
+  }
+
+  /// [FR-017]: GET /contracts/:id/suggestions — versões da sugestão, mais
+  /// recente primeiro.
+  Future<List<Map<String, dynamic>>> listSuggestions(int contractId) async {
+    final result = await get('/contracts/$contractId/suggestions');
+    return _mapList(result['suggestions']);
+  }
+
+  /// [FR-005]: GET /suggestions/:sid — detalhe com os itens (id de cada um,
+  /// base da edição); null quando a sugestão não existe mais.
+  Future<Map<String, dynamic>?> getSuggestion(int suggestionId) async {
+    try {
+      final result = await get('/suggestions/$suggestionId');
+      return _asNullableMap(result['suggestion']);
+    } catch (e) {
+      if (e.toString().contains('Suggestion not found')) return null;
+      rethrow;
+    }
+  }
+
+  /// [FR-007]: PATCH /suggestions/:sid/items/:itemId — envia só o que mudou;
+  /// `removed: true` marca a remoção (não existe DELETE) e `removed: false`
+  /// restaura.
+  Future<Map<String, dynamic>> updateSuggestionItem(
+    int suggestionId,
+    int itemId, {
+    String? titulo,
+    String? descricao,
+    String? justificativa,
+    bool? removed,
+  }) async {
+    final result = await patch(
+      '/suggestions/$suggestionId/items/$itemId',
+      body: {
+        if (titulo != null) 'titulo': titulo,
+        if (descricao != null) 'descricao': descricao,
+        if (justificativa != null) 'justificativa': justificativa,
+        if (removed != null) 'removed': removed,
+      },
+    );
+    return _asMap(result['item']);
+  }
+
+  /// [FR-008]: POST /suggestions/:sid/refine — `instrucoes` obrigatório; a
+  /// chamada é síncrona no backend e devolve a nova versão (201).
+  Future<Map<String, dynamic>> refineSuggestion(
+    int suggestionId, {
+    required String instrucoes,
+  }) async {
+    final result = await post(
+      '/suggestions/$suggestionId/refine',
+      body: {'instrucoes': instrucoes},
+    );
+    return _asMap(result['suggestion']);
+  }
+
+  /// [FR-009]: POST /suggestions/:sid/approve — ativa o workflow com os itens
+  /// mantidos; lista vazia responde 400 (a tela avisa antes de chamar).
+  Future<Map<String, dynamic>> approveSuggestion(int suggestionId) {
+    return post('/suggestions/$suggestionId/approve');
+  }
+
   /// [FR-018]: baixa report.pdf/report.csv como bytes com o mesmo Authorization.
   Future<List<int>> downloadFile(String endpoint) async {
     final response = await http.get(
@@ -284,9 +474,10 @@ class ApiService {
   /// não conecta; falha de rede não derruba o app (o cliente tenta de novo).
   Future<void> connectSocket(int domainId) async {
     if (domainId <= 0) return;
+    final sessionToken = await token;
+    if (sessionToken == null || sessionToken.isEmpty) return;
     try {
-      final current = socket;
-      if (current == null) return;
+      final current = _ensureSocket(sessionToken);
 
       final previous = _domainRoom;
       _domainRoom = domainId;
@@ -308,8 +499,37 @@ class ApiService {
     }
   }
 
-  /// [FR-020]: payloads do evento de domínio emitido pelo servidor
-  /// (server.js faz push de 'task:updated' para a sala domain_<id>).
+  /// Handshake autenticado (T021): o socket leva o JWT da sessão corrente.
+  /// Token novo (troca de sessão) → socket antigo sai de cena e o novo é
+  /// criado com o token atual.
+  static Socket _ensureSocket(String sessionToken) {
+    final existing = _socket;
+    if (existing != null && _socketToken == sessionToken) return existing;
+    if (existing != null) {
+      try {
+        existing.disconnect();
+        existing.dispose();
+      } catch (_) {
+        // Sessão antiga já derrubada — segue com o socket novo.
+      }
+      _socketWired = false;
+    }
+    _socket = io.io(
+      Uri.base.origin,
+      io.OptionBuilder()
+          .setTransports(['websocket'])
+          .setAuth({'token': sessionToken})
+          .disableAutoConnect()
+          .build(),
+    );
+    _socketToken = sessionToken;
+    return _socket!;
+  }
+
+  /// [FR-020]/[FR-021]: payloads dos eventos de domínio emitidos pelo
+  /// servidor (server.js faz push de 'task:updated' e 'analysis_state' para a
+  /// sala domain_<id>). Consumidor distingue pelo payload: `taskId` marca
+  /// tarefa, `status` sem `taskId` marca estado da geração.
   Stream<Map<String, dynamic>> get domainEvents => _domainEventController.stream;
 
   static void _wireSocket(Socket current) {
@@ -318,6 +538,13 @@ class ApiService {
       if (domain != null) current.emit('join_domain', domain);
     });
     current.on('task:updated', (payload) {
+      if (payload is Map) {
+        _domainEventController.add(Map<String, dynamic>.from(payload));
+      }
+    });
+    // [FR-021]: transições do job de análise na mesma sala do domínio — o
+    // painel de geração atualiza sem recarregar a tela.
+    current.on('analysis_state', (payload) {
       if (payload is Map) {
         _domainEventController.add(Map<String, dynamic>.from(payload));
       }
@@ -350,5 +577,11 @@ class ApiService {
     if (value is Map<String, dynamic>) return value;
     if (value is Map) return Map<String, dynamic>.from(value);
     return <String, dynamic>{};
+  }
+
+  Map<String, dynamic>? _asNullableMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return null;
   }
 }

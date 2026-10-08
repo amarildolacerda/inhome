@@ -4,7 +4,7 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Install production dependencies only (devDeps: nodemon, supertest, socket.io-client).
+# Install production dependencies only (devDeps: supertest, socket.io-client).
 COPY package*.json ./
 RUN npm ci --omit=dev
 

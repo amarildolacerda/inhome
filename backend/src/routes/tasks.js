@@ -26,7 +26,7 @@ function assertLinkedPrestador(db, contractId, userId) {
   if (!user) throw httpError(404, 'User not found');
   if (user.role !== 'prestador') throw httpError(400, 'assignee must have the prestador role');
   const linked = db.get(
-    'SELECT 1 AS ok FROM contract_prestadores WHERE contract_id = ? AND user_id = ?',
+    'SELECT 1 AS ok FROM contract_providers WHERE contract_id = ? AND user_id = ?',
     [contractId, user.id]
   );
   if (!linked) throw httpError(400, 'Prestador não está vinculado ao contrato');
@@ -129,7 +129,9 @@ async function createTask(req, res) {
   }
 }
 
-// GET /api/tasks — role-scoped list (FR-013).
+// GET /api/tasks — role-scoped list (FR-013). FR-011 (00003): every row also
+// carries `in_workflow` — true only when the task belongs to the contract's
+// ACTIVE workflow version (materialized or opted in via FR-010).
 function listTasks(req, res) {
   try {
     const db = getDomainDb(req.user.domainId);
@@ -143,7 +145,22 @@ function listTasks(req, res) {
     } else {
       rows = db.all('SELECT * FROM tasks ORDER BY id');
     }
-    res.json({ tasks: rows.map((row) => Task.decorate(db, row)) });
+    const activeByContract = new Map();
+    const tasks = rows.map((row) => {
+      if (!activeByContract.has(row.contract_id)) {
+        const active = db.get(
+          `SELECT id FROM workflow_versions WHERE contract_id = ? AND status = 'ativo'`,
+          [row.contract_id]
+        );
+        activeByContract.set(row.contract_id, active ? active.id : null);
+      }
+      const activeId = activeByContract.get(row.contract_id);
+      return {
+        ...Task.decorate(db, row),
+        in_workflow: Boolean(activeId) && row.workflow_version_id === activeId,
+      };
+    });
+    res.json({ tasks });
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
   }

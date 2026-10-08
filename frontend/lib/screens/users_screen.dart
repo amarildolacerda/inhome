@@ -384,7 +384,7 @@ class _UserDialogState extends State<_UserDialog> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _selectedRole,
+                initialValue: _selectedRole,
                 decoration: const InputDecoration(
                   labelText: 'Papel',
                   border: OutlineInputBorder(),

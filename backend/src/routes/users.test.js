@@ -191,3 +191,82 @@ test('FR-004 username required and unique', async () => {
   assert.strictEqual(novo.username, 'novousuario');
   assert.strictEqual(novo.password_hash, undefined);
 });
+
+// E001 (spec 00002) — RED stub; T014 turns it GREEN.
+test('FR-008 CRUD usuários e 409', async () => {
+  const asAdmin = { Authorization: `Bearer ${adminToken}` };
+  const asGestor = { Authorization: `Bearer ${gestorToken}` };
+
+  // create
+  const created = await request(app)
+    .post('/api/users')
+    .set(asAdmin)
+    .send({ name: 'Tara', email: 'tara@crud.test', password: 'Secret1!', role: 'gestor', username: 'tara.crud' });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.body));
+  const id = created.body.user.id;
+  assert.strictEqual(created.body.user.username, 'tara.crud');
+  assert.strictEqual(created.body.user.password_hash, undefined);
+
+  // list: admin and gestor read the roster
+  const list = await request(app).get('/api/users').set(asAdmin);
+  assert.strictEqual(list.status, 200, JSON.stringify(list.body));
+  assert.ok(list.body.users.some((u) => u.id === id), 'created user listed');
+  const gestorList = await request(app).get('/api/users').set(asGestor);
+  assert.strictEqual(gestorList.status, 200, `gestor roster: ${gestorList.status}`);
+
+  // update
+  const upd = await request(app)
+    .put(`/api/users/${id}`)
+    .set(asAdmin)
+    .send({ name: 'TaraAtualizada', role: 'prestador' });
+  assert.strictEqual(upd.status, 200, JSON.stringify(upd.body));
+  assert.strictEqual(upd.body.user.name, 'TaraAtualizada');
+  assert.strictEqual(upd.body.user.role, 'prestador');
+
+  // duplicate username in the same domain → 409, existing user untouched
+  const dup = await request(app)
+    .post('/api/users')
+    .set(asAdmin)
+    .send({ name: 'Clone', email: 'clone@crud.test', password: 'Secret1!', role: 'prestador', username: 'TARA.CRUD' });
+  assert.strictEqual(dup.status, 409, JSON.stringify(dup.body));
+  assert.strictEqual(dup.body.error, 'Username already registered');
+  const afterDup = await request(app).get('/api/users').set(asAdmin);
+  const tara = afterDup.body.users.find((u) => u.id === id);
+  assert.ok(tara, 'existing user still present after the 409');
+  assert.strictEqual(tara.name, 'TaraAtualizada', 'existing user unchanged');
+  assert.strictEqual(tara.email, 'tara@crud.test', 'existing user e-mail unchanged');
+  assert.ok(
+    !afterDup.body.users.some((u) => u.email === 'clone@crud.test'),
+    'rejected create left no row'
+  );
+
+  // update taking another user's username → 409
+  const other = afterDup.body.users.find((u) => u.id !== id && u.username);
+  assert.ok(other, 'another user with a username exists');
+  const clash = await request(app).put(`/api/users/${id}`).set(asAdmin).send({ username: other.username });
+  assert.strictEqual(clash.status, 409, JSON.stringify(clash.body));
+
+  // invalid role → 400
+  const badRole = await request(app)
+    .post('/api/users')
+    .set(asAdmin)
+    .send({ name: 'Bad', email: 'bad@crud.test', password: 'Secret1!', role: 'superuser', username: 'bad' });
+  assert.strictEqual(badRole.status, 400, JSON.stringify(badRole.body));
+
+  // delete
+  const del = await request(app).delete(`/api/users/${id}`).set(asAdmin);
+  assert.strictEqual(del.status, 200, JSON.stringify(del.body));
+  const after = await request(app).get('/api/users').set(asAdmin);
+  assert.ok(!after.body.users.some((u) => u.id === id), 'deleted user gone');
+
+  // deleting again → 404
+  const gone = await request(app).delete(`/api/users/${id}`).set(asAdmin);
+  assert.strictEqual(gone.status, 404, JSON.stringify(gone.body));
+
+  // gestor reads but never writes (README matrix)
+  const gestorCreate = await request(app)
+    .post('/api/users')
+    .set(asGestor)
+    .send({ name: 'Nope', email: 'nope@crud.test', password: 'Secret1!', role: 'prestador', username: 'nope' });
+  assert.strictEqual(gestorCreate.status, 403, JSON.stringify(gestorCreate.body));
+});

@@ -48,7 +48,7 @@ Organize contratos de terceiros, acompanhe o trabalho contratado e mantenha a ex
 | Gerenciar usuários e finalidades | ❌ | ✅ | ❌ | ❌ |
 | Criar contratos, prorrogar, encerrar | ❌ | ✅ | ✅ | ❌ |
 | Criar e atribuir tarefas | ❌ | ✅ | ✅ | ❌ |
-| Concluir tarefa com texto e fotos | ❌ | ✅ | ✅ | só as suas |
+| Concluir tarefa com texto e fotos | ❌ | ❌ | ❌ | só as suas |
 | Reabrir tarefa com motivo | ❌ | ✅ | ✅ | ❌ |
 | Relatório PDF | ❌ | ✅ | ✅ | ❌ |
 | Dashboard | ❌ | completo | completo | só as suas tarefas |

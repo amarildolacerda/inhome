@@ -14,7 +14,7 @@ export function assessChecklistFile(filePath) {
 
   const items = lines.map((line) => line.match(generatedChecklistItem)).filter(Boolean);
   const malformedItems = lines.filter((line) => line.startsWith("- [") && !generatedChecklistItem.test(line));
-  const ids = items.map(([, id]) => id);
+  const ids = items.map(([, , id]) => id);
   const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
   const issues = [];
   if (items.length === 0) issues.push("checklist file has no valid checklist items");

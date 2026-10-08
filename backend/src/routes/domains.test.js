@@ -156,3 +156,110 @@ test('FR-002 suspend/reactivate', async () => {
   const db = getDomainDb(beta.id);
   assert.strictEqual(db.get('SELECT COUNT(*) AS c FROM users').c, 1);
 });
+
+// E001 (spec 00002) — RED stubs; T004 and T007 turn them GREEN.
+test('FR-001 habilitação atômica', async () => {
+  // happy path: platform row + data/domains/<id>.db in a single operation
+  const ok = await enable('Atomic Primavera', 'atomic@primavera.test');
+  assert.strictEqual(ok.status, 201, JSON.stringify(ok.body));
+  const domainId = ok.body.domain.id;
+  assert.ok(domainId > 0);
+  assert.strictEqual(ok.body.domain.status, 'active');
+  assert.ok(
+    fs.existsSync(path.join(dataDir, 'domains', `${domainId}.db`)),
+    'domain db file created in the same operation'
+  );
+
+  // write failure → 500, and the platform record is never reused (spec edge case)
+  const domainsPath = path.join(dataDir, 'domains');
+  const realWrite = fs.writeFileSync;
+  fs.writeFileSync = (file, ...args) => {
+    if (String(file).startsWith(domainsPath)) throw new Error('simulated write failure');
+    return realWrite(file, ...args);
+  };
+  let failed;
+  try {
+    failed = await enable('Atomic Falha', 'atomic@falha.test');
+  } finally {
+    fs.writeFileSync = realWrite;
+  }
+  assert.strictEqual(failed.status, 500, JSON.stringify(failed.body));
+  assert.ok(failed.body.error, '500 body carries {error}');
+
+  const platform = getPlatformDb();
+  const orphan = platform.get('SELECT id, slug FROM domains WHERE slug = ?', ['atomic-falha']);
+  assert.ok(orphan, 'failed record stays in domains');
+  assert.ok(
+    !fs.existsSync(path.join(dataDir, 'domains', `${orphan.id}.db`)),
+    'no domain file attached to the failed record'
+  );
+
+  // the orphan record is not reused: same name cannot complete the cycle
+  const retry = await enable('Atomic Falha', 'atomic@retry.test');
+  assert.strictEqual(retry.status, 409, JSON.stringify(retry.body));
+  assert.ok(
+    !fs.existsSync(path.join(dataDir, 'domains', `${orphan.id}.db`)),
+    'orphan record still without a domain file'
+  );
+});
+test('FR-004 ciclo só system_admin', async () => {
+  const cycleRoutes = [
+    ['get', '/api/domains', null],
+    ['post', '/api/domains/enable', { name: 'Rogue Cycle', adminName: 'R', adminEmail: 'r@rogue.test', adminPassword: 'Secret1!' }],
+    ['post', '/api/domains/:id/suspend', null],
+    ['post', '/api/domains/:id/reactivate', null],
+  ];
+  const hit = (method, url, id) => url.replace(':id', id);
+
+  // system_admin drives the whole cycle
+  const enabled = await enable('Ciclo Fechado', 'ciclo@fechado.test');
+  assert.strictEqual(enabled.status, 201, JSON.stringify(enabled.body));
+  const id = enabled.body.domain.id;
+  for (const [method, url] of cycleRoutes) {
+    const res = await request(app)[method](hit(method, url, id))
+      .set('Authorization', `Bearer ${sysToken}`)
+      .send({ name: 'Ciclo Fechado', adminName: 'C', adminEmail: 'c@ciclo.test', adminPassword: 'Secret1!' });
+    assert.strictEqual(res.status, method === 'get' ? 200 : (url.includes('enable') ? 409 : 200), `${method} ${url} as system_admin: ${res.status}`);
+  }
+  assert.strictEqual(
+    (await request(app).get('/api/domains').set('Authorization', `Bearer ${sysToken}`)).body.domains
+      .find((d) => d.id === id).status,
+    'active'
+  );
+
+  // domain admin session is refused on every cycle route
+  const admin = await request(app)
+    .post('/api/auth/login')
+    .send({ email: 'ciclo@fechado.test', password: 'Secret1!', domainId: id });
+  assert.strictEqual(admin.status, 200, JSON.stringify(admin.body));
+  for (const [method, url, body] of cycleRoutes) {
+    const res = await request(app)[method](hit(method, url, id))
+      .set('Authorization', `Bearer ${admin.body.token}`)
+      .send(body || {});
+    assert.strictEqual(res.status, 403, `${method} ${url} refused for domain admin: ${res.status}`);
+  }
+
+  // no token → 401 before any read
+  for (const [method, url, body] of cycleRoutes) {
+    const res = await request(app)[method](hit(method, url, id)).send(body || {});
+    assert.strictEqual(res.status, 401, `${method} ${url} refused without token: ${res.status}`);
+  }
+
+  // system_admin stays out of business data (deny by default)
+  const business = [
+    ['get', '/api/contracts', null],
+    ['post', '/api/contracts', { name: 'Sysadmin Leak', start_date: '2026-01-01', forecast_date: '2026-12-31' }],
+    ['get', '/api/users', null],
+    ['get', '/api/tasks', null],
+    ['get', '/api/finalidades', null],
+  ];
+  for (const [method, url, body] of business) {
+    const req = request(app)[method](url).set('Authorization', `Bearer ${sysToken}`);
+    const res = body ? await req.send(body) : await req;
+    assert.strictEqual(res.status, 403, `system_admin blocked on ${url}: ${res.status}`);
+    assert.strictEqual(res.body.users, undefined, `no user payload from ${url}`);
+    assert.strictEqual(res.body.contracts, undefined, `no contract payload from ${url}`);
+    assert.strictEqual(res.body.tasks, undefined, `no task payload from ${url}`);
+    assert.strictEqual(res.body.finalidades, undefined, `no finalidade payload from ${url}`);
+  }
+});

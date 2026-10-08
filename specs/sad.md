@@ -444,3 +444,14 @@ Os registros de decisão de nível de projeto serão arquivos MADR independentes
 - Revisão de confiança registrada: restrição `/uploads` sem token, dono owner do projeto, data de revisão 2026-12-26.
 - Escopo de observabilidade fixado nesta release: logs de erro em stdout, `GET /api/health` e a trilha já existente em `task_history` e `domains`; sem métricas nem tracing.
 - Catálogo de ADRs vazio nesta execução por decisão do usuário; `specs/adrs/` passa a ser preenchido por um comando posterior.
+- Superfície compartilhada de autorização (base de E001, consumida por E002–E008): a seleção de tenant sai do `domainId` do token em toda rota de negócio e o guarda de parâmetro de domínio (`scopeDomain`) existe e tem teste unitário, mas não está aplicado a nenhuma rota — toda rota futura que aceitar `domainId` precisa ligar esse guarda ou repetir o filtro.
+- Convenção de nomenclatura de banco: identificadores em inglês. Fase 1 concluída em 2026-10-06 (`finalidades` → `purposes`, `contract_prestadores` → `contract_providers`, migração preguiçosa em `migrateSchema`, 31/31 domínios migrados). Fases 2–5 (colunas, enums de dado, papéis, superfície de API), inventário por arquivo e critérios de entrada em `docs/naming-conventions.md`.
+
+## Project Context Baseline Updates
+
+<!-- Managed by /sddp-plan: full rewrite of this section only; all other content preserved. -->
+
+| Baseline entry | Source |
+|---|---|
+| Integração OpenCode (padrão reutilizável para futuras capacidades): CLI local em job assíncrono in-process (estilo `runDueSweep`), payload por allowlist montado no servidor, timeout configurável padrão 60 s → estado `falha` com retry manual, sem retry automático | specs/00003-workflow-assistido-contrato/plan.md (AD-001, AD-004, AD-008) |
+| Geração assíncrona com estado persistido por domínio (`pendente→analisando→sugerido|falha`) e evento `analysis_state` na sala Socket.io `domain_<id>` | specs/00003-workflow-assistido-contrato/plan.md (AD-002, AD-005) |

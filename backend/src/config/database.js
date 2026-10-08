@@ -36,6 +36,7 @@ class Sqlite {
     this.db = db;
     this.filePath = filePath;
     this.kind = kind;
+    this._inTx = false;
   }
 
   all(sql, params = []) {
@@ -57,7 +58,7 @@ class Sqlite {
   run(sql, params = []) {
     if (params.length) this.db.run(sql, normalize(params));
     else this.db.run(sql);
-    this.persist();
+    if (!this._inTx) this.persist();
     return { changes: this.db.getRowsModified() };
   }
 
@@ -67,8 +68,34 @@ class Sqlite {
       if (item.params && item.params.length) this.db.run(item.sql, normalize(item.params));
       else this.db.run(item.sql);
     }
-    this.persist();
+    if (!this._inTx) this.persist();
     return { changes: this.db.getRowsModified() };
+  }
+
+  // FR-009/FR-010 (and FR-008 refinement): all-or-nothing writes. Statements
+  // inside the callback skip persist(); the result reaches disk once, on
+  // COMMIT. An error rolls everything back — no half-materialized workflow,
+  // no orphan suggestion row — and the callback's error propagates.
+  transaction(fn) {
+    if (this._inTx) return fn(this); // nested call joins the open transaction
+    this.db.run('BEGIN');
+    this._inTx = true;
+    try {
+      const out = fn(this);
+      this.db.run('COMMIT');
+      this._inTx = false;
+      this.persist();
+      return out;
+    } catch (err) {
+      try {
+        this.db.run('ROLLBACK');
+      } catch {
+        // ROLLBACK can only fail if the transaction was already gone
+      }
+      this._inTx = false;
+      this.persist();
+      throw err;
+    }
   }
 
   persist() {
@@ -112,7 +139,7 @@ const DOMAIN_SCHEMA = [
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
-  `CREATE TABLE IF NOT EXISTS finalidades (
+  `CREATE TABLE IF NOT EXISTS purposes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
     active INTEGER NOT NULL DEFAULT 1,
@@ -123,7 +150,7 @@ const DOMAIN_SCHEMA = [
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     object TEXT,
-    finalidade_id INTEGER REFERENCES finalidades(id),
+    finalidade_id INTEGER REFERENCES purposes(id),
     start_date TEXT NOT NULL,
     forecast_date TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'vigente' CHECK (status IN ('vigente','encerrado')),
@@ -131,7 +158,7 @@ const DOMAIN_SCHEMA = [
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
-  `CREATE TABLE IF NOT EXISTS contract_prestadores (
+  `CREATE TABLE IF NOT EXISTS contract_providers (
     contract_id INTEGER NOT NULL REFERENCES contracts(id),
     user_id INTEGER NOT NULL REFERENCES users(id),
     linked_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -149,6 +176,10 @@ const DOMAIN_SCHEMA = [
     completed_text TEXT,
     completed_at TEXT,
     completed_by INTEGER,
+    workflow_version_id INTEGER REFERENCES workflow_versions(id),
+    suggestion_item_id INTEGER REFERENCES suggestion_items(id),
+    opt_in_by INTEGER REFERENCES users(id),
+    opt_in_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
@@ -184,6 +215,87 @@ const DOMAIN_SCHEMA = [
     uploaded_by INTEGER,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
+  // --- 00003: Workflow Assistido OpenCode (7 tabelas novas) ---
+  `CREATE TABLE IF NOT EXISTS contract_definitions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    version INTEGER NOT NULL,
+    finalidade TEXT NOT NULL,
+    limitacoes TEXT NOT NULL,
+    alvo TEXT NOT NULL,
+    escopo TEXT NOT NULL,
+    premissas TEXT NOT NULL,
+    entregaveis TEXT NOT NULL,
+    created_by INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (contract_id, version)
+  )`,
+  `CREATE TABLE IF NOT EXISTS task_suggestions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    definitions_id INTEGER NOT NULL REFERENCES contract_definitions(id),
+    kind TEXT NOT NULL DEFAULT 'analise' CHECK (kind IN ('analise','revisao')),
+    status TEXT NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente','analisando','sugerido','falha','aprovada')),
+    refined_from INTEGER REFERENCES task_suggestions(id),
+    refine_instructions TEXT,
+    error TEXT,
+    context_json TEXT,
+    started_at TEXT,
+    finished_at TEXT,
+    created_by INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS suggestion_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    suggestion_id INTEGER NOT NULL REFERENCES task_suggestions(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT,
+    justification TEXT NOT NULL,
+    ordem INTEGER NOT NULL DEFAULT 0,
+    removed INTEGER NOT NULL DEFAULT 0,
+    target_task_id INTEGER REFERENCES tasks(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS workflow_versions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    suggestion_id INTEGER NOT NULL REFERENCES task_suggestions(id),
+    status TEXT NOT NULL DEFAULT 'ativo' CHECK (status IN ('ativo','substituido')),
+    activated_by INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS execution_plans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER NOT NULL REFERENCES tasks(id) UNIQUE,
+    status TEXT NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente','gerado','falha')),
+    passos TEXT,
+    criterios TEXT,
+    riscos TEXT,
+    error TEXT,
+    requested_by INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS revision_conflicts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    suggestion_id INTEGER NOT NULL REFERENCES task_suggestions(id),
+    task_id INTEGER NOT NULL REFERENCES tasks(id),
+    status_alvo TEXT NOT NULL,
+    motivo TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS entity_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity_type TEXT NOT NULL CHECK (entity_type IN ('definition','suggestion','execution_plan')),
+    entity_id INTEGER NOT NULL,
+    version INTEGER NOT NULL,
+    snapshot TEXT,
+    author_id INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (entity_type, entity_id, version)
+  )`,
 ];
 
 // FR-026 / HINT-005: index hot paths before paged list queries.
@@ -193,9 +305,25 @@ const DOMAIN_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_tasks_contract ON tasks(contract_id)',
   'CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)',
   'CREATE INDEX IF NOT EXISTS idx_tasks_assignee ON tasks(assignee_id)',
-  'CREATE INDEX IF NOT EXISTS idx_cp_user ON contract_prestadores(user_id)',
+  'CREATE INDEX IF NOT EXISTS idx_cp_user ON contract_providers(user_id)',
   'CREATE INDEX IF NOT EXISTS idx_comments_task ON comments(task_id)',
   'CREATE INDEX IF NOT EXISTS idx_attachments_task ON attachments(task_id)',
+  // --- 00003: hot paths + as duas invariantes de workflow ---
+  'CREATE INDEX IF NOT EXISTS idx_contract_definitions_contract ON contract_definitions(contract_id)',
+  'CREATE INDEX IF NOT EXISTS idx_task_suggestions_contract ON task_suggestions(contract_id)',
+  'CREATE INDEX IF NOT EXISTS idx_task_suggestions_definitions ON task_suggestions(definitions_id)',
+  // Só 1 análise em andamento por contrato: revisão durante análise aguarda
+  // a anterior (edge case do spec; kind compartilha o mesmo contrato).
+  "CREATE UNIQUE INDEX IF NOT EXISTS uq_task_suggestions_analisando ON task_suggestions(contract_id) WHERE status = 'analisando'",
+  'CREATE INDEX IF NOT EXISTS idx_suggestion_items_suggestion ON suggestion_items(suggestion_id)',
+  'CREATE INDEX IF NOT EXISTS idx_workflow_versions_contract ON workflow_versions(contract_id)',
+  // 1 workflow oficial (ativo) por contrato; substituição via UPDATE de status.
+  "CREATE UNIQUE INDEX IF NOT EXISTS uq_workflow_versions_ativo ON workflow_versions(contract_id) WHERE status = 'ativo'",
+  'CREATE INDEX IF NOT EXISTS idx_tasks_workflow_version ON tasks(workflow_version_id)',
+  'CREATE INDEX IF NOT EXISTS idx_tasks_suggestion_item ON tasks(suggestion_item_id)',
+  'CREATE INDEX IF NOT EXISTS idx_revision_conflicts_suggestion ON revision_conflicts(suggestion_id)',
+  'CREATE INDEX IF NOT EXISTS idx_revision_conflicts_task ON revision_conflicts(task_id)',
+  'CREATE INDEX IF NOT EXISTS idx_entity_history_entity ON entity_history(entity_type, entity_id)',
 ];
 
 function ensureIndexes(wrapper) {
@@ -209,15 +337,69 @@ function applySchema(wrapper, statements) {
   for (const sql of statements) wrapper.db.run(sql);
 }
 
-// Domain databases created before the username column: SQLite cannot add a
-// UNIQUE constraint through ALTER, so the column lands nullable and
-// uniqueness is enforced app-level in routes/users.js (plus the UNIQUE
-// constraint in DOMAIN_SCHEMA for freshly created databases).
+function tableExists(wrapper, name) {
+  return Boolean(
+    wrapper.get("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", [name])
+  );
+}
+
+// Lazy migration hook, run on every open of a domain database. It must run
+// BEFORE applySchema: the table renames below need the legacy Portuguese table
+// to be the only dictionary/link table present, otherwise CREATE TABLE IF NOT
+// EXISTS would land an empty `purposes` beside a populated `finalidades` and
+// the rename guard would never fire.
 function migrateSchema(wrapper) {
   if (wrapper.kind !== 'domain') return;
-  const columns = wrapper.all('PRAGMA table_info(users)').map((column) => column.name);
-  if (!columns.includes('username')) {
-    wrapper.run('ALTER TABLE users ADD COLUMN username TEXT');
+
+  // English is the table-naming standard: rename the two legacy Portuguese
+  // tables in place, preserving every row. ALTER TABLE ... RENAME TO rewrites
+  // the REFERENCES clause of dependent tables (contracts -> purposes) and of
+  // indexes (idx_cp_user -> contract_providers) to the new name, verified
+  // against sql.js / SQLite 3.49.1, so foreign keys keep resolving without
+  // touching stored data. Idempotent and side-effect free for databases that
+  // are fresh (legacy table never existed) or already migrated (new table
+  // exists): each rename fires only when the old name exists and the new one
+  // does not.
+  const legacyRenames = [
+    ['finalidades', 'purposes'],
+    ['contract_prestadores', 'contract_providers'],
+  ];
+  for (const [legacyTable, englishTable] of legacyRenames) {
+    if (tableExists(wrapper, legacyTable) && !tableExists(wrapper, englishTable)) {
+      wrapper.run(`ALTER TABLE ${legacyTable} RENAME TO ${englishTable}`);
+    }
+  }
+
+  // Domain databases created before the username column: SQLite cannot add a
+  // UNIQUE constraint through ALTER, so the column lands nullable and
+  // uniqueness is enforced app-level in routes/users.js (plus the UNIQUE
+  // constraint in DOMAIN_SCHEMA for freshly created databases).
+  if (tableExists(wrapper, 'users')) {
+    const columns = wrapper.all('PRAGMA table_info(users)').map((column) => column.name);
+    if (!columns.includes('username')) {
+      wrapper.run('ALTER TABLE users ADD COLUMN username TEXT');
+    }
+  }
+
+  // 00003 (FR-010/FR-001): additive lazy migration of the 4 workflow columns
+  // on `tasks`, same guard pattern as `username`. Pre-00003 tasks keep
+  // workflow_version_id IS NULL (outside the workflow); nothing is rewritten
+  // or deleted. Runs before applySchema, so on legacy files the new parent
+  // tables (workflow_versions, suggestion_items) do not exist yet — SQLite
+  // resolves REFERENCES at DML time and sql.js leaves foreign_keys OFF.
+  if (tableExists(wrapper, 'tasks')) {
+    const taskColumns = wrapper.all('PRAGMA table_info(tasks)').map((column) => column.name);
+    const additiveColumns = [
+      ['workflow_version_id', 'INTEGER REFERENCES workflow_versions(id)'],
+      ['suggestion_item_id', 'INTEGER REFERENCES suggestion_items(id)'],
+      ['opt_in_by', 'INTEGER REFERENCES users(id)'],
+      ['opt_in_at', 'TEXT'],
+    ];
+    for (const [name, type] of additiveColumns) {
+      if (!taskColumns.includes(name)) {
+        wrapper.run(`ALTER TABLE tasks ADD COLUMN ${name} ${type}`);
+      }
+    }
   }
 }
 
@@ -225,8 +407,8 @@ function openDb(file, kind, schema) {
   const exists = fs.existsSync(file);
   const db = exists ? new SQL.Database(fs.readFileSync(file)) : new SQL.Database();
   const wrapper = new Sqlite(db, file, kind);
-  applySchema(wrapper, schema);
   migrateSchema(wrapper);
+  applySchema(wrapper, schema);
   ensureIndexes(wrapper);
   if (!exists) wrapper.persist();
   return wrapper;

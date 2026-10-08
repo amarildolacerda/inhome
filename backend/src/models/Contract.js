@@ -32,10 +32,10 @@ class Contract {
 
   static decorate(db, row) {
     const finalidade = row.finalidade_id
-      ? db.get('SELECT name FROM finalidades WHERE id = ?', [row.finalidade_id])
+      ? db.get('SELECT name FROM purposes WHERE id = ?', [row.finalidade_id])
       : null;
     const prestadores = db.all(
-      `SELECT u.id, u.name, u.email FROM contract_prestadores cp
+      `SELECT u.id, u.name, u.email FROM contract_providers cp
        JOIN users u ON u.id = cp.user_id
        WHERE cp.contract_id = ? ORDER BY u.id`,
       [row.id]

@@ -89,7 +89,9 @@ router.post('/login', (req, res) => {
       return res.status(403).json({ error: 'Domain suspended' });
     }
     if (error.code === 'DOMAIN_NOT_FOUND') {
-      return res.status(404).json({ error: 'Domain not found' });
+      // spec §Edge Cases: domínio inexistente responde igual a credenciais
+      // erradas — quem chama não distingue "sem domínio" de "senha errada".
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
     res.status(500).json({ error: error.message });
   }
@@ -114,5 +116,7 @@ router.get('/me', authenticateToken, (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+router.domainSession = domainSession;
 
 module.exports = router;

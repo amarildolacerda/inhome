@@ -119,12 +119,61 @@ check_nonempty() { # label actual
   fi
 }
 
+jcount() { # array_key name -> number of rows with that name in $RESP_FILE
+  node -e '
+    const fs = require("fs");
+    let rows = [];
+    try {
+      const doc = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+      rows = doc[process.argv[2]] || [];
+    } catch (_) { rows = []; }
+    process.stdout.write(String(rows.filter((r) => r && r.name === process.argv[3]).length));
+  ' "$RESP_FILE" "$1" "$2"
+}
+
+jcount_true() { # array_key bool_key -> rows where the key is strictly true
+  node -e '
+    const fs = require("fs");
+    let rows = [];
+    try {
+      const doc = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+      rows = doc[process.argv[2]] || [];
+    } catch (_) { rows = []; }
+    const key = process.argv[3];
+    process.stdout.write(String(rows.filter((r) => r && r[key] === true).length));
+  ' "$RESP_FILE" "$1" "$2"
+}
+
 # --- start server -----------------------------------------------------------
 export DATA_DIR
 export PORT
 if [ -n "$(env_get JWT_SECRET)" ]; then
   export JWT_SECRET="$(env_get JWT_SECRET)"
 fi
+
+# --- fake OpenCode CLI (T030) ----------------------------------------------
+# The analysis job spawns `OPENCODE_BIN OPENCODE_ARGS run <prompt>`; pointing
+# both at a node script that prints a valid analysis payload keeps the whole
+# análise → aprovação → evento flow deterministic without the real OpenCode.
+FAKE_CLI="$DATA_DIR/fake-opencode.js"
+cat > "$FAKE_CLI" << 'FAKE'
+process.stdout.write(JSON.stringify({
+  tasks: [
+    {
+      title: 'Inspecionar telhado',
+      description: 'Vistoria completa antes da impermeabilização',
+      justificativa: 'Base precisa estar ímpar para aderência',
+    },
+    {
+      title: 'Aplicar impermeabilizante',
+      description: 'Duas demãos cruzadas',
+      justificativa: 'Cobertura exposta a chuva forte',
+    },
+  ],
+}));
+FAKE
+export OPENCODE_BIN=node
+export OPENCODE_ARGS="$FAKE_CLI"
 
 echo "Starting server on $BASE (DATA_DIR=$DATA_DIR)..."
 (cd "$BASE_DIR" && exec node src/server.js >"$SERVER_LOG" 2>&1) &
@@ -228,6 +277,187 @@ echo ""
 echo "=== 11. Wrong Password ==="
 api POST /api/auth/login "{\"email\":\"$SYS_EMAIL\",\"password\":\"definitely-wrong\"}"
 check_http "POST /api/auth/login (wrong password)" 401
+
+# --- 12. two active domains (AD-003) -----------------------------------------
+echo ""
+echo "=== 12. Two Active Domains ==="
+api POST /api/domains/enable '{"name":"Smoke Domain Two","adminName":"Second Admin","adminEmail":"second-admin@example.com","adminPassword":"Secret1!"}' "$SYS_TOKEN"
+check_http "POST /api/domains/enable (second domain)" 201
+DOMAIN2_ID="$(jget domain.id)"
+
+api POST /api/auth/login '{"email":"second-admin@example.com","password":"Secret1!"}'
+check_http "POST /api/auth/login (second domain admin)" 200
+ADMIN2_TOKEN="$(jget token)"
+check_val "second domain auto-resolved" "$DOMAIN2_ID" "$(jget domainId)"
+
+api POST /api/contracts '{"name":"Second Domain Contract","start_date":"2026-01-01","forecast_date":"2026-12-31"}' "$ADMIN2_TOKEN"
+check_http "POST /api/contracts (domain 2)" 201
+
+# domain 1 never sees domain 2 rows (separate physical databases)
+api GET /api/contracts "" "$ADMIN_TOKEN"
+check_val "domain 1 does not see domain 2 contract" "0" "$(jcount contracts 'Second Domain Contract')"
+api GET /api/contracts "" "$ADMIN2_TOKEN"
+check_val "domain 2 sees its own contract" "1" "$(jcount contracts 'Second Domain Contract')"
+
+# cross-domain read: ids are per-database, so domain 1 writes a second row
+# (id 2) that domain 2 does not have — 404 without any domain 1 content.
+api POST /api/contracts '{"name":"Smoke Contract Two","start_date":"2026-01-01","forecast_date":"2026-12-31"}' "$ADMIN_TOKEN"
+check_http "POST /api/contracts (domain 1, second row)" 201
+CONTRACT1_B_ID="$(jget contract.id)"
+
+api GET "/api/contracts/$CONTRACT1_B_ID" "" "$ADMIN2_TOKEN"
+check_http "domain 2 reads a domain 1 id" 404
+check_val "no domain 1 content leaked" "" "$(jget contract)"
+api GET "/api/contracts/$CONTRACT1_B_ID" "" "$ADMIN_TOKEN"
+check_http "domain 1 reads its own id" 200
+check_val "domain 1 sees its own contract" "Smoke Contract Two" "$(jget contract.name)"
+
+# --- 13. suspension cycle (FR-003) -------------------------------------------
+echo ""
+echo "=== 13. Suspension Cycle ==="
+api POST "/api/domains/$DOMAIN2_ID/suspend" "" "$SYS_TOKEN"
+check_http "POST /api/domains/:id/suspend" 200
+check_val "domain 2 status suspended" "suspended" "$(jget domain.status)"
+
+api POST /api/auth/login "{\"email\":\"second-admin@example.com\",\"password\":\"Secret1!\",\"domainId\":$DOMAIN2_ID}"
+check_http "login on suspended domain" 403
+
+# session opened before the suspension is refused without reading data
+api GET /api/contracts "" "$ADMIN2_TOKEN"
+check_http "live session after suspension" 403
+check_val "no contract payload while suspended" "" "$(jget contracts)"
+
+api POST "/api/domains/$DOMAIN2_ID/reactivate" "" "$SYS_TOKEN"
+check_http "POST /api/domains/:id/reactivate" 200
+check_val "domain 2 status active again" "active" "$(jget domain.status)"
+
+api POST /api/auth/login "{\"email\":\"second-admin@example.com\",\"password\":\"Secret1!\",\"domainId\":$DOMAIN2_ID}"
+check_http "login after reactivation" 200
+ADMIN2_TOKEN="$(jget token)"
+api GET /api/contracts "" "$ADMIN2_TOKEN"
+check_http "contracts after reactivation" 200
+check_val "domain 2 data intact after cycle" "1" "$(jcount contracts 'Second Domain Contract')"
+
+# --- 14. 401/403 per route (FR-005 / FR-006) ---------------------------------
+echo ""
+echo "=== 14. 401/403 per route ==="
+NO_TOKEN_ROUTES=(
+  "GET /api/contracts"
+  "POST /api/contracts"
+  "GET /api/users"
+  "POST /api/users"
+  "GET /api/tasks"
+  "GET /api/finalidades"
+  "POST /api/finalidades"
+  "GET /api/dashboard/stats"
+  "GET /api/search/contracts?q=smoke"
+  "GET /api/domains"
+  "POST /api/domains/enable"
+)
+for route in "${NO_TOKEN_ROUTES[@]}"; do
+  method="${route%% *}"
+  path="${route#* }"
+  api "$method" "$path" '{}'
+  check_http "$method $path (sem token)" 401
+done
+
+# malformed / wrong-key token → 403
+api GET /api/contracts "" "not-a-jwt"
+check_http "GET /api/contracts (token malformado)" 403
+
+# wrong role → 403 (USER_TOKEN is a gestor of domain 1)
+api POST /api/users '{"name":"Nope","username":"nope.gestor","email":"nope.gestor@example.com","password":"Secret9!","role":"gestor"}' "$USER_TOKEN"
+check_http "POST /api/users (gestor)" 403
+api POST /api/finalidades '{"name":"Gestor Finalidade"}' "$USER_TOKEN"
+check_http "POST /api/finalidades (gestor)" 403
+api GET /api/domains "" "$USER_TOKEN"
+check_http "GET /api/domains (gestor)" 403
+api POST /api/domains/enable '{"name":"Rogue","adminName":"R","adminEmail":"r@rogue.example.com","adminPassword":"Secret1!"}' "$USER_TOKEN"
+check_http "POST /api/domains/enable (gestor)" 403
+api DELETE "/api/contracts/$CONTRACT_ID" "" "$USER_TOKEN"
+check_http "DELETE /api/contracts/:id (gestor)" 403
+
+# system_admin stays out of business data (deny by default)
+api GET /api/contracts "" "$SYS_TOKEN"
+check_http "GET /api/contracts (system_admin)" 403
+api POST /api/users '{"name":"Sys","username":"sys.leak","email":"sys.leak@example.com","password":"Secret9!","role":"gestor"}' "$SYS_TOKEN"
+check_http "POST /api/users (system_admin)" 403
+api GET /api/tasks "" "$SYS_TOKEN"
+check_http "GET /api/tasks (system_admin)" 403
+check_val "no user payload for system_admin" "" "$(jget users)"
+
+# domain admin cannot run the cycle (FR-004)
+api POST "/api/domains/$DOMAIN_ID/suspend" "" "$ADMIN_TOKEN"
+check_http "POST /api/domains/:id/suspend (domain admin)" 403
+
+# --- 15. unknown domainId stays a plain credential failure (spec §Edge Cases)
+echo ""
+echo "=== 15. Unknown DomainId ==="
+api POST /api/auth/login '{"email":"ghost@example.com","password":"Nope@123","domainId":999999}'
+check_http "login com domainId inexistente" 401
+check_val "corpo idêntico ao de credenciais erradas" "Invalid credentials" "$(jget error)"
+
+# --- 16. workflow assistido: análise → aprovação → evento (T030) -----------
+echo ""
+echo "=== 16. Workflow Assistido (análise → aprovação → evento) ==="
+
+# definições obrigatórias antes de qualquer análise (FR-003 gate)
+api PUT "/api/contracts/$CONTRACT_ID/definitions" '{"finalidade":"Executar a reforma da cobertura","limitacoes":"Sem acesso ao telhado durante chuva","alvo":"Cobertura do bloco B","escopo":"Impermeabilização e calhas","premissas":"Material em estoque na obra","entregaveis":"RGA assinada e fotos finais"}' "$ADMIN_TOKEN"
+check_http "PUT /contracts/:id/definitions" 200
+check_val "primeira versão das definições" "1" "$(jget definitions.versao)"
+
+# corpo incompleto → 400 com a lista missing[]
+api PUT "/api/contracts/$CONTRACT_ID/definitions" '{"finalidade":"so uma"}' "$ADMIN_TOKEN"
+check_http "PUT definitions incompletas" 400
+check_val "campo ausente listado" "limitacoes" "$(jget missing.0)"
+
+# NEW-CONFIG: integração desabilitada recusa o disparo da análise
+api PUT /api/opencode/config '{"enabled":false}' "$USER_TOKEN"
+check_http "PUT /api/opencode/config (disable)" 200
+api POST "/api/contracts/$CONTRACT_ID/analysis" "" "$USER_TOKEN"
+check_http "POST analysis (integração desabilitada)" 400
+check_val "erro de integração desabilitada" "OpenCode integration disabled" "$(jget error)"
+api PUT /api/opencode/config '{"enabled":true}' "$USER_TOKEN"
+check_http "PUT /api/opencode/config (enable)" 200
+
+# análise assíncrona com a CLI fake → estado sugerido (FR-005/FR-021)
+api POST "/api/contracts/$CONTRACT_ID/analysis" "" "$USER_TOKEN"
+check_http "POST /contracts/:id/analysis" 202
+check_val "análise nasce pendente" "pendente" "$(jget analysis.status)"
+SUGGESTION_ID="$(jget analysis.suggestion_id)"
+
+i=0
+while [ "$i" -lt 40 ]; do
+  api GET "/api/contracts/$CONTRACT_ID/analysis" "" "$USER_TOKEN"
+  if [ "$STATUS" = "200" ] && [ "$(jget analysis.status)" = "sugerido" ]; then break; fi
+  if [ "$STATUS" = "200" ] && [ "$(jget analysis.status)" = "falha" ]; then break; fi
+  sleep 0.3
+  i=$((i + 1))
+done
+check_val "análise concluída (sugerido)" "sugerido" "$(jget analysis.status)"
+
+api GET "/api/suggestions/$SUGGESTION_ID" "" "$USER_TOKEN"
+check_http "GET /api/suggestions/:sid" 200
+check_val "sugestão no estado sugerido" "sugerido" "$(jget suggestion.status)"
+check_val "itens propostos pela CLI fake" "2" "$(jget suggestion.items.length)"
+
+# aprovação materializa o workflow ativo e dispara workflow_activated (evento)
+api POST "/api/suggestions/$SUGGESTION_ID/approve" "" "$USER_TOKEN"
+check_http "POST /api/suggestions/:sid/approve" 201
+check_val "workflow ativo após aprovação" "ativo" "$(jget workflow.status)"
+check_val "tarefas materializadas na ativação" "2" "$(jget tasks.length)"
+
+api GET "/api/contracts/$CONTRACT_ID/workflow" "" "$USER_TOKEN"
+check_http "GET /contracts/:id/workflow" 200
+check_val "workflow segue ativo" "ativo" "$(jget workflow.status)"
+check_val "tarefas no workflow ativo" "2" "$(jcount_true tasks in_workflow)"
+check_val "tarefas do contrato no total" "3" "$(jget tasks.length)"
+
+# aprovação é única: repetição cai em 409 e a sugestão fica aprovada
+api POST "/api/suggestions/$SUGGESTION_ID/approve" "" "$USER_TOKEN"
+check_http "aprovação repetida" 409
+api GET "/api/suggestions/$SUGGESTION_ID" "" "$USER_TOKEN"
+check_val "sugestão aprovada" "aprovada" "$(jget suggestion.status)"
 
 # --- summary ----------------------------------------------------------------
 echo ""

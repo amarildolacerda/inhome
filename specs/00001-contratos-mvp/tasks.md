@@ -76,7 +76,7 @@ Brownfield — in-place remodel `projects`→`contratos` (AD-003); no generic bo
 
 - [X] T029 [US11] {FR-019,FR-027,FR-028} Create acceptance test stub per plan in backend/src/routes/dashboard.test.js ← plan:AcceptanceTestStubs
 - [X] T030 [US11] {FR-019} Implement domain metrics in backend/src/routes/dashboard.js → exports: getDomainMetrics()
-- [ ] T031 [US11] {FR-027,FR-028} Wire web bootstrap and a11y labels in frontend/lib/main.dart + frontend/lib/theme/app_theme.dart → exports: main(),AppTheme.light
+- [X] T031 [US11] {FR-027,FR-028} Wire web bootstrap and a11y labels in frontend/lib/main.dart + frontend/lib/theme/app_theme.dart → exports: main(),AppTheme.light
 
 ## Phase 14: Delivery [US12] Realtime (P1) 🎯 MVP
 

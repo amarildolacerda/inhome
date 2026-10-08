@@ -112,5 +112,6 @@ router.delete('/:id', requireRole('admin'), remove);
 
 router.create = create;
 router.listUser = listUser;
+router.createUser = createUser;
 
 module.exports = router;

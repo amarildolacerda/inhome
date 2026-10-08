@@ -97,7 +97,7 @@ class _FinalidadesScreenState extends State<FinalidadesScreen> {
     final body = {'name': nameController.text.trim()};
     try {
       if (isEdit) {
-        await api.put('/finalidades/${finalidade!['id']}', body: body);
+        await api.put('/finalidades/${finalidade['id']}', body: body);
       } else {
         await api.post('/finalidades', body: body);
       }

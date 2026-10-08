@@ -70,8 +70,9 @@ system_admin
 | CRUD contrato, prorrogar, encerrar | ❌ | ✅ | ✅ | ❌ |
 | Vincular/desvincular prestador ao contrato | ❌ | ✅ | ✅ | ❌ |
 | Criar/atribuir/editar tarefa | ❌ | ✅ | ✅ | ❌ |
-| Atualizar status/prazo da tarefa | ❌ | ✅ | ✅ | só suas |
-| Concluir com texto + fotos | ❌ | ✅ | ✅ | só suas |
+| Atualizar status da tarefa | ❌ | ❌ | ❌ | só suas |
+| Atualizar prazo da tarefa | ❌ | ✅ | ✅ | ❌ |
+| Concluir com texto + fotos | ❌ | ❌ | ❌ | só suas |
 | Reabrir com motivo | ❌ | ✅ | ✅ | ❌ |
 | Comentar/anexar em tarefa visível | ❌ | ✅ | ✅ | só suas |
 | Relatório PDF / export por contrato | ❌ | ✅ | ✅ | ❌ |
