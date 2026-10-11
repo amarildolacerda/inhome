@@ -187,3 +187,38 @@ test('FR-015 comments/attach', async () => {
     .send({ filename: 'vazio.png' });
   assert.strictEqual(noPayload.status, 400);
 });
+
+// Acceptance stub — plan.md §Acceptance Test Stubs (RED until T006).
+test('FR-004 comentário e anexo com autor e data', async () => {
+  // comentário gravado junto da tarefa com autor e data
+  const comment = await request(app)
+    .post(`/api/tasks/${ownTaskId}/comments`)
+    .set(as(movToken))
+    .send({ body: 'FR-004 anotação de execução' });
+  assert.strictEqual(comment.status, 201, JSON.stringify(comment.body));
+  assert.match(comment.body.comment.user_name, /Mila/, 'autor do comentário');
+  assert.ok(comment.body.comment.created_at, 'data do comentário');
+
+  const db = getDomainDb(domainId);
+  const stored = db.get(
+    'SELECT user_id, created_at FROM comments WHERE id = ?',
+    [comment.body.comment.id]
+  );
+  assert.strictEqual(stored.user_id, movId, 'autor persistido');
+  assert.ok(stored.created_at, 'data persistida');
+
+  // anexo gravado junto da tarefa com autor e data
+  const attach = await request(app)
+    .post(`/api/tasks/${ownTaskId}/attachments`)
+    .set(as(movToken))
+    .send({ filename: 'relatorio-fr004.pdf', dataBase64: TINY_PNG, kind: 'file' });
+  assert.strictEqual(attach.status, 201, JSON.stringify(attach.body));
+  assert.match(attach.body.attachment.uploaded_by_name, /Mila/, 'autor do anexo');
+  assert.ok(attach.body.attachment.created_at, 'data do anexo');
+  const storedAtt = db.get(
+    'SELECT uploaded_by, created_at FROM attachments WHERE id = ?',
+    [attach.body.attachment.id]
+  );
+  assert.strictEqual(storedAtt.uploaded_by, movId, 'autor do anexo persistido');
+  assert.ok(storedAtt.created_at, 'data do anexo persistida');
+});

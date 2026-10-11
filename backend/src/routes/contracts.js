@@ -3,7 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const Contract = require('../models/Contract');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateToken, requireRole, scopeDomain } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { getDomainDb } = require('../config/database');
 const { generateContractPdf, exportContractCsv } = require('../services/report');
@@ -96,11 +96,20 @@ function listContracts(req, res) {
     let statusWhere = '';
     const statusParams = [];
     if (req.query.status) {
-      if (!['vigente', 'encerrado'].includes(req.query.status)) {
-        return res.status(400).json({ error: 'status must be vigente or encerrado' });
+      const wanted = req.query.status;
+      if (!['vigente', 'atrasado', 'encerrado'].includes(wanted)) {
+        return res.status(400).json({ error: 'status must be vigente, atrasado or encerrado' });
       }
-      statusWhere = ' WHERE c.status = ?';
-      statusParams.push(req.query.status);
+      // FR-013 (AD-002): particiona no SQL, nunca pós-filtra a página —
+      // preserva total e paginação. atrasado = gravado vigente com previsão
+      // estritamente anterior a hoje; no dia da previsão segue vigente (Q3).
+      if (wanted === 'encerrado') {
+        statusWhere = " WHERE c.status = 'encerrado'";
+      } else if (wanted === 'vigente') {
+        statusWhere = " WHERE c.status = 'vigente' AND c.forecast_date >= date('now')";
+      } else {
+        statusWhere = " WHERE c.status = 'vigente' AND c.forecast_date < date('now')";
+      }
     }
     const total = db.get(`SELECT COUNT(*) AS c ${base}${statusWhere}`, [
       ...params,
@@ -331,6 +340,9 @@ const CONTRACT_SCHEMA = {
 };
 
 router.use(authenticateToken);
+// FR-011 (AD-003): escopo de domínio no roteador — domainId estrangeiro em
+// params/query/body é recusado com 403 antes de qualquer consulta.
+router.use(scopeDomain());
 router.get('/', requireRole('admin', 'gestor', 'prestador'), listContracts);
 router.post('/', requireRole('admin', 'gestor'), validate(CONTRACT_SCHEMA), createContract);
 router.get('/:id', requireRole('admin', 'gestor', 'prestador'), getContract);

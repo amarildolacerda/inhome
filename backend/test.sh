@@ -147,6 +147,8 @@ jcount_true() { # array_key bool_key -> rows where the key is strictly true
 # --- start server -----------------------------------------------------------
 export DATA_DIR
 export PORT
+# E003: isolates evidence files the same way DATA_DIR isolates the database.
+export UPLOAD_DIR="$DATA_DIR/uploads"
 if [ -n "$(env_get JWT_SECRET)" ]; then
   export JWT_SECRET="$(env_get JWT_SECRET)"
 fi
@@ -458,6 +460,115 @@ api POST "/api/suggestions/$SUGGESTION_ID/approve" "" "$USER_TOKEN"
 check_http "aprovação repetida" 409
 api GET "/api/suggestions/$SUGGESTION_ID" "" "$USER_TOKEN"
 check_val "sugestão aprovada" "aprovada" "$(jget suggestion.status)"
+
+# --- 17. partição de status: vigente/atrasado/encerrado (FR-013) ------------
+echo ""
+echo "=== 17. Status Partition ==="
+
+# contrato com previsão já vencida expõe atrasado sem gravá-lo
+api POST /api/contracts '{"name":"Smoke Atrasado","start_date":"2020-01-01","forecast_date":"2020-06-01"}' "$ADMIN_TOKEN"
+check_http "POST /api/contracts (previsão vencida)" 201
+check_val "previsão vencida exposta como atrasado" "atrasado" "$(jget contract.status)"
+
+api GET "/api/contracts?status=atrasado" "" "$ADMIN_TOKEN"
+check_http "GET /api/contracts?status=atrasado" 200
+check_val "contrato vencido na fatia atrasado" "1" "$(jcount contracts 'Smoke Atrasado')"
+check_val "fatia atrasado grava como vigente" "vigente" "$(jget contracts.0.db_status)"
+
+api GET "/api/contracts?status=vigente" "" "$ADMIN_TOKEN"
+check_http "GET /api/contracts?status=vigente" 200
+check_val "vigente não vaza para atrasado" "0" "$(jcount contracts 'Smoke Atrasado')"
+check_val "Smoke Contract segue na fatia vigente" "1" "$(jcount contracts 'Smoke Contract')"
+
+# encerra um contrato e confere a fatia encerrado
+api POST "/api/contracts/$CONTRACT1_B_ID/encerrar" "" "$ADMIN_TOKEN"
+check_http "POST /contracts/:id/encerrar" 200
+api GET "/api/contracts?status=encerrado" "" "$ADMIN_TOKEN"
+check_http "GET /api/contracts?status=encerrado" 200
+check_val "contrato encerrado na fatia encerrado" "1" "$(jcount contracts 'Smoke Contract Two')"
+
+# partição sem sobreposição: vigente + atrasado + encerrado = total
+api GET "/api/contracts?limit=1" "" "$ADMIN_TOKEN"
+TOTAL_ALL="$(jget total)"
+api GET "/api/contracts?status=vigente&limit=1" "" "$ADMIN_TOKEN"
+TOTAL_VIG="$(jget total)"
+api GET "/api/contracts?status=atrasado&limit=1" "" "$ADMIN_TOKEN"
+TOTAL_ATR="$(jget total)"
+api GET "/api/contracts?status=encerrado&limit=1" "" "$ADMIN_TOKEN"
+TOTAL_ENC="$(jget total)"
+check_val "soma das fatias = total" "$TOTAL_ALL" "$((TOTAL_VIG + TOTAL_ATR + TOTAL_ENC))"
+
+# status fora da partição → 400
+api GET "/api/contracts?status=qualquer" "" "$ADMIN_TOKEN"
+check_http "GET /api/contracts?status=qualquer" 400
+
+# --- 18. Evidência de execução fim a fim (E003) ------------------------------
+echo ""
+echo "=== 18. Evidência fim a fim ==="
+
+TINY_PNG='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+
+# prestador vinculado ao contrato move a tarefa até a conclusão documentada
+api POST /api/users '{"name":"Sol","username":"smoke.sol","email":"smoke.sol@example.com","password":"Secret3!","role":"prestador"}' "$ADMIN_TOKEN"
+check_http "POST /api/users (prestador de evidência)" 201
+PRESTADOR_ID="$(jget user.id)"
+api POST /api/auth/login '{"email":"smoke.sol@example.com","password":"Secret3!"}'
+check_http "POST /api/auth/login (prestador)" 200
+PRESTADOR_TOKEN="$(jget token)"
+
+api POST "/api/contracts/$CONTRACT_ID/prestadores" "{\"user_id\":$PRESTADOR_ID}" "$ADMIN_TOKEN"
+check_http "POST /contracts/:id/prestadores" 201
+
+api POST "/api/contracts/$CONTRACT_ID/tasks" "{\"title\":\"Smoke Evidência\",\"assignee_id\":$PRESTADOR_ID}" "$ADMIN_TOKEN"
+check_http "POST /contracts/:id/tasks (com prestador)" 201
+EVID_ID="$(jget task.id)"
+
+for ST in "Em Progresso" "Revisão"; do
+  api PATCH "/api/tasks/$EVID_ID/status" "{\"status\":\"$ST\"}" "$PRESTADOR_TOKEN"
+  check_http "PATCH /tasks/:id/status ($ST)" 200
+done
+
+# conclusão sem texto → 400 e nada muda (FR-002)
+api POST "/api/tasks/$EVID_ID/complete" '{"text":"   "}' "$PRESTADOR_TOKEN"
+check_http "conclusão sem texto" 400
+api GET "/api/tasks/$EVID_ID" "" "$PRESTADOR_TOKEN"
+check_val "status preservado no 400" "Revisão" "$(jget task.status)"
+
+# upload de tipo inválido na conclusão → 400 sem gravação (FR-009)
+BEFORE_FILES="$(ls -1 "$UPLOAD_DIR" 2>/dev/null | wc -l | tr -d ' ')"
+api POST "/api/tasks/$EVID_ID/complete" "{\"text\":\"deveria falhar\",\"photos\":[{\"filename\":\"virus.exe\",\"dataBase64\":\"$TINY_PNG\"}]}" "$PRESTADOR_TOKEN"
+check_http "conclusão com foto de tipo inválido" 400
+AFTER_FILES="$(ls -1 "$UPLOAD_DIR" 2>/dev/null | wc -l | tr -d ' ')"
+check_val "recusa sem arquivo residual" "$BEFORE_FILES" "$AFTER_FILES"
+
+# conclusão documentada com 2 fotos → tarefa Concluída, fotos no disco (FR-001/FR-003)
+api POST "/api/tasks/$EVID_ID/complete" "{\"text\":\"Cobertura impermeabilizada\",\"photos\":[{\"filename\":\"antes.png\",\"dataBase64\":\"$TINY_PNG\"},{\"filename\":\"depois.png\",\"dataBase64\":\"$TINY_PNG\"}]}" "$PRESTADOR_TOKEN"
+check_http "conclusão documentada com fotos" 200
+check_val "tarefa Concluída" "Concluída" "$(jget task.status)"
+check_val "duas fotos na evidência" "2" "$(jget task.photo_count)"
+STORED="$(ls -1 "$UPLOAD_DIR" 2>/dev/null | wc -l | tr -d ' ')"
+check_val "arquivos gravados no disco" "2" "$STORED"
+
+# renderização da evidência: GET /uploads/<arquivo> devolve 200 image/png
+PHOTO_NAME="$(ls -1 "$UPLOAD_DIR" | head -1)"
+STATUS="$(curl -s -o /dev/null -w '%{http_code}' "$BASE/uploads/$PHOTO_NAME")"
+BODY=""
+check_http "GET /uploads/<arquivo> (backend)" 200
+CTYPE="$(curl -s -m 5 -o /dev/null -w '%{content_type}' "$BASE/uploads/$PHOTO_NAME")"
+check_val "content-type image/png" "image/png" "$CTYPE"
+
+# reabertura justificada: sem motivo → 400, com motivo → histórico (FR-005/FR-006)
+api POST "/api/tasks/$EVID_ID/reopen" '{"motivo":"  "}' "$ADMIN_TOKEN"
+check_http "reabertura sem motivo" 400
+api POST "/api/tasks/$EVID_ID/reopen" '{"motivo":"inspeção reprovou a impermeabilização"}' "$ADMIN_TOKEN"
+check_http "reabertura com motivo" 200
+check_val "tarefa reaberta" "Em Progresso" "$(jget task.status)"
+api GET "/api/tasks/$EVID_ID" "" "$ADMIN_TOKEN"
+check_val "histórico registra reabertura" "1" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const h=JSON.parse(d).history||[];process.stdout.write(String(h.filter(x=>x.action==="reopen").length));})')"
+
+# escopo de domínio: domainId estrangeiro → 403 (FR-010)
+api GET "/api/tasks?domainId=9999" "" "$ADMIN_TOKEN"
+check_http "domainId estrangeiro 403" 403
 
 # --- summary ----------------------------------------------------------------
 echo ""

@@ -305,6 +305,9 @@ const DOMAIN_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_tasks_contract ON tasks(contract_id)',
   'CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)',
   'CREATE INDEX IF NOT EXISTS idx_tasks_assignee ON tasks(assignee_id)',
+  // --- 00007 E007: filtered columns without index (p95 / FR-003) ---
+  'CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority)',
+  'CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date)',
   'CREATE INDEX IF NOT EXISTS idx_cp_user ON contract_providers(user_id)',
   'CREATE INDEX IF NOT EXISTS idx_comments_task ON comments(task_id)',
   'CREATE INDEX IF NOT EXISTS idx_attachments_task ON attachments(task_id)',

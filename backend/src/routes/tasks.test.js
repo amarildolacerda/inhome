@@ -445,3 +445,353 @@ test('FR-013 visibility', async () => {
   const outIds = outContracts.body.contracts.map((c) => c.id);
   assert.ok(!outIds.includes(vencido.id), 'out not linked to vencido → hidden');
 });
+
+// Acceptance stub — plan.md §Acceptance Test Stubs (RED until T012).
+test('FR-009 tarefas seguem em atrasado', async () => {
+  const created = await request(app)
+    .post('/api/contracts')
+    .set(as(gestorToken))
+    .send({
+      name: 'FR-009 Atrasado',
+      start_date: futureDate(-30),
+      forecast_date: futureDate(-1),
+    });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.body));
+  const atrasadoId = created.body.contract.id;
+  assert.strictEqual(created.body.contract.status, 'atrasado');
+
+  const linked = await request(app)
+    .post(`/api/contracts/${atrasadoId}/prestadores`)
+    .set(as(gestorToken))
+    .send({ user_id: movId });
+  assert.strictEqual(linked.status, 201, JSON.stringify(linked.body));
+
+  // criação aceita nas mesmas condições de um vigente
+  const task = await request(app)
+    .post(`/api/contracts/${atrasadoId}/tasks`)
+    .set(as(gestorToken))
+    .send({ title: 'Tarefa sobre atrasado', assignee_id: movId });
+  assert.strictEqual(task.status, 201, JSON.stringify(task.body));
+  const taskId = task.body.task.id;
+
+  // movimentação pelo fluxo segue aceita
+  for (const status of ['Em Progresso', 'Revisão']) {
+    const move = await request(app)
+      .patch(`/api/tasks/${taskId}/status`)
+      .set(as(movToken))
+      .send({ status });
+    assert.strictEqual(move.status, 200, JSON.stringify(move.body));
+  }
+  const done = await request(app)
+    .post(`/api/tasks/${taskId}/complete`)
+    .set(as(movToken))
+    .send({ text: 'Concluída sobre contrato atrasado' });
+  assert.strictEqual(done.status, 200, JSON.stringify(done.body));
+  assert.strictEqual(done.body.task.status, 'Concluída');
+
+  // tarefa não altera o status derivado do contrato
+  const fetched = await request(app).get(`/api/contracts/${atrasadoId}`).set(as(gestorToken));
+  assert.strictEqual(fetched.status, 200);
+  assert.strictEqual(fetched.body.contract.status, 'atrasado');
+});
+
+// Acceptance stubs — plan.md §Acceptance Test Stubs (RED until T003–T005).
+test('FR-001 fluxo e conclusão só do prestador vinculado', async () => {
+  const created = await request(app)
+    .post(`/api/contracts/${contractId}/tasks`)
+    .set(as(gestorToken))
+    .send({ title: 'FR-001 fluxo', assignee_id: movId });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.body));
+  const taskId = created.body.task.id;
+  assert.strictEqual(created.body.task.status, 'A Fazer');
+
+  // fluxo só para frente: A Fazer → Em Progresso → Revisão → Concluída
+  const step1 = await request(app)
+    .patch(`/api/tasks/${taskId}/status`)
+    .set(as(movToken))
+    .send({ status: 'Em Progresso' });
+  assert.strictEqual(step1.status, 200);
+  const skip = await request(app)
+    .patch(`/api/tasks/${taskId}/status`)
+    .set(as(movToken))
+    .send({ status: 'Concluída' });
+  assert.strictEqual(skip.status, 400, 'pulo de fluxo recusado');
+  const step2 = await request(app)
+    .patch(`/api/tasks/${taskId}/status`)
+    .set(as(movToken))
+    .send({ status: 'Revisão' });
+  assert.strictEqual(step2.status, 200);
+
+  // admin e gestor não concluem: 403 (só o prestador vinculado)
+  for (const [token, label] of [
+    [adminToken, 'admin'],
+    [gestorToken, 'gestor'],
+  ]) {
+    const res = await request(app)
+      .post(`/api/tasks/${taskId}/complete`)
+      .set(as(token))
+      .send({ text: 'não é meu ofício' });
+    assert.strictEqual(res.status, 403, label);
+  }
+
+  // prestador vinculado conclui e o histórico registra a conclusão
+  const done = await request(app)
+    .post(`/api/tasks/${taskId}/complete`)
+    .set(as(movToken))
+    .send({ text: 'FR-001 executado' });
+  assert.strictEqual(done.status, 200, JSON.stringify(done.body));
+  assert.strictEqual(done.body.task.status, 'Concluída');
+
+  const db = getDomainDb(domainId);
+  const hist = db.all(
+    "SELECT action, user_id FROM task_history WHERE task_id = ? AND action = 'complete'",
+    [taskId]
+  );
+  assert.strictEqual(hist.length, 1, 'conclusão no histórico');
+  assert.strictEqual(hist[0].user_id, movId, 'autor da conclusão');
+});
+test('FR-002 conclusão sem texto responde 400', async () => {
+  const taskId = await createTaskToRevisao('FR-002 sem texto');
+  const db = getDomainDb(domainId);
+  const before = db.get(
+    'SELECT COUNT(*) AS n FROM task_history WHERE task_id = ?',
+    [taskId]
+  ).n;
+
+  const res = await request(app)
+    .post(`/api/tasks/${taskId}/complete`)
+    .set(as(movToken))
+    .send({ text: '   ', photos: [] });
+  assert.strictEqual(res.status, 400, JSON.stringify(res.body));
+  assert.match(res.body.error, /texto/i);
+
+  // nada muda: status, evidência e histórico intactos
+  const row = db.get('SELECT status FROM tasks WHERE id = ?', [taskId]);
+  assert.strictEqual(row.status, 'Revisão', 'status preservado');
+  const photos = db.get(
+    'SELECT COUNT(*) AS n FROM task_photos WHERE task_id = ?',
+    [taskId]
+  ).n;
+  assert.strictEqual(photos, 0, 'sem fotos gravadas');
+  const after = db.get(
+    'SELECT COUNT(*) AS n FROM task_history WHERE task_id = ?',
+    [taskId]
+  ).n;
+  assert.strictEqual(after, before, 'sem linha nova no histórico');
+});
+test('FR-003 fotos opcionais gravadas antes da referência', async () => {
+  const taskId = await createTaskToRevisao('FR-003 com fotos');
+  const photos = Array.from({ length: 10 }, (_, i) => ({
+    filename: `fr003-${i}.png`,
+    dataBase64: TINY_PNG,
+  }));
+  const res = await request(app)
+    .post(`/api/tasks/${taskId}/complete`)
+    .set(as(movToken))
+    .send({ text: 'FR-003 cobertura pronta', photos });
+  assert.strictEqual(res.status, 200, JSON.stringify(res.body));
+  assert.strictEqual(res.body.task.photo_count, 10);
+
+  const db = getDomainDb(domainId);
+  const rows = db.all('SELECT path FROM task_photos WHERE task_id = ?', [taskId]);
+  assert.strictEqual(rows.length, 10, '10 referências');
+  for (const r of rows) {
+    assert.match(r.path, /^uploads\//, 'referência relativa, sem bytes');
+    assert.ok(
+      fs.existsSync(path.join(UPLOAD_DIR, path.basename(r.path))),
+      `arquivo gravado antes da referência: ${r.path}`
+    );
+  }
+  const hist = db.all(
+    "SELECT COUNT(*) AS n FROM task_history WHERE task_id = ? AND action = 'complete'",
+    [taskId]
+  );
+  assert.strictEqual(hist[0].n, 1, 'conclusão no histórico');
+
+  // 11 fotos → 400 antes de qualquer escrita
+  const taskId2 = await createTaskToRevisao('FR-003 onze fotos');
+  const many = Array.from({ length: 11 }, () => ({
+    filename: 'f.png',
+    dataBase64: TINY_PNG,
+  }));
+  const over = await request(app)
+    .post(`/api/tasks/${taskId2}/complete`)
+    .set(as(movToken))
+    .send({ text: 'dezena', photos: many });
+  assert.strictEqual(over.status, 400, JSON.stringify(over.body));
+  const row2 = db.get('SELECT status FROM tasks WHERE id = ?', [taskId2]);
+  assert.strictEqual(row2.status, 'Revisão', 'status preservado no 400');
+  const photos2 = db.get(
+    'SELECT COUNT(*) AS n FROM task_photos WHERE task_id = ?',
+    [taskId2]
+  ).n;
+  assert.strictEqual(photos2, 0, 'nenhuma foto gravada');
+});
+
+// Acceptance stubs — plan.md §Acceptance Test Stubs (RED until T008–T009).
+test('FR-005 reabertura sem motivo responde 400', async () => {
+  const taskId = await createTaskToRevisao('FR-005 reabertura');
+  const done = await request(app)
+    .post(`/api/tasks/${taskId}/complete`)
+    .set(as(movToken))
+    .send({ text: 'concluída para reabrir' });
+  assert.strictEqual(done.status, 200, JSON.stringify(done.body));
+
+  const db = getDomainDb(domainId);
+  const before = db.get(
+    'SELECT COUNT(*) AS n FROM task_history WHERE task_id = ?',
+    [taskId]
+  ).n;
+
+  for (const motivo of ['', '   ']) {
+    const res = await request(app)
+      .post(`/api/tasks/${taskId}/reopen`)
+      .set(as(gestorToken))
+      .send({ motivo });
+    assert.strictEqual(res.status, 400, JSON.stringify(res.body));
+    assert.match(res.body.error, /motivo/i);
+  }
+
+  // 400 antes de qualquer escrita: status e histórico intactos
+  const row = db.get('SELECT status FROM tasks WHERE id = ?', [taskId]);
+  assert.strictEqual(row.status, 'Concluída', 'status preservado');
+  const after = db.get(
+    'SELECT COUNT(*) AS n FROM task_history WHERE task_id = ?',
+    [taskId]
+  ).n;
+  assert.strictEqual(after, before, 'sem linha nova no histórico');
+});
+test('FR-006 histórico de reabertura com autor e motivo', async () => {
+  const taskId = await createTaskToRevisao('FR-006 reabertura justificada');
+  const done = await request(app)
+    .post(`/api/tasks/${taskId}/complete`)
+    .set(as(movToken))
+    .send({ text: 'concluída antes da correção' });
+  assert.strictEqual(done.status, 200);
+
+  // prestador não reabre: 403
+  const byPrestador = await request(app)
+    .post(`/api/tasks/${taskId}/reopen`)
+    .set(as(movToken))
+    .send({ motivo: 'quero reabrir' });
+  assert.strictEqual(byPrestador.status, 403);
+
+  // gestor reabre: volta ao fluxo e grava ação, autor, motivo e data
+  const reopened = await request(app)
+    .post(`/api/tasks/${taskId}/reopen`)
+    .set(as(gestorToken))
+    .send({ motivo: 'rebite mal fixado' });
+  assert.strictEqual(reopened.status, 200, JSON.stringify(reopened.body));
+  assert.strictEqual(reopened.body.task.status, 'Em Progresso');
+
+  const db = getDomainDb(domainId);
+  const gestorId = db.get("SELECT id FROM users WHERE email = 'guto@zeta.test'").id;
+  const rows = db.all(
+    "SELECT action, user_id, note, created_at FROM task_history WHERE task_id = ? AND action = 'reopen'",
+    [taskId]
+  );
+  assert.strictEqual(rows.length, 1, 'uma reabertura no histórico');
+  assert.strictEqual(rows[0].user_id, gestorId, 'autor da reabertura');
+  assert.strictEqual(rows[0].note, 'rebite mal fixado', 'motivo registrado');
+  assert.ok(rows[0].created_at, 'data registrada');
+
+  // admin também reabre (autoridade admin/gestor): leva de volta até Revisão
+  const backToRevisao = await request(app)
+    .patch(`/api/tasks/${taskId}/status`)
+    .set(as(movToken))
+    .send({ status: 'Revisão' });
+  assert.strictEqual(backToRevisao.status, 200, JSON.stringify(backToRevisao.body));
+  const done2 = await request(app)
+    .post(`/api/tasks/${taskId}/complete`)
+    .set(as(movToken))
+    .send({ text: 'concluída de novo' });
+  assert.strictEqual(done2.status, 200);
+  const byAdmin = await request(app)
+    .post(`/api/tasks/${taskId}/reopen`)
+    .set(as(adminToken))
+    .send({ motivo: 'inspeção reprovou a correção' });
+  assert.strictEqual(byAdmin.status, 200, JSON.stringify(byAdmin.body));
+  const all = db.all(
+    "SELECT COUNT(*) AS n FROM task_history WHERE task_id = ? AND action = 'reopen'",
+    [taskId]
+  );
+  assert.strictEqual(all[0].n, 2, 'segunda reabertura registrada');
+});
+
+// Acceptance stubs — plan.md §Acceptance Test Stubs (RED until T017–T018).
+// FR-010 (E003, AD-002): domainId estrangeiro → 403 nos três roteadores,
+// antes de qualquer leitura ou escrita.
+test('FR-010 domainId estrangeiro 403 nos três roteadores', async () => {
+  const created = await request(app)
+    .post(`/api/contracts/${contractId}/tasks`)
+    .set(as(gestorToken))
+    .send({ title: 'FR-010 escopo', assignee_id: movId });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.body));
+  const taskId = created.body.task.id;
+  const foreign = domainId + 1000;
+
+  const rotas = [
+    ['tasks', `/api/tasks?domainId=${foreign}`],
+    ['comments', `/api/tasks/${taskId}/comments?domainId=${foreign}`],
+    ['attachments', `/api/tasks/${taskId}/attachments?domainId=${foreign}`],
+  ];
+  for (const [label, url] of rotas) {
+    const res = await request(app).get(url).set(as(gestorToken));
+    assert.strictEqual(res.status, 403, `${label}: ${JSON.stringify(res.body)}`);
+    assert.match(res.body.error, /forbidden/i);
+  }
+
+  // escrita também passa pelo guarda: POST com domainId estrangeiro → 403
+  const write = await request(app)
+    .post(`/api/tasks/${taskId}/comments?domainId=${foreign}`)
+    .set(as(movToken))
+    .send({ body: 'não deve gravar' });
+  assert.strictEqual(write.status, 403);
+
+  // domínio do próprio token continua liberado
+  const own = await request(app).get(`/api/tasks?domainId=${domainId}`).set(as(gestorToken));
+  assert.strictEqual(own.status, 200);
+  const plain = await request(app).get(`/api/tasks/${taskId}/comments`).set(as(gestorToken));
+  assert.strictEqual(plain.status, 200);
+});
+// FR-011 (E003): o prestador só enxerga as próprias tarefas na leitura.
+test('FR-011 prestador só enxerga as próprias tarefas', async () => {
+  const created = await request(app)
+    .post(`/api/contracts/${contractId}/tasks`)
+    .set(as(gestorToken))
+    .send({ title: 'FR-011 restrito', assignee_id: movId });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.body));
+  const taskId = created.body.task.id;
+
+  // Otávio (outToken) não enxerga a tarefa de Mila: 404 esconde existência
+  const other = await request(app).get(`/api/tasks/${taskId}`).set(as(outToken));
+  assert.strictEqual(other.status, 404);
+
+  // a lista do Otávio não expõe a tarefa de terceiros
+  const list = await request(app).get('/api/tasks').set(as(outToken));
+  assert.strictEqual(list.status, 200);
+  assert.ok(
+    !list.body.tasks.some((t) => t.id === taskId),
+    'tarefa alheia fora da lista do prestador'
+  );
+  // a lista da própria Mila segue trazendo a tarefa
+  const mine = await request(app).get('/api/tasks').set(as(movToken));
+  assert.ok(mine.body.tasks.some((t) => t.id === taskId), 'tarefa própria visível');
+
+  // admin/gestor seguem vendo o domínio inteiro
+  const byGestor = await request(app).get(`/api/tasks/${taskId}`).set(as(gestorToken));
+  assert.strictEqual(byGestor.status, 200);
+
+  // contrato de exportação: canSeeTask exposto e correto no roteador
+  const tasksRouter = require('./tasks');
+  assert.strictEqual(typeof tasksRouter.canSeeTask, 'function');
+  assert.strictEqual(
+    tasksRouter.canSeeTask({ role: 'prestador', id: outId }, { assignee_id: movId }),
+    false
+  );
+  assert.strictEqual(
+    tasksRouter.canSeeTask({ role: 'prestador', id: movId }, { assignee_id: movId }),
+    true
+  );
+  assert.strictEqual(tasksRouter.canSeeTask({ role: 'gestor', id: 1 }, { assignee_id: movId }), true);
+});

@@ -1,0 +1,371 @@
+openapi: 3.0.3
+info:
+  title: "InHome — Contrato e vigência (E002)"
+  version: 0.1.0
+  description: |
+    Superfície de contrato tocada pela épica E002 (spec FR-001..FR-015).
+
+    Status derivado na leitura (FR-005): a API devolve `status` ∈ `vigente` |
+    `atrasado` | `encerrado` calculado a partir de `forecast_date` e do status
+    gravado; `db_status` expõe o valor persistido, que só é `vigente` ou
+    `encerrado` (FR-006). `atrasado` nunca é gravado nem exposto por caminho de
+    escrita (FR-007, FR-008).
+
+    Filtro de status (FR-013): `status` particiona os contratos sem sobreposição
+    — `vigente` = gravado vigente com previsão futura (dia da previsão ainda
+    conta como vigente), `atrasado` = gravado vigente com previsão estritamente
+    anterior à data atual, `encerrado` = gravado encerrado.
+
+    Escopo de domínio (FR-010, FR-011): todo caminho da rota aplica
+    `authenticateToken`, `requireRole` e o guarda de escopo; um `domainId`
+    explícito (params, query ou body) diferente do domínio do token responde 403
+    antes de qualquer consulta. Sem token → 401; token inválido ou domínio
+    suspenso → 403. Consultas resolvem dentro de `req.user.domainId` (FR-012);
+    `prestador` enxerga apenas contratos vinculados a ele e um id não vinculado
+    responde 404 sem revelar existência.
+
+    Erros: corpo `{ "error": "..." }` em todos os códigos de erro.
+servers:
+  - url: /
+    description: "Mesmo origin (nginx :80) ou backend local na porta 3001"
+security:
+  - bearerAuth: []
+tags:
+  - name: Contracts
+    description: "Contrato, vigência e prestadores (E002)"
+paths:
+  /api/contracts:
+    parameters:
+      - $ref: "#/components/parameters/DomainId"
+    get:
+      tags: [Contracts]
+      summary: "Lista contratos paginados com filtro de status derivado"
+      description: |
+        `prestador` vê apenas os contratos vinculados; `admin` e `gestor` veem o
+        domínio do token. `limit` entre 1 e 200 (padrão 50); `offset` ≥ 0.
+        Responde abaixo de 2 s no p95 com 5.000 contratos (FR-015) e devolve a
+        previsão preenchida em 100% dos vigentes (FR-014).
+      operationId: listContracts
+      parameters:
+        - $ref: "#/components/parameters/StatusFilter"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: "Página de contratos com total particionado"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractList"
+        "400": { $ref: "#/components/responses/ClientError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Contracts]
+      summary: "Cria contrato (admin, gestor)"
+      description: |
+        `forecast_date` é obrigatória e pode estar no passado — o contrato nasce
+        exibido como `atrasado` sem impedir a gravação (FR-007).
+        `finalidade_id` é opcional e de valor único; inexistente ou aposentada → 400.
+      operationId: createContract
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContractWrite"
+      responses:
+        "201":
+          description: "Contrato criado"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contract: { $ref: "#/components/schemas/Contract" }
+        "400": { $ref: "#/components/responses/ClientError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/contracts/{id}:
+    parameters:
+      - $ref: "#/components/parameters/DomainId"
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [Contracts]
+      summary: "Detalha contrato"
+      operationId: getContract
+      responses:
+        "200":
+          description: "Contrato com status derivado, finalidade e prestadores"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contract: { $ref: "#/components/schemas/Contract" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Contracts]
+      summary: "Atualiza contrato (admin, gestor)"
+      operationId: updateContract
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContractWrite"
+      responses:
+        "200":
+          description: "Contrato atualizado"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contract: { $ref: "#/components/schemas/Contract" }
+        "400": { $ref: "#/components/responses/ClientError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Contracts]
+      summary: "Exclui contrato e dependências (somente admin)"
+      operationId: deleteContract
+      responses:
+        "200":
+          description: "Contrato excluído"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/contracts/{id}/prestadores:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Contracts]
+      summary: "Vincula prestador por id (admin, gestor)"
+      description: "Contrato pode ser criado sem prestadores; o vínculo é por id de usuário."
+      operationId: linkPrestador
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id: { type: integer, example: 7 }
+      responses:
+        "200":
+          description: "Contrato com o vínculo aplicado"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contract: { $ref: "#/components/schemas/Contract" }
+        "400": { $ref: "#/components/responses/ClientError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/contracts/{id}/prestadores/{userId}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+      - name: userId
+        in: path
+        required: true
+        schema: { type: integer }
+    delete:
+      tags: [Contracts]
+      summary: "Desvincula prestador (admin, gestor)"
+      operationId: unlinkPrestador
+      responses:
+        "200":
+          description: "Vínculo removido"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/contracts/{id}/prorrogar:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Contracts]
+      summary: "Prorroga a previsão (admin, gestor)"
+      description: |
+        Contrato encerrado → 400 (FR-003). Prorrogar contrato `atrasado` para
+        data futura devolve `vigente` na leitura seguinte, sem escrita manual
+        (FR-008).
+      operationId: extendContract
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [forecast_date]
+              properties:
+                forecast_date: { type: string, format: date, example: "2027-03-31" }
+      responses:
+        "200":
+          description: "Contrato com nova previsão"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contract: { $ref: "#/components/schemas/Contract" }
+        "400": { $ref: "#/components/responses/ClientError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/contracts/{id}/encerrar:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Contracts]
+      summary: "Encerra contrato (admin, gestor)"
+      description: |
+        Grava `encerrado` (FR-004). Encerramento repetido → 400. Tarefas abertas
+        não bloqueiam o encerramento.
+      operationId: closeContract
+      responses:
+        "200":
+          description: "Contrato encerrado"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contract: { $ref: "#/components/schemas/Contract" }
+        "400": { $ref: "#/components/responses/ClientError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    DomainId:
+      name: domainId
+      in: query
+      required: false
+      description: "Explícito apenas para recusa: domínio estrangeiro → 403 antes de qualquer consulta (FR-011)."
+      schema: { type: integer }
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+    StatusFilter:
+      name: status
+      in: query
+      required: false
+      description: "Partição do status derivado, sem sobreposição (FR-013)."
+      schema:
+        type: string
+        enum: [vigente, atrasado, encerrado]
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema: { type: integer, minimum: 0, default: 0 }
+  responses:
+    Unauthorized:
+      description: "Token ausente"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: "Token inválido, domínio suspenso, papel não habilitado ou `domainId` estrangeiro — antes de qualquer linha lida"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: "Contrato inexistente no domínio ou não vinculado ao prestador"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ClientError:
+      description: "Validação ou conflito de estado (nome, datas, finalidade, prorrogação/encerramento inválidos)"
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+    ContractWrite:
+      type: object
+      required: [name, start_date, forecast_date]
+      properties:
+        name: { type: string, example: "Reforma da fachada" }
+        object: { type: string, nullable: true, example: "Refazer a fachada da loja 12" }
+        finalidade_id: { type: integer, nullable: true, example: 3 }
+        start_date: { type: string, format: date, example: "2026-10-01" }
+        forecast_date: { type: string, format: date, example: "2027-02-28" }
+    Contract:
+      type: object
+      required: [id, name, start_date, forecast_date, status, db_status]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        object: { type: string, nullable: true }
+        finalidade_id: { type: integer, nullable: true }
+        finalidade_name: { type: string, nullable: true }
+        start_date: { type: string, format: date }
+        forecast_date: { type: string, format: date, description: "Presente em 100% dos vigentes (FR-014)" }
+        status:
+          type: string
+          enum: [vigente, atrasado, encerrado]
+          description: "Derivado na leitura (FR-005)"
+        db_status:
+          type: string
+          enum: [vigente, encerrado]
+          description: "Status persistido — `atrasado` nunca é gravado (FR-006)"
+        created_by: { type: integer }
+        created_at: { type: string }
+        updated_at: { type: string }
+        prestadores:
+          type: array
+          items: { $ref: "#/components/schemas/Provider" }
+        task_count: { type: integer }
+        completed_count: { type: integer }
+    Provider:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string }
+    ContractList:
+      type: object
+      required: [contracts, total, limit, offset]
+      properties:
+        contracts:
+          type: array
+          items: { $ref: "#/components/schemas/Contract" }
+        total: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }

@@ -2,7 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateToken, requireRole, scopeDomain } = require('../middleware/auth');
 const { getDomainDb } = require('../config/database');
 const { saveToUploads } = require('../middleware/upload');
 
@@ -68,6 +68,8 @@ function listAttachments(req, res) {
 }
 
 router.use(authenticateToken);
+// FR-010 (E003): guarda de escopo ligado também aqui (AD-002).
+router.use(scopeDomain());
 router.post('/:id/attachments', requireRole('admin', 'gestor', 'prestador'), uploadAttachment);
 router.get('/:id/attachments', requireRole('admin', 'gestor', 'prestador'), listAttachments);
 

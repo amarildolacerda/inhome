@@ -142,12 +142,16 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     return Scaffold(
       // Contrato aberto = detalhe (tarefas) no lugar da lista; o FAB do
       // contrato some porque quem cria tarefa é a própria tela de detalhe.
-      body: selected != null
-          ? ContractDetailScreen(
-              contract: selected,
-              onBack: () => setState(() => _selectedContract = null),
-            )
-          : _buildList(),
+      body: Semantics(
+        container: true,
+        label: 'Projetos',
+        child: selected != null
+            ? ContractDetailScreen(
+                contract: selected,
+                onBack: () => setState(() => _selectedContract = null),
+              )
+            : _buildList(),
+      ),
       // POST /contracts é admin/gestor — sem papel, sem FAB.
       floatingActionButton: selected != null || _role == 'prestador'
           ? null

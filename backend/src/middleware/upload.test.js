@@ -9,7 +9,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
-const { saveToUploads, UPLOAD_DIR } = require('../middleware/upload');
+const { saveToUploads, UPLOAD_DIR, MAX_UPLOAD_BYTES } = require('../middleware/upload');
 
 const TINY_PNG =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
@@ -46,4 +46,32 @@ test('FR-023 disk ref', () => {
     () => saveToUploads({ filename: 'x.png', dataBase64: '' }),
     (e) => e.status === 400
   );
+});
+
+// FR-009 (E003): upload fora do padrão responde 400 sem gravar nada.
+test('FR-009 upload inválido 400 sem gravação', () => {
+  const before = fs.readdirSync(UPLOAD_DIR).length;
+
+  // tipo fora do padrão: extensão desconhecida → 400
+  for (const filename of ['script.exe', 'nota.zip', 'sem-extensao']) {
+    assert.throws(
+      () => saveToUploads({ filename, dataBase64: TINY_PNG }),
+      (e) => e.status === 400 && /não permitido/.test(e.message),
+      filename
+    );
+  }
+
+  // tamanho fora do padrão: decodificado acima de 2 MB → 400
+  const oversized = 'A'.repeat(Math.ceil((MAX_UPLOAD_BYTES + 1024) * 4 / 3));
+  assert.throws(
+    () => saveToUploads({ filename: 'laje.png', dataBase64: oversized }),
+    (e) => e.status === 400 && /limite/.test(e.message)
+  );
+
+  // nada em disco depois das recusas
+  assert.strictEqual(fs.readdirSync(UPLOAD_DIR).length, before, 'sem arquivo residual');
+
+  // dentro do padrão continua gravando (regressão do caminho feliz)
+  const ref = saveToUploads({ filename: 'valida.png', dataBase64: TINY_PNG });
+  assert.match(ref, /^uploads\/[\w-]+\.png$/);
 });

@@ -40,17 +40,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final stats = _data?['stats'] ?? {};
     final recentProjects = _data?['recentProjects'] ?? [];
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Dashboard',
-            style: Theme.of(context).textTheme.headlineLarge,
-          ),
-          const SizedBox(height: 24),
-          LayoutBuilder(
+    return Semantics(
+      container: true,
+      label: 'Painel do domínio',
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Dashboard',
+              style: Theme.of(context).textTheme.headlineLarge,
+            ),
+            const SizedBox(height: 24),
+            LayoutBuilder(
             builder: (context, constraints) {
               const double spacing = 16;
               const double minCardWidth = 200;
@@ -161,20 +164,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             )
           else
-            ...recentProjects.map<Widget>((project) => Card(
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.blue.shade100,
-                      child: const Icon(Icons.folder, color: Colors.blue),
+              ...recentProjects.map<Widget>((project) => Card(
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.blue.shade100,
+                        child: const Icon(Icons.folder, color: Colors.blue),
+                      ),
+                      title: Text(project['name']),
+                      subtitle: Text(
+                        '${project['task_count'] ?? 0} tarefas · ${project['completed_count'] ?? 0} concluídas',
+                      ),
+                      trailing: Text(project['status']),
                     ),
-                    title: Text(project['name']),
-                    subtitle: Text(
-                      '${project['task_count'] ?? 0} tarefas · ${project['completed_count'] ?? 0} concluídas',
-                    ),
-                    trailing: Text(project['status']),
-                  ),
-                )),
-        ],
+                  )),
+          ],
+        ),
       ),
     );
   }

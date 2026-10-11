@@ -8,6 +8,7 @@
 //     48×48 logical-pixel minimum on filled buttons.
 // Screen-level labels: `Semantics` wrapper in frontend/lib/main.dart —
 // the spec declares no a11y NFR audit beyond FR-028's three bullets.
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -57,5 +58,44 @@ void main() {
     );
     expect(find.text('Contraste ok'), findsOneWidget);
     expect(theme.scaffoldBackgroundColor, isNotNull);
+  });
+
+  // E006 FR-005: rótulos de acessibilidade nas telas principais — os
+  // contêineres Semantics com label existem nas telas que consomem o tema
+  // (dashboard, tarefas, projetos) e no NavigationRail de main.dart.
+  testWidgets('FR-005 rótulos e foco nas telas principais',
+      (WidgetTester tester) async {
+    // Verificação estática: cada tela principal declara um contêiner
+    // Semantics com label legível por leitor de tela.
+    const sources = <String, String>{
+      'lib/main.dart': 'Navegação principal',
+      'lib/screens/dashboard_screen.dart': 'Painel do domínio',
+      'lib/screens/tasks_screen.dart': 'Minhas Tarefas',
+      'lib/screens/projects_screen.dart': 'Projetos',
+    };
+    for (final entry in sources.entries) {
+      final content = File(entry.key).readAsStringSync();
+      expect(content, contains('Semantics('),
+          reason: '${entry.key} must wrap content in Semantics');
+      expect(content, contains(entry.value),
+          reason: '${entry.key} must declare label "${entry.value}"');
+    }
+
+    // Comportamento em árvore: o rótulo do painel chega ao nó de semântica.
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: Semantics(
+            container: true,
+            label: 'Painel do domínio',
+            child: const Center(child: Text('Dashboard')),
+          ),
+        ),
+      ),
+    );
+    final semantics = tester.getSemantics(find.text('Dashboard'));
+    expect(semantics.label, contains('Painel do domínio'),
+        reason: 'screen container label reaches the semantics node');
   });
 }

@@ -447,8 +447,6 @@ Os registros de decisão de nível de projeto serão arquivos MADR independentes
 - Superfície compartilhada de autorização (base de E001, consumida por E002–E008): a seleção de tenant sai do `domainId` do token em toda rota de negócio e o guarda de parâmetro de domínio (`scopeDomain`) existe e tem teste unitário, mas não está aplicado a nenhuma rota — toda rota futura que aceitar `domainId` precisa ligar esse guarda ou repetir o filtro.
 - Convenção de nomenclatura de banco: identificadores em inglês. Fase 1 concluída em 2026-10-06 (`finalidades` → `purposes`, `contract_prestadores` → `contract_providers`, migração preguiçosa em `migrateSchema`, 31/31 domínios migrados). Fases 2–5 (colunas, enums de dado, papéis, superfície de API), inventário por arquivo e critérios de entrada em `docs/naming-conventions.md`.
 
-## Project Context Baseline Updates
-
 <!-- Managed by /sddp-plan: full rewrite of this section only; all other content preserved. -->
 
 | Baseline entry | Source |

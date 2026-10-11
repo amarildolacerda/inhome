@@ -50,7 +50,7 @@ export function deriveCompletionState(featureDir, repoRoot = process.cwd()) {
   const qcMarkerBytes = readIfPresent(path.join(resolvedFeatureDir, ".qc-passed"));
   const tasks = taskState(tasksBytes);
   const report = parseQcEvidence(reportBytes, resolvedFeatureDir, resolvedRoot);
-  const issues = [...report.issues, ...tasks.errors.map(({ line, message }) => `tasks.md line ${line}: ${message}`)];
+  const issues = [...report.issues, ...(tasks.errors ?? []).map(({ line, message }) => `tasks.md line ${line}: ${message}`)];
 
   if (completedMarker && !tasks.complete) issues.push(".completed exists while tasks are incomplete");
   if (!completedMarker && tasks.complete) issues.push("tasks are complete but .completed is missing");

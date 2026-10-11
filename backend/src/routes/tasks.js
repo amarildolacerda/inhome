@@ -3,10 +3,10 @@
 const express = require('express');
 const router = express.Router();
 const Task = require('../models/Task');
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateToken, requireRole, scopeDomain } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { getDomainDb } = require('../config/database');
-const { saveToUploads } = require('../middleware/upload');
+const { saveToUploads, decodeAndValidate } = require('../middleware/upload');
 const { notify } = require('../services/email');
 const { emitDomainEvent } = require('../services/events');
 
@@ -297,12 +297,17 @@ async function completeTask(req, res) {
     }
 
     const body = req.body || {};
-    markCompleted(db, row, req.user, body.text); // throws 400 without text
-
+    // FR-002/FR-003: validação fail-fast antes de qualquer escrita — a recusa
+    // não pode deixar a tarefa já Concluída (estado parcial indevido).
     const photos = Array.isArray(body.photos) ? body.photos : [];
     if (photos.length > 10) {
       return res.status(400).json({ error: 'no máximo 10 fotos por conclusão' });
     }
+    // FR-009: tipo/tamanho fora do padrão → 400 antes de qualquer escrita
+    // (nenhuma foto gravada, tarefa não muda de status).
+    for (const photo of photos) decodeAndValidate(photo);
+    markCompleted(db, row, req.user, body.text); // throws 400 without text
+
     for (const photo of photos) {
       const ref = saveToUploads(photo);
       db.run('INSERT INTO task_photos(task_id, path, uploaded_by) VALUES (?, ?, ?)', [
@@ -371,6 +376,8 @@ async function reopenTask(req, res) {
 }
 
 router.use(authenticateToken);
+// AD-002 (FR-010, E003): domainId estrangeiro → 403 antes de qualquer consulta.
+router.use(scopeDomain());
 router.get('/', requireRole('admin', 'gestor', 'prestador'), listTasks);
 router.get('/:id', requireRole('admin', 'gestor', 'prestador'), getTask);
 router.put('/:id', requireRole('admin', 'gestor'), updateTaskFields);
@@ -385,6 +392,7 @@ router.updateTaskStatus = updateTaskStatus;
 router.assertLinkedPrestador = assertLinkedPrestador;
 router.listTasks = listTasks;
 router.markCompleted = markCompleted;
+router.canSeeTask = canSeeTask;
 
 // FR-021: schema gate for task creation (SC-012).
 const TASK_SCHEMA = {

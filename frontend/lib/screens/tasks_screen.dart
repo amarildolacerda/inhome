@@ -106,7 +106,10 @@ class _TasksScreenState extends State<TasksScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
+      body: Semantics(
+        container: true,
+        label: 'Minhas Tarefas',
+        child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(24),
@@ -162,8 +165,9 @@ class _TasksScreenState extends State<TasksScreen> {
                           onChanged: _loadTasks,
                         ),
                       ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

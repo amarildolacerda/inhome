@@ -2,7 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { authenticateToken, requireRole, scopeDomain } = require('../middleware/auth');
 const { getDomainDb } = require('../config/database');
 
 function getTaskOr404(db, id) {
@@ -67,6 +67,8 @@ function listComments(req, res) {
 }
 
 router.use(authenticateToken);
+// FR-010 (E003): guarda de escopo ligado também aqui (AD-002).
+router.use(scopeDomain());
 router.post('/:id/comments', requireRole('admin', 'gestor', 'prestador'), addComment);
 router.get('/:id/comments', requireRole('admin', 'gestor', 'prestador'), listComments);
 

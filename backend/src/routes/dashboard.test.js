@@ -185,3 +185,40 @@ test('FR-019 metrics', async () => {
   const anon = await request(app).get('/api/dashboard/stats');
   assert.strictEqual(anon.status, 401);
 });
+
+// E006: per-requirement acceptance tests (plan.md Acceptance Test Stubs, FR-001..FR-003).
+// The domain fixture above already establishes the same data used by FR-019.
+
+test('FR-001 admin/gestor veem totais do domínio', async () => {
+  for (const [label, token] of [
+    ['admin', adminToken],
+    ['gestor', gestorToken],
+  ]) {
+    const res = await request(app).get('/api/dashboard/stats').set(as(token));
+    assert.strictEqual(res.status, 200, `${label}: ${JSON.stringify(res.body)}`);
+    assert.strictEqual(res.body.scope, 'domain', `${label}: domain scope`);
+    assert.strictEqual(res.body.stats.totalProjects, 3, `${label}: three contracts`);
+    assert.strictEqual(res.body.stats.totalTasks, 3, `${label}: three tasks`);
+    assert.strictEqual(res.body.stats.usersTotal, 4, `${label}: domain users`);
+  }
+});
+
+test('FR-002 prestador vê só tarefas próprias', async () => {
+  const res = await request(app).get('/api/dashboard/stats').set(as(p1Token));
+  assert.strictEqual(res.status, 200, JSON.stringify(res.body));
+  assert.strictEqual(res.body.scope, 'own');
+  assert.strictEqual(res.body.stats.totalTasks, 2, 'only t1+t2 assigned to p1');
+  assert.strictEqual(res.body.stats.completedTasks, 1, 'only t1 completed');
+  assert.strictEqual(res.body.stats.totalProjects, 1, 'only linked contract C1');
+  assert.strictEqual(res.body.stats.usersTotal, null, 'no domain user counters for prestador');
+  assert.strictEqual(res.body.stats.prestadoresTotal, null, 'no prestador counters for prestador');
+});
+
+test('FR-003 403 para system_admin', async () => {
+  const sys = await request(app)
+    .post('/api/auth/login')
+    .send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  const denied = await request(app).get('/api/dashboard/stats').set(as(sys.body.token));
+  assert.strictEqual(denied.status, 403, JSON.stringify(denied.body));
+  assert.strictEqual(denied.body.error, 'Forbidden');
+});

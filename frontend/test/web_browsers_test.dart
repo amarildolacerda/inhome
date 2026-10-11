@@ -20,4 +20,28 @@ void main() {
     expect(app.darkTheme, isNotNull);
     expect(app.themeMode, ThemeMode.system);
   });
+
+  // E006 FR-004: bootstrap web aplicado — o tema carrega da primeira pintura
+  // sem conteúdo sem estilo (theme + darkTheme + themeMode presentes).
+  testWidgets('FR-004 bootstrap web aplicado sem conteúdo sem estilo',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const ProjectManagerApp());
+    await tester.pump();
+    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(app.theme, isNotNull, reason: 'light theme applied at first paint');
+    expect(app.darkTheme, isNotNull, reason: 'dark theme available');
+    expect(app.themeMode, ThemeMode.system,
+        reason: 'follows system brightness');
+  });
+
+  // E006 FR-006: regressão fim a fim — o entrypoint real continua íntegro
+  // após alterações compartilhadas em main.dart.
+  testWidgets('FR-006 regressão fim a fim verde após main.dart',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const ProjectManagerApp());
+    await tester.pump();
+    expect(find.byType(MaterialApp), findsOneWidget);
+    expect(find.byType(AuthGate), findsOneWidget,
+        reason: 'AuthGate is the home route wired in main.dart');
+  });
 }

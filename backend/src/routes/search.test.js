@@ -246,3 +246,146 @@ test('FR-016 filters', async () => {
   assert.strictEqual(empty.status, 200);
   assert.strictEqual(empty.body.total, 0);
 });
+
+// E007: per-requirement acceptance tests (plan.md Acceptance Test Stubs, FR-001..FR-004).
+
+test('FR-001 seis filtros isolados e combinados', async () => {
+  const ids = (body, key) => body[key].map((row) => row.id);
+
+  // contrato (contract_id on tasks) — t1,t2 belong to c1; t3 to c2
+  const byContract = await request(app)
+    .get(`/api/search/tasks?contract_id=${c1Id}`)
+    .set(as(gestorToken));
+  assert.strictEqual(byContract.status, 200, JSON.stringify(byContract.body));
+  const contractIds = ids(byContract.body, 'tasks').sort((a, b) => a - b);
+  const t1 = getDomainDb(domainId).get('SELECT id FROM tasks WHERE title = ?', ['Instalacao eletrica']).id;
+  const t2 = getDomainDb(domainId).get('SELECT id FROM tasks WHERE title = ?', ['Reaperto de parafusos']).id;
+  assert.deepStrictEqual(contractIds, [t1, t2].sort((a, b) => a - b), 'contract_id filters tasks of that contract');
+
+  // status (contracts)
+  const byStatus = await request(app).get('/api/search/contracts?status=vigente').set(as(gestorToken));
+  assert.strictEqual(byStatus.body.total, 1);
+  assert.strictEqual(byStatus.body.contracts[0].id, c1Id);
+
+  // prioridade (tasks)
+  const byPriority = await request(app).get('/api/search/tasks?priority=high').set(as(gestorToken));
+  assert.strictEqual(byPriority.body.total, 2, 'two high-priority tasks');
+
+  // prestador (tasks)
+  const byPrestador = await request(app).get(`/api/search/tasks?prestador_id=${p2Id}`).set(as(gestorToken));
+  assert.strictEqual(byPrestador.body.total, 2, 'p2 owns t2 and t3');
+
+  // finalidade (contracts)
+  const byFinalidade = await request(app).get(`/api/search/contracts?finalidade_id=${limpezaId}`).set(as(gestorToken));
+  assert.strictEqual(byFinalidade.body.total, 1);
+  assert.strictEqual(byFinalidade.body.contracts[0].id, c2Id);
+
+  // prazo (tasks, both bounds combined)
+  const byPrazo = await request(app)
+    .get(`/api/search/tasks?due_after=${futureDate(5)}&due_before=${futureDate(20)}`)
+    .set(as(gestorToken));
+  assert.deepStrictEqual(ids(byPrazo.body, 'tasks'), [t1], 'only t1 due within 5..20 days');
+
+  // combined: status + finalidade + prestador on contracts
+  const combined = await request(app)
+    .get(`/api/search/contracts?status=encerrado&finalidade_id=${limpezaId}&prestador_id=${p2Id}`)
+    .set(as(gestorToken));
+  assert.deepStrictEqual(ids(combined.body, 'contracts'), [c2Id], 'c2 satisfies all three');
+});
+
+test('FR-002 resultado vazio sem erro e paginação consistente', async () => {
+  // empty result: no error, total 0, arrays empty
+  const empty = await request(app).get('/api/search/tasks?q=zzz-inexistente').set(as(gestorToken));
+  assert.strictEqual(empty.status, 200, JSON.stringify(empty.body));
+  assert.strictEqual(empty.body.total, 0);
+  assert.deepStrictEqual(empty.body.tasks, []);
+
+  // pagination consistency: total is the full count, rows limited by limit
+  const page = await request(app).get('/api/search/tasks?limit=1&offset=0').set(as(gestorToken));
+  assert.strictEqual(page.status, 200);
+  assert.strictEqual(page.body.total, 3, 'three tasks seeded');
+  assert.strictEqual(page.body.tasks.length, 1, 'limit=1 returns one row');
+  assert.strictEqual(page.body.limit, 1);
+  assert.strictEqual(page.body.offset, 0);
+
+  // page beyond total: empty rows, total still correct, no error
+  const beyond = await request(app).get('/api/search/tasks?limit=50&offset=100').set(as(gestorToken));
+  assert.strictEqual(beyond.status, 200, JSON.stringify(beyond.body));
+  assert.deepStrictEqual(beyond.body.tasks, [], 'no rows beyond total');
+  assert.strictEqual(beyond.body.total, 3, 'total unchanged');
+});
+
+test('FR-003 p95 abaixo de 2 s com ensureIndexes ativo', async () => {
+  // ensureIndexes covers the filtered columns
+  const dbx = getDomainDb(domainId);
+  const indexes = dbx.all("SELECT name FROM sqlite_master WHERE type = 'index'").map((r) => r.name);
+  for (const idx of ['idx_contracts_status', 'idx_contracts_finalidade', 'idx_tasks_status', 'idx_tasks_assignee', 'idx_tasks_contract']) {
+    assert.ok(indexes.includes(idx), `${idx} present`);
+  }
+  // conditional indexes may be absent until a p95 gap is found; when present they must target the right columns
+  for (const [idx, table] of [['idx_tasks_priority', 'tasks'], ['idx_tasks_due_date', 'tasks']]) {
+    if (indexes.includes(idx)) {
+      const info = dbx.all(`PRAGMA index_info(${idx})`);
+      assert.strictEqual(info[0].name, table === 'tasks' ? (idx.includes('priority') ? 'priority' : 'due_date') : info[0].name);
+    }
+  }
+
+  // seed representative volume directly (fast, bypasses API)
+  const dbx2 = getDomainDb(domainId);
+  const items = [];
+  for (let i = 0; i < 2000; i += 1) {
+    items.push({
+      sql: 'INSERT INTO tasks (contract_id, title, description, status, priority, assignee_id, due_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      params: [c1Id, `Tarefa volume ${i}`, `desc ${i}`, i % 2 ? 'Em Progresso' : 'A Fazer', i % 3 ? 'low' : 'high', i % 2 ? p1Id : p2Id, futureDate(i % 100)],
+    });
+  }
+  dbx2.runBatch(items);
+
+  // measure p95 over N sequential requests with combined filters
+  const N = 25;
+  const samples = [];
+  for (let i = 0; i < N; i += 1) {
+    const start = process.hrtime.bigint();
+    const res = await request(app)
+      .get(`/api/search/tasks?status=${i % 2 ? 'Em Progresso' : 'A Fazer'}&priority=${i % 3 ? 'low' : 'high'}&prestador_id=${i % 2 ? p1Id : p2Id}&limit=50`)
+      .set(as(gestorToken));
+    const end = process.hrtime.bigint();
+    assert.strictEqual(res.status, 200, JSON.stringify(res.body));
+    samples.push(Number(end - start) / 1e6);
+  }
+  samples.sort((a, b) => a - b);
+  const p95 = samples[Math.floor(samples.length * 0.95)];
+  assert.ok(p95 < 2000, `p95 ${p95.toFixed(1)} ms < 2000 ms`);
+});
+
+test('FR-004 escopo de domínio e papel na busca', async () => {
+  // prestador sees only own tasks (explicit)
+  const p1Tasks = await request(app).get('/api/search/tasks?q=').set(as(p1Token));
+  assert.strictEqual(p1Tasks.status, 200);
+  assert.ok(p1Tasks.body.tasks.every((t) => t.assignee_id === p1Id), 'prestador: only own tasks');
+
+  // admin/gestor see the whole domain
+  const gestorTasks = await request(app).get('/api/search/tasks?q=').set(as(gestorToken));
+  const domainCount = getDomainDb(domainId).get('SELECT COUNT(*) AS c FROM tasks').c;
+  assert.strictEqual(gestorTasks.body.total, domainCount, 'gestor sees all domain tasks');
+
+  // domainId param is ignored — results stay in token domain, no leak
+  const sys = await request(app).post('/api/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  const iota = await request(app)
+    .post('/api/domains/enable')
+    .set(as(sys.body.token))
+    .send({ name: 'Iota Busca', adminName: 'Ivo', adminEmail: 'ivo@iota.test', adminPassword: 'Secret1!' });
+  assert.strictEqual(iota.status, 201, JSON.stringify(iota.body));
+  const foreign = iota.body.domain.id;
+  assert.notStrictEqual(Number(foreign), Number(domainId));
+
+  const withForeign = await request(app).get(`/api/search/tasks?domainId=${foreign}`).set(as(gestorToken));
+  assert.strictEqual(withForeign.status, 200, 'search ignores domainId param (token isolation)');
+  assert.strictEqual(withForeign.body.total, domainCount, 'still only own-domain tasks');
+
+  // foreign-domain session cannot see this domain's tasks
+  const foreignAdmin = await login('ivo@iota.test', 'Secret1!', foreign);
+  const foreignSearch = await request(app).get('/api/search/tasks?q=').set(as(foreignAdmin));
+  assert.strictEqual(foreignSearch.status, 200);
+  assert.strictEqual(foreignSearch.body.total, 0, 'foreign domain sees none of our tasks');
+});

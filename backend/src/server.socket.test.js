@@ -330,6 +330,110 @@ test('task:updated chega só à sala do domínio (SC-004)', async () => {
   assert.strictEqual(await leaked, false, 'domain B saw a domain A event');
 });
 
+// E009 T002 / FR-001 — a mutação de tarefa via HTTP publica task:updated na
+// sala domain_<id>; a sessão do mesmo domínio recebe o evento sem recarregar.
+test('FR-001 mutação HTTP publica task:updated na sala do domínio', async () => {
+  const tokenA = signJwt({ id: 5, email: 'a@socket.test', role: 'admin', domainId: domainA.id });
+  const clientA = openSocket({ auth: { token: tokenA } });
+  await connected(clientA);
+  assert.deepStrictEqual(await joinAck(clientA, domainA.id), { ok: true });
+
+  const received = awaitEvent(clientA, 'task:updated');
+  const res = await request(app)
+    .post(`/api/contracts/${contractId}/tasks`)
+    .set('Authorization', `Bearer ${gestorToken}`)
+    .send({ title: 'E009 task http e2e' });
+  assert.strictEqual(res.status, 201, JSON.stringify(res.body));
+
+  const payload = await received;
+  assert.strictEqual(payload.taskId, res.body.task.id);
+  assert.strictEqual(payload.contractId, contractId);
+  assert.strictEqual(payload.action, 'created');
+  assert.strictEqual(payload.status, res.body.task.status);
+});
+
+// E009 T003 / FR-002 — isolamento de sala: a sessão de outro domínio, na
+// mesma rede, não recebe o evento da mutação do domínio vizinho.
+test('FR-002 outro domínio não recebe o evento da mutação HTTP', async () => {
+  const tokenA = signJwt({ id: 5, email: 'a@socket.test', role: 'admin', domainId: domainA.id });
+  const tokenB = signJwt({ id: 6, email: 'b@socket.test', role: 'admin', domainId: domainB.id });
+  const clientA = openSocket({ auth: { token: tokenA } });
+  const clientB = openSocket({ auth: { token: tokenB } });
+  await Promise.all([connected(clientA), connected(clientB)]);
+  assert.deepStrictEqual(await joinAck(clientA, domainA.id), { ok: true });
+  assert.deepStrictEqual(await joinAck(clientB, domainB.id), { ok: true });
+
+  const leaked = missedEvent(clientB, 'task:updated', 600);
+  const received = awaitEvent(clientA, 'task:updated');
+  const res = await request(app)
+    .post(`/api/contracts/${contractId}/tasks`)
+    .set('Authorization', `Bearer ${gestorToken}`)
+    .send({ title: 'E009 isolation task' });
+  assert.strictEqual(res.status, 201, JSON.stringify(res.body));
+
+  await received; // domínio A recebeu; agora prova que B não viu
+  assert.strictEqual(await leaked, false, 'domain B saw a domain A mutation');
+});
+
+// E009 T004 / FR-003 — inércia da falha de emissão: um emitter que lança
+// exceção não muda a resposta HTTP da mutação que originou o evento; a
+// emissão no barramento retorna false.
+test('FR-003 falha de emissão não altera a resposta HTTP', async () => {
+  const events = require('./services/events');
+  events.setEmitter(() => {
+    throw new Error('emitter exploded');
+  });
+  try {
+    const res = await request(app)
+      .post(`/api/contracts/${contractId}/tasks`)
+      .set('Authorization', `Bearer ${gestorToken}`)
+      .send({ title: 'E009 emitter failure' });
+    assert.strictEqual(res.status, 201, JSON.stringify(res.body));
+    assert.ok(res.body.task && res.body.task.id, 'mutation still created the task');
+
+    const ok = events.emitDomainEvent('task:updated', domainA.id, { taskId: 999 });
+    assert.strictEqual(ok, false, 'emission with throwing emitter must return false');
+  } finally {
+    events.setEmitter((event, domainId, payload) => io.to(`domain_${domainId}`).emit(event, payload));
+  }
+});
+
+// E009 T005 / FR-004 — emitter ausente: a emissão retorna false sem lançar;
+// sem replay — um cliente que entra na sala depois da mutação não recebe
+// nada (sem fila de eventos), o estado é relido do banco.
+test('FR-004 emitter ausente retorna false sem replay', async () => {
+  const events = require('./services/events');
+  events.setEmitter(null);
+  const tokenA = signJwt({ id: 5, email: 'a@socket.test', role: 'admin', domainId: domainA.id });
+  try {
+    let threw = false;
+    let result;
+    try {
+      result = events.emitDomainEvent('task:updated', domainA.id, { taskId: 1, action: 'created' });
+    } catch {
+      threw = true;
+    }
+    assert.strictEqual(threw, false, 'emitDomainEvent must not throw without an emitter');
+    assert.strictEqual(result, false);
+
+    // a mutação HTTP com emitter ausente ainda responde 2xx
+    const res = await request(app)
+      .post(`/api/contracts/${contractId}/tasks`)
+      .set('Authorization', `Bearer ${gestorToken}`)
+      .send({ title: 'E009 no emitter' });
+    assert.strictEqual(res.status, 201, JSON.stringify(res.body));
+
+    // cliente que entra DEPOIS da mutação não recebe nada: sem replay
+    const late = openSocket({ auth: { token: tokenA } });
+    await connected(late);
+    assert.deepStrictEqual(await joinAck(late, domainA.id), { ok: true });
+    const leaked = await missedEvent(late, 'task:updated', 500);
+    assert.strictEqual(leaked, false, 'late joiner must not receive replayed events');
+  } finally {
+    events.setEmitter((event, domainId, payload) => io.to(`domain_${domainId}`).emit(event, payload));
+  }
+});
+
 // Acceptance stub per plan.md ## Acceptance Test Stubs (RED until T032).
 test('FR-021 estado + retry', async () => {
   // domain room subscriber: gestor JWT signed against the same secret
