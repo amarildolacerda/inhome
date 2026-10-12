@@ -55,7 +55,7 @@ Benefício: converte quem migra do Excel; adoção. Esforço: M.
 ## R4 — Acompanhamento de prestadores
 
 - Indicadores por prestador: contratos vinculados, tarefas em atraso,
-  conclusão. Usa dados já existentes (`contract_prestadores`, tarefas).
+  conclusão. Usa dados já existentes (`contract_providers`, tarefas).
 - Kanban de execução por contrato (delighter citado).
 
 Benefício: desejo nº 9 ampliado para a persona gestor. Esforço: S/M.

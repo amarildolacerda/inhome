@@ -228,7 +228,7 @@ class ApiService {
     final result = await get('/search/contracts${_query({
       'q': q,
       'status': status,
-      'finalidade_id': finalidadeId,
+      'purpose_id': finalidadeId,
       'prestador_id': prestadorId,
       'limit': limit,
       'offset': offset,

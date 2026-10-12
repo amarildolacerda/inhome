@@ -42,23 +42,23 @@ function createContract(req, res) {
     if (!body.name || !String(body.name).trim()) throw httpError(400, 'name is required');
     parseBodyDates(body);
 
-    let finalidadeId = null;
-    if (body.finalidade_id !== undefined && body.finalidade_id !== null) {
-      const finalidade = db.get('SELECT id, active FROM purposes WHERE id = ?', [
-        Number(body.finalidade_id),
+    let purposeId = null;
+    if (body.purpose_id !== undefined && body.purpose_id !== null) {
+      const purpose = db.get('SELECT id, active FROM purposes WHERE id = ?', [
+        Number(body.purpose_id),
       ]);
-      if (!finalidade) throw httpError(400, 'finalidade_id does not exist');
-      if (!finalidade.active) throw httpError(400, 'finalidade is retired');
-      finalidadeId = finalidade.id;
+      if (!purpose) throw httpError(400, 'purpose_id does not exist');
+      if (!purpose.active) throw httpError(400, 'finalidade is retired');
+      purposeId = purpose.id;
     }
 
     db.run(
-      `INSERT INTO contracts(name, object, finalidade_id, start_date, forecast_date, created_by)
+      `INSERT INTO contracts(name, object, purpose_id, start_date, forecast_date, created_by)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [
         String(body.name).trim(),
         body.object ? String(body.object) : null,
-        finalidadeId,
+        purposeId,
         body.start_date,
         body.forecast_date,
         req.user.id,
@@ -164,9 +164,9 @@ function updateContract(req, res) {
       fields.push('object = ?');
       params.push(body.object);
     }
-    if (body.finalidade_id !== undefined) {
-      fields.push('finalidade_id = ?');
-      params.push(body.finalidade_id === null ? null : Number(body.finalidade_id));
+    if (body.purpose_id !== undefined) {
+      fields.push('purpose_id = ?');
+      params.push(body.purpose_id === null ? null : Number(body.purpose_id));
     }
     if (body.start_date !== undefined || body.forecast_date !== undefined) {
       const start = body.start_date ?? row.start_date;
@@ -336,7 +336,7 @@ const CONTRACT_SCHEMA = {
   object: { type: 'string', max: 2000 },
   start_date: { required: true, type: 'date' },
   forecast_date: { required: true, type: 'date' },
-  finalidade_id: { type: 'integer', min: 1 },
+  purpose_id: { type: 'integer', min: 1 },
 };
 
 router.use(authenticateToken);

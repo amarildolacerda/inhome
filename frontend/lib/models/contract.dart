@@ -1,4 +1,4 @@
-/// Prestador vinculado ao contrato (contract_prestadores, já decorado).
+/// Prestador vinculado ao contrato (contract_providers, já decorado).
 class ContractPrestador {
   final int id;
   final String name;
@@ -64,8 +64,8 @@ class Contract {
       id: (json['id'] as num?)?.toInt() ?? 0,
       name: (json['name'] as String?) ?? '',
       object: json['object'] as String?,
-      finalidadeId: (json['finalidade_id'] as num?)?.toInt(),
-      finalidadeName: json['finalidade_name'] as String?,
+      finalidadeId: (json['purpose_id'] as num?)?.toInt(),
+      finalidadeName: json['purpose_name'] as String?,
       startDate: (json['start_date'] as String?) ?? '',
       forecastDate: (json['forecast_date'] as String?) ?? '',
       status: (json['status'] as String?) ?? statusVigente,
@@ -87,7 +87,7 @@ class Contract {
         'object': object,
         'start_date': startDate,
         'forecast_date': forecastDate,
-        'finalidade_id': finalidadeId,
+        'purpose_id': finalidadeId,
       };
 
   List<int> get prestadorIds => prestadores.map((p) => p.id).toList();

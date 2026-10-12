@@ -157,7 +157,7 @@ const DOMAIN_SCHEMA = [
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     object TEXT,
-    finalidade_id INTEGER REFERENCES purposes(id),
+    purpose_id INTEGER REFERENCES purposes(id),
     start_date TEXT NOT NULL,
     forecast_date TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'vigente' CHECK (status IN ('vigente','encerrado')),
@@ -308,7 +308,7 @@ const DOMAIN_SCHEMA = [
 // FR-026 / HINT-005: index hot paths before paged list queries.
 const DOMAIN_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_contracts_status ON contracts(status)',
-  'CREATE INDEX IF NOT EXISTS idx_contracts_finalidade ON contracts(finalidade_id)',
+  'CREATE INDEX IF NOT EXISTS idx_contracts_purpose ON contracts(purpose_id)',
   'CREATE INDEX IF NOT EXISTS idx_tasks_contract ON tasks(contract_id)',
   'CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)',
   'CREATE INDEX IF NOT EXISTS idx_tasks_assignee ON tasks(assignee_id)',
@@ -430,6 +430,23 @@ function migrateSchema(wrapper) {
   for (const [legacyTable, englishTable] of legacyRenames) {
     if (tableExists(wrapper, legacyTable) && !tableExists(wrapper, englishTable)) {
       wrapper.run(`ALTER TABLE ${legacyTable} RENAME TO ${englishTable}`);
+    }
+  }
+
+  // English is the column-naming standard: contracts.finalidade_id becomes
+  // purpose_id. ALTER TABLE ... RENAME COLUMN (sql.js / SQLite 3.49.1) rewrites
+  // the REFERENCES purposes(id) clause in place, so the FK keeps resolving
+  // without touching stored data. RENAME COLUMN also rewrites the definition
+  // of every dependent index but keeps the index NAME, so the legacy
+  // idx_contracts_finalidade is dropped and recreated as idx_contracts_purpose.
+  // Guarded by the legacy column itself: fresh files are born with purpose_id
+  // and a migrated file skips the block entirely (second open is a no-op).
+  if (tableExists(wrapper, 'contracts')) {
+    const contractColumns = wrapper.all('PRAGMA table_info(contracts)').map((column) => column.name);
+    if (contractColumns.includes('finalidade_id')) {
+      wrapper.run('ALTER TABLE contracts RENAME COLUMN finalidade_id TO purpose_id');
+      wrapper.run('DROP INDEX IF EXISTS idx_contracts_finalidade');
+      wrapper.run('CREATE INDEX IF NOT EXISTS idx_contracts_purpose ON contracts(purpose_id)');
     }
   }
 

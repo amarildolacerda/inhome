@@ -140,7 +140,7 @@ test('FR-021 validation', async () => {
   const badType = await request(app)
     .post('/api/contracts')
     .set(as(gestorToken))
-    .send({ name: 'Obra', start_date: '2026-01-01', forecast_date: '2026-12-31', finalidade_id: 'abc' });
+    .send({ name: 'Obra', start_date: '2026-01-01', forecast_date: '2026-12-31', purpose_id: 'abc' });
   assert.strictEqual(badType.status, 400);
 
   // ---- integration: task creation payload ----

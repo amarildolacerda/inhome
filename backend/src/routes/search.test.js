@@ -99,7 +99,7 @@ test.before(async () => {
       name: 'Almoxarifado Norte Reforma',
       start_date: futureDate(-10),
       forecast_date: futureDate(60),
-      finalidade_id: reformaId,
+      purpose_id: reformaId,
     });
   assert.strictEqual(c1.status, 201, JSON.stringify(c1.body));
   c1Id = c1.body.contract.id;
@@ -111,7 +111,7 @@ test.before(async () => {
       name: 'Galpao Sul Limpeza',
       start_date: futureDate(-40),
       forecast_date: futureDate(30),
-      finalidade_id: limpezaId,
+      purpose_id: limpezaId,
     });
   assert.strictEqual(c2.status, 201, JSON.stringify(c2.body));
   c2Id = c2.body.contract.id;
@@ -178,7 +178,7 @@ test('FR-016 filters', async () => {
 
   // finalidade
   const byFinalidade = await request(app)
-    .get(`/api/search/contracts?finalidade_id=${reformaId}`)
+    .get(`/api/search/contracts?purpose_id=${reformaId}`)
     .set(as(gestorToken));
   assert.deepStrictEqual(ids(byFinalidade.body, 'contracts'), [c1Id]);
 
@@ -222,7 +222,7 @@ test('FR-016 filters', async () => {
   assert.deepStrictEqual(ids(combined.body, 'tasks'), [t1Id]);
 
   const combinedC = await request(app)
-    .get(`/api/search/contracts?status=vigente&finalidade_id=${reformaId}&prestador_id=${p1Id}`)
+    .get(`/api/search/contracts?status=vigente&purpose_id=${reformaId}&prestador_id=${p1Id}`)
     .set(as(gestorToken));
   assert.deepStrictEqual(ids(combinedC.body, 'contracts'), [c1Id]);
 
@@ -276,7 +276,7 @@ test('FR-001 seis filtros isolados e combinados', async () => {
   assert.strictEqual(byPrestador.body.total, 2, 'p2 owns t2 and t3');
 
   // finalidade (contracts)
-  const byFinalidade = await request(app).get(`/api/search/contracts?finalidade_id=${limpezaId}`).set(as(gestorToken));
+  const byFinalidade = await request(app).get(`/api/search/contracts?purpose_id=${limpezaId}`).set(as(gestorToken));
   assert.strictEqual(byFinalidade.body.total, 1);
   assert.strictEqual(byFinalidade.body.contracts[0].id, c2Id);
 
@@ -288,7 +288,7 @@ test('FR-001 seis filtros isolados e combinados', async () => {
 
   // combined: status + finalidade + prestador on contracts
   const combined = await request(app)
-    .get(`/api/search/contracts?status=encerrado&finalidade_id=${limpezaId}&prestador_id=${p2Id}`)
+    .get(`/api/search/contracts?status=encerrado&purpose_id=${limpezaId}&prestador_id=${p2Id}`)
     .set(as(gestorToken));
   assert.deepStrictEqual(ids(combined.body, 'contracts'), [c2Id], 'c2 satisfies all three');
 });
@@ -319,7 +319,7 @@ test('FR-003 p95 abaixo de 2 s com ensureIndexes ativo', async () => {
   // ensureIndexes covers the filtered columns
   const dbx = getDomainDb(domainId);
   const indexes = dbx.all("SELECT name FROM sqlite_master WHERE type = 'index'").map((r) => r.name);
-  for (const idx of ['idx_contracts_status', 'idx_contracts_finalidade', 'idx_tasks_status', 'idx_tasks_assignee', 'idx_tasks_contract']) {
+  for (const idx of ['idx_contracts_status', 'idx_contracts_purpose', 'idx_tasks_status', 'idx_tasks_assignee', 'idx_tasks_contract']) {
     assert.ok(indexes.includes(idx), `${idx} present`);
   }
   // conditional indexes may be absent until a p95 gap is found; when present they must target the right columns

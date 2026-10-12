@@ -102,7 +102,7 @@ test('FR-005 finalidade CRUD', async () => {
   // routes arrive in T011)
   const db = getDomainDb(domainId);
   db.run(
-    "INSERT INTO contracts(name, object, finalidade_id, start_date, forecast_date) VALUES ('C-1', 'obj', ?, '2026-01-01', '2026-12-31')",
+    "INSERT INTO contracts(name, object, purpose_id, start_date, forecast_date) VALUES ('C-1', 'obj', ?, '2026-01-01', '2026-12-31')",
     [finalidadeId]
   );
 
@@ -118,8 +118,8 @@ test('FR-005 finalidade CRUD', async () => {
   assert.ok(!after.body.finalidades.some((f) => f.id === finalidadeId), 'retired hidden from list');
 
   // …but does not alter existing contracts (spec edge case)
-  const contract = db.get('SELECT finalidade_id FROM contracts WHERE name = ?', ['C-1']);
-  assert.strictEqual(contract.finalidade_id, finalidadeId, 'contract reference untouched');
+  const contract = db.get('SELECT purpose_id FROM contracts WHERE name = ?', ['C-1']);
+  assert.strictEqual(contract.purpose_id, finalidadeId, 'contract reference untouched');
 
   // retired entries remain visible to admin with showRetired
   const adminView = await request(app)

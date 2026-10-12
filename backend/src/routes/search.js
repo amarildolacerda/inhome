@@ -36,9 +36,9 @@ function searchContracts(req, res) {
       where.push('c.status = ?');
       params.push(req.query.status);
     }
-    if (req.query.finalidade_id) {
-      where.push('c.finalidade_id = ?');
-      params.push(Number(req.query.finalidade_id));
+    if (req.query.purpose_id) {
+      where.push('c.purpose_id = ?');
+      params.push(Number(req.query.purpose_id));
     }
     let base = 'FROM contracts c';
     if (req.query.prestador_id) {

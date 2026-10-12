@@ -45,7 +45,7 @@ async function createContract(token, finalidadeId, name, forecastDays) {
     .send({
       name,
       object: `${name} objeto`,
-      finalidade_id: finalidadeId,
+      purpose_id: finalidadeId,
       start_date: futureDate(-10),
       forecast_date: futureDate(forecastDays),
     });
@@ -232,7 +232,7 @@ async function createPanelContract(token, name, forecastDays) {
     .send({
       name,
       object: `${name} objeto`,
-      finalidade_id: fimC,
+      purpose_id: fimC,
       start_date: panelDate(-10),
       forecast_date: panelDate(forecastDays),
     });
@@ -278,12 +278,12 @@ async function ensurePanelDomain() {
   // Incompletos: fixture legada (POST exige data válida) — o painel trata
   // qualquer linha sem previsão como incompleto e a mantém visível (SC-005).
   dbC.run(
-    `INSERT INTO contracts(name, object, finalidade_id, start_date, forecast_date)
+    `INSERT INTO contracts(name, object, purpose_id, start_date, forecast_date)
      VALUES (?, NULL, ?, ?, '')`,
     ['Sem previsão um', fimC, panelDate(-30)]
   );
   dbC.run(
-    `INSERT INTO contracts(name, object, finalidade_id, start_date, forecast_date)
+    `INSERT INTO contracts(name, object, purpose_id, start_date, forecast_date)
      VALUES (?, NULL, ?, ?, '')`,
     ['Sem previsão dois', fimC, panelDate(-30)]
   );
@@ -667,7 +667,7 @@ async function ensureSweepDomain() {
       .send({
         name: 'Contrato na janela 30',
         object: 'E010 varredura objeto',
-        finalidade_id: fim.body.finalidade.id,
+        purpose_id: fim.body.finalidade.id,
         start_date: futureDate(-10),
         forecast_date: futureDate(20),
       });
@@ -809,7 +809,7 @@ test('E010 FR-005: host morto grava failed, painel expõe failed e a varredura c
       .send({
         name: 'Contrato host morto',
         object: 'E010 host morto objeto',
-        finalidade_id: sweepContract.finalidadeId,
+        purpose_id: sweepContract.finalidadeId,
         start_date: futureDate(-10),
         forecast_date: futureDate(25),
       });

@@ -5,7 +5,7 @@ Custom project TODOs. Agents read this file at session start.
 ## Pending
 
 - [ ] Commit do bootstrap SDD + governança — arquivos alterados sem commit: `.github/sddp-config.md` (paths prd/sad/project-plan + Derived QC Policy), `project-instructions.md` (v2.1.0), `specs/{prd,sad,project-plan}.md` + `specs/plan/E001..E010.md` + `specs/prd-discovery.md` (novos), fix dos agents `.opencode/agents/sddp-*.md` (bash workaround) — aguarda pedido explícito do usuário
-- [ ] Padronização de nomenclatura em inglês no banco: fases 2–5 pendentes (coluna `finalidade_id` + chaves de resposta, enums de dado, papéis, superfície de API) — inventário, ordem e critérios em `docs/naming-conventions.md`; fase 1 (tabelas) concluída em 2026-10-06
+- [ ] Padronização de nomenclatura em inglês no banco: fases 3–5 pendentes (enums de dado, papéis, superfície de API) — inventário, ordem e critérios em `docs/naming-conventions.md`; fase 2 (coluna + chaves de contrato JSON → `purpose_id`/`purpose_name`) concluída em 2026-10-12; fase 1 (tabelas) concluída em 2026-10-06
 - [ ] Rollup de release em `specs/project-plan.md`: marcar épicas E001–E010 + ondas entregues — só após pedido do usuário (muda digest de estado dos sigilos QC)
 ## Done
 

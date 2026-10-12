@@ -14,7 +14,7 @@ Implementação de referência em `backend/src/config/database.js`:
 
 1. Helper `tableExists()` + guarda idempotente em `migrateSchema()`: renomeia só quando a tabela antiga existe e a nova não (`ALTER TABLE x RENAME TO y`).
 2. Ordem crítica em `openDb()`: `migrateSchema()` roda **antes** de `applySchema()`. Se `CREATE TABLE IF NOT EXISTS` da tabela nova rodar primeiro, nasce uma tabela vazia em arquivando as linhas antigas na tabela legada, e a guarda deixa de disparar.
-3. O `ALTER TABLE … RENAME TO` do sql.js (SQLite 3.49.1) reescreve FKs e índices dependentes no lugar: `contracts.finalidade_id` passa a referenciar `purposes(id)` e `idx_cp_user` migra junto de `contract_providers`.
+3. O `ALTER TABLE … RENAME TO` do sql.js (SQLite 3.49.1) reescreve FKs e índices dependentes no lugar: a FK de finalidade em `contracts` passa a referenciar `purposes(id)` e `idx_cp_user` migra junto de `contract_providers`.
 4. Teste de regressão no padrão de `backend/src/config/database.test.js`: monta um banco legado (tabelas antigas + linhas), abre pelo caminho da aplicação (`getDomainDb`), afirma nomes novos, contagens preservadas, FK reescrita, e que a segunda abertura é no-op.
 
 Bateria de verificação obrigatória por fase:
@@ -30,7 +30,7 @@ Bateria de verificação obrigatória por fase:
 | Fase | Escopo | Estado |
 |---|---|---|
 | 1 | Tabelas: `finalidades` → `purposes`, `contract_prestadores` → `contract_providers` | **Concluída (2026-10-06)**: unit 52/52 (com teste de migração), smoke 61/61, e2e 28/28, audit 0, 31/31 domínios migrados com contagens preservadas |
-| 2 | Coluna `finalidade_id` (índice `idx_contracts_finalidade`, chaves de resposta `finalidade_id`/`finalidade_name`) em `config/database.js`, `models/Contract.js`, `routes/contracts.js`, `routes/search.js` + testes (`contracts`, `finalidades`, `search`, `validate`, `database`) | Pendente. Impacto no contrato JSON: exige regenerar `specs/00003-.../contracts/openapi.yaml` e ajustar o frontend |
+| 2 | Coluna de finalidade de `contracts` (`idx_contracts_finalidade` → `idx_contracts_purpose`, chaves de resposta `purpose_id`/`purpose_name`) em `config/database.js`, `models/Contract.js`, `routes/contracts.js`, `routes/search.js` + testes (`contracts`, `finalidades`, `search`, `validate`, `database`) | **Concluída (2026-10-12)**: unit 153/153 (com teste de migração da coluna), smoke 118/118, flutter 25/25, audit 0, 33/33 domínios migrados com contagens preservadas; contrato JSON sincronizado (`specs/00004-e002-contrato-vigencia/contracts/openapi.yaml` + frontend) |
 | 3 | Enums de dado: `contracts.status` (`vigente`, `encerrado`, `atrasado`), `tasks.status` (`A Fazer`, `Em Progresso`, `Revisão`, `Concluída`), enums da 00003 (`pendente`, `sugerido`, `analisando`, `falha`, `aprovada`, `analise`, `revisao`, `ativo`, `substituido`, `gerado`) | Pendente. Decisão em aberto: traduzir o valor armazenado ou guardar em inglês e traduzir na apresentação; afeta API, frontend, e-mail e relatório |
 | 4 | `users.role` (`admin`, `gestor`, `prestador`) | Decisão em aberto: papéis são conceito de produto, provável manter como está |
 | 5 | Superfície de API: caminhos (`/api/finalidades`), sufixos de rota (`:prorrogar`, `:encerrar`), mensagens de erro | Pendente. Mudança incompatível de contrato: só com decisão explícita de versionamento |
@@ -39,5 +39,5 @@ Critérios de entrada por fase: migração idempotente + teste de regressão, ba
 
 ## Pendências menores da fase 1
 
-- `docs/roadmap.md:58`: `contract_prestadores` citado em prosa (não é SQL).
-- `frontend/lib/models/contract.dart:1`: comentário de doc com o nome antigo da tabela.
+- `docs/roadmap.md:58`: `contract_prestadores` citado em prosa (não é SQL) — resolvido em 2026-10-12.
+- `frontend/lib/models/contract.dart:1`: comentário de doc com o nome antigo da tabela — resolvido em 2026-10-12.

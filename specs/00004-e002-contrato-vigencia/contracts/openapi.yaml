@@ -66,7 +66,7 @@ paths:
       description: |
         `forecast_date` é obrigatória e pode estar no passado — o contrato nasce
         exibido como `atrasado` sem impedir a gravação (FR-007).
-        `finalidade_id` é opcional e de valor único; inexistente ou aposentada → 400.
+        `purpose_id` é opcional e de valor único; inexistente ou aposentada → 400.
       operationId: createContract
       requestBody:
         required: true
@@ -323,7 +323,7 @@ components:
       properties:
         name: { type: string, example: "Reforma da fachada" }
         object: { type: string, nullable: true, example: "Refazer a fachada da loja 12" }
-        finalidade_id: { type: integer, nullable: true, example: 3 }
+        purpose_id: { type: integer, nullable: true, example: 3 }
         start_date: { type: string, format: date, example: "2026-10-01" }
         forecast_date: { type: string, format: date, example: "2027-02-28" }
     Contract:
@@ -333,8 +333,8 @@ components:
         id: { type: integer }
         name: { type: string }
         object: { type: string, nullable: true }
-        finalidade_id: { type: integer, nullable: true }
-        finalidade_name: { type: string, nullable: true }
+        purpose_id: { type: integer, nullable: true }
+        purpose_name: { type: string, nullable: true }
         start_date: { type: string, format: date }
         forecast_date: { type: string, format: date, description: "Presente em 100% dos vigentes (FR-014)" }
         status:

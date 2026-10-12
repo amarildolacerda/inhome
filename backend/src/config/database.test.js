@@ -172,7 +172,7 @@ test('rename migration: legacy Portuguese tables become purposes/contract_provid
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     object TEXT,
-    finalidade_id INTEGER REFERENCES finalidades(id),
+    purpose_id INTEGER REFERENCES finalidades(id),
     start_date TEXT NOT NULL,
     forecast_date TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'vigente' CHECK (status IN ('vigente','encerrado')),
@@ -191,7 +191,7 @@ test('rename migration: legacy Portuguese tables become purposes/contract_provid
     "INSERT INTO users(name, email, password_hash, role) VALUES ('Paulo', 'paulo@old.test', 'x', 'prestador')"
   );
   raw.run(
-    "INSERT INTO contracts(name, finalidade_id, start_date, forecast_date) VALUES ('C-legacy', 2, '2026-01-01', '2026-12-31')"
+    "INSERT INTO contracts(name, purpose_id, start_date, forecast_date) VALUES ('C-legacy', 2, '2026-01-01', '2026-12-31')"
   );
   raw.run('INSERT INTO contract_prestadores(contract_id, user_id) VALUES (1, 1)');
   fs.writeFileSync(file, Buffer.from(raw.export()));
@@ -247,6 +247,99 @@ test('rename migration: legacy Portuguese tables become purposes/contract_provid
   assert.strictEqual(again.get('SELECT COUNT(*) AS c FROM contract_providers').c, 1);
 });
 
+// Phase 2 of the naming standard: contracts.finalidade_id becomes purpose_id
+// in place on open. ALTER TABLE ... RENAME COLUMN (sql.js / SQLite 3.49.1)
+// rewrites the REFERENCES purposes(id) clause without touching rows; the index
+// definition follows the column but keeps its legacy name, so the migration
+// drops idx_contracts_finalidade and recreates idx_contracts_purpose.
+test('rename migration: contracts.finalidade_id becomes purpose_id', async () => {
+  const SQL = await database.initSqlDriver();
+  const platform = database.getPlatformDb();
+  platform.run('INSERT INTO domains(name, slug) VALUES (?, ?)', ['OldPurpose', 'old-purpose']);
+  const legacy = platform.get('SELECT id FROM domains WHERE slug = ?', ['old-purpose']);
+
+  // pre-phase-2 schema written straight to disk: English tables (phase 1
+  // already ran), Portuguese column and index, with rows in both tables
+  const file = path.join(dataDir, 'domains', `${legacy.id}.db`);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const raw = new SQL.Database();
+  raw.run(`CREATE TABLE purposes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  raw.run(`CREATE TABLE contracts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    object TEXT,
+    finalidade_id INTEGER REFERENCES purposes(id),
+    start_date TEXT NOT NULL,
+    forecast_date TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'vigente' CHECK (status IN ('vigente','encerrado')),
+    created_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  raw.run("INSERT INTO purposes(name) VALUES ('Obra Civil'), ('Suporte TI')");
+  raw.run(
+    `INSERT INTO contracts(name, finalidade_id, start_date, forecast_date)
+     VALUES ('C-legacy', 2, '2026-01-01', '2026-12-31'),
+            ('C-legacy-2', 1, '2026-02-01', '2026-11-30')`
+  );
+  raw.run('CREATE INDEX idx_contracts_finalidade ON contracts(finalidade_id)');
+  fs.writeFileSync(file, Buffer.from(raw.export()));
+  raw.close();
+
+  // opening through the app path (getDomainDb) runs migrateSchema ahead of
+  // applySchema, so the rename lands on the legacy file itself
+  const db = database.getDomainDb(legacy.id);
+  const columns = db.all('PRAGMA table_info(contracts)').map((column) => column.name);
+  assert.ok(columns.includes('purpose_id'), 'finalidade_id renamed to purpose_id');
+  assert.ok(!columns.includes('finalidade_id'), 'legacy column gone');
+
+  // FK rewritten in place by RENAME COLUMN
+  const contractsSql = db.get(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'contracts'"
+  ).sql;
+  assert.match(contractsSql, /purpose_id\s+INTEGER REFERENCES purposes\(id\)/, contractsSql);
+
+  // RENAME COLUMN updates the index definition but not its name, so the
+  // migration swaps the index explicitly
+  const indexRows = db
+    .all("SELECT name, sql FROM sqlite_master WHERE type = 'index'")
+    .filter((row) => row.sql);
+  assert.ok(
+    !indexRows.some((row) => row.name === 'idx_contracts_finalidade'),
+    'legacy index dropped'
+  );
+  const newIdx = indexRows.find((row) => row.name === 'idx_contracts_purpose');
+  assert.ok(newIdx, 'english index created');
+  assert.match(newIdx.sql, /purpose_id/, newIdx.sql);
+
+  // rows preserved and readable through the new column name
+  assert.strictEqual(db.get('SELECT COUNT(*) AS c FROM contracts').c, 2);
+  assert.strictEqual(db.get('SELECT COUNT(*) AS c FROM purposes').c, 2);
+  assert.strictEqual(
+    db.get('SELECT purpose_id FROM contracts WHERE name = ?', ['C-legacy']).purpose_id,
+    2
+  );
+
+  // idempotent: reopening the migrated file is a no-op with data preserved
+  database.resetDatabaseCache();
+  await database.initSqlDriver();
+  const again = database.getDomainDb(legacy.id);
+  const againColumns = again.all('PRAGMA table_info(contracts)').map((column) => column.name);
+  assert.ok(againColumns.includes('purpose_id') && !againColumns.includes('finalidade_id'));
+  const againIndexes = again
+    .all("SELECT name FROM sqlite_master WHERE type = 'index'")
+    .map((row) => row.name);
+  assert.ok(!againIndexes.includes('idx_contracts_finalidade'), 'second open changes nothing');
+  assert.strictEqual(again.get('SELECT COUNT(*) AS c FROM contracts').c, 2);
+  assert.strictEqual(again.get('SELECT COUNT(*) AS c FROM purposes').c, 2);
+});
+
 // 00003 (T001): domain databases gain the 7 workflow tables, the 4 additive
 // `tasks` columns and both partial UNIQUE invariants on open. Legacy files
 // (pre-00003 tasks) are migrated in place; existing rows stay outside the
@@ -275,7 +368,7 @@ test('00003 workflow schema: 7 tables + additive tasks columns + partial uniques
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     object TEXT,
-    finalidade_id INTEGER,
+    purpose_id INTEGER,
     start_date TEXT NOT NULL,
     forecast_date TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'vigente' CHECK (status IN ('vigente','encerrado')),
@@ -463,7 +556,7 @@ test('00009 alert migrations: alert_events domain table + domains.alert_windows 
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     object TEXT NOT NULL,
-    finalidade_id INTEGER,
+    purpose_id INTEGER,
     start_date TEXT NOT NULL,
     forecast_date TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'vigente',

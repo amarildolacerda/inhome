@@ -31,8 +31,8 @@ class Contract {
   }
 
   static decorate(db, row) {
-    const finalidade = row.finalidade_id
-      ? db.get('SELECT name FROM purposes WHERE id = ?', [row.finalidade_id])
+    const purpose = row.purpose_id
+      ? db.get('SELECT name FROM purposes WHERE id = ?', [row.purpose_id])
       : null;
     const prestadores = db.all(
       `SELECT u.id, u.name, u.email FROM contract_providers cp
@@ -50,8 +50,8 @@ class Contract {
       id: row.id,
       name: row.name,
       object: row.object,
-      finalidade_id: row.finalidade_id,
-      finalidade_name: finalidade ? finalidade.name : null,
+      purpose_id: row.purpose_id,
+      purpose_name: purpose ? purpose.name : null,
       start_date: row.start_date,
       forecast_date: row.forecast_date,
       status: effectiveStatus(row),

@@ -98,14 +98,14 @@ test('FR-006 create', async () => {
     .send({
       name: 'Reforma Almoxarifado',
       object: 'Reforma geral do almoxarifado central',
-      finalidade_id: finalidadeId,
+      purpose_id: finalidadeId,
       start_date: futureDate(-10),
       forecast_date: futureDate(90),
     });
   assert.strictEqual(created.status, 201, JSON.stringify(created.body));
   const contract = created.body.contract;
   assert.ok(contract.id > 0);
-  assert.strictEqual(contract.finalidade_name, 'Obra');
+  assert.strictEqual(contract.purpose_name, 'Obra');
   assert.strictEqual(contract.status, 'vigente');
   assert.strictEqual(contract.task_count, 0);
 
@@ -134,7 +134,7 @@ test('FR-006 create', async () => {
     .set(as(gestorToken))
     .send({
       name: 'Y',
-      finalidade_id: 999999,
+      purpose_id: 999999,
       start_date: futureDate(0),
       forecast_date: futureDate(10),
     });
@@ -361,7 +361,7 @@ test('FR-006 matriz dos quatro papéis', async () => {
 
   const contractBody = (name) => ({
     name,
-    finalidade_id: finalidadeId,
+    purpose_id: finalidadeId,
     start_date: futureDate(1),
     forecast_date: futureDate(30),
   });
@@ -463,13 +463,13 @@ test('FR-001 cria contrato validado', async () => {
     .send({
       name: 'FR-001 Vistoria',
       object: 'Vistoria de obra',
-      finalidade_id: finalidadeId,
+      purpose_id: finalidadeId,
       start_date: futureDate(0),
       forecast_date: futureDate(45),
     });
   assert.strictEqual(created.status, 201, JSON.stringify(created.body));
   assert.strictEqual(created.body.contract.status, 'vigente');
-  assert.strictEqual(created.body.contract.finalidade_name, 'Obra');
+  assert.strictEqual(created.body.contract.purpose_name, 'Obra');
 
   // finalidade é opcional (FR-001: "quando informada")
   const semFinalidade = await request(app)
@@ -477,7 +477,7 @@ test('FR-001 cria contrato validado', async () => {
     .set(as(gestorToken))
     .send({ name: 'FR-001 Sem finalidade', start_date: futureDate(0), forecast_date: futureDate(30) });
   assert.strictEqual(semFinalidade.status, 201, JSON.stringify(semFinalidade.body));
-  assert.strictEqual(semFinalidade.body.contract.finalidade_id, null);
+  assert.strictEqual(semFinalidade.body.contract.purpose_id, null);
 
   // nome ausente → 400
   const semNome = await request(app)
@@ -499,7 +499,7 @@ test('FR-001 cria contrato validado', async () => {
     .set(as(gestorToken))
     .send({
       name: 'FR-001 Finalidade',
-      finalidade_id: 999999,
+      purpose_id: 999999,
       start_date: futureDate(0),
       forecast_date: futureDate(30),
     });
@@ -520,7 +520,7 @@ test('FR-001 cria contrato validado', async () => {
     .set(as(gestorToken))
     .send({
       name: 'FR-001 Usa Aposentada',
-      finalidade_id: nova.body.finalidade.id,
+      purpose_id: nova.body.finalidade.id,
       start_date: futureDate(0),
       forecast_date: futureDate(30),
     });
