@@ -24,32 +24,32 @@ dod_source: none
 
 > Capacidades já em produção e validadas (28 E2E, 16 fumaça, 35 unitários). Escopo de cada épica: verificação, fechamento do gap registrado e regressão — o que já está provado não é refeito.
 
-- [ ] E001 [P1] [PRODUCT] [P] {PRD:CAP-001} Domínio papéis e acesso — habilitação, permissões e suspensão [→ Details](plan/E001.md)
-- [ ] E002 [P1] [PRODUCT] [P] {PRD:CAP-002} Contrato e vigência — cadastro, vínculo, prorrogação, encerramento [→ Details](plan/E002.md)
-- [ ] E003 [P1] [PRODUCT] [P] {PRD:CAP-003} Execução de tarefas com evidência — conclusão, reabertura e proxy `/uploads` [→ Details](plan/E003.md)
-- [ ] E006 [P1] [PRODUCT] [P] {PRD:CAP-005} Painel por papel — visões por papel e fechamento de T031 [→ Details](plan/E006.md)
-- [ ] E007 [P1] [PRODUCT] {PRD:CAP-006} Busca e filtros — contrato, status, prioridade, prestador, finalidade, prazo [→ Details](plan/E007.md)
-- [ ] E009 [P2] [PRODUCT] [P] {PRD:CAP-008} Comunicação em tempo real — sessões acompanhando mutações [→ Details](plan/E009.md)
+- [X] E001 [P1] [PRODUCT] [P] {PRD:CAP-001} Domínio papéis e acesso — habilitação, permissões e suspensão [→ Details](plan/E001.md)
+- [X] E002 [P1] [PRODUCT] [P] {PRD:CAP-002} Contrato e vigência — cadastro, vínculo, prorrogação, encerramento [→ Details](plan/E002.md)
+- [X] E003 [P1] [PRODUCT] [P] {PRD:CAP-003} Execução de tarefas com evidência — conclusão, reabertura e proxy `/uploads` [→ Details](plan/E003.md)
+- [X] E006 [P1] [PRODUCT] [P] {PRD:CAP-005} Painel por papel — visões por papel e fechamento de T031 [→ Details](plan/E006.md)
+- [X] E007 [P1] [PRODUCT] {PRD:CAP-006} Busca e filtros — contrato, status, prioridade, prestador, finalidade, prazo [→ Details](plan/E007.md)
+- [X] E009 [P2] [PRODUCT] [P] {PRD:CAP-008} Comunicação em tempo real — sessões acompanhando mutações [→ Details](plan/E009.md)
 
 ### Wave 2 — Motor de alertas e relatório
 
 > Primeira entrega nova da release. E004 cria a migração aditiva preguiçosa dos alertas; E008 fecha o relatório sobre a base já entregue. Ambas paralelas: áreas de código disjuntas.
 
-- [ ] E004 [P1] [PRODUCT] [P] {PRD:CAP-004} Motor de alertas de vigência — varredura, dedup e janelas [→ Details](plan/E004.md)
-- [ ] E008 [P1] [PRODUCT] [P] {PRD:CAP-007} Relatório de serviços executados — PDF e CSV por contrato [→ Details](plan/E008.md)
+- [X] E004 [P1] [PRODUCT] [P] {PRD:CAP-004} Motor de alertas de vigência — varredura, dedup e janelas [→ Details](plan/E004.md)
+- [X] E008 [P1] [PRODUCT] [P] {PRD:CAP-007} Relatório de serviços executados — PDF e CSV por contrato [→ Details](plan/E008.md)
 
 ### Wave 3 — Demonstração dos avisos
 
 > E005 e E010 descem do motor (E004): o painel consome `alert_events` e as janelas configuráveis; o e-mail de vencimento nasce do gatilho da varredura.
 
-- [ ] E005 [P1] [PRODUCT] [P] {PRD:CAP-004} Painel de próximos vencimentos — janelas 90/60/30/15 [→ Details](plan/E005.md)
-- [ ] E010 [P2] [PRODUCT] [P] {PRD:CAP-009} Avisos por e-mail — envio opt-in por evento [→ Details](plan/E010.md)
+- [X] E005 [P1] [PRODUCT] [P] {PRD:CAP-004} Painel de próximos vencimentos — janelas 90/60/30/15 [→ Details](plan/E005.md)
+- [X] E010 [P2] [PRODUCT] [P] {PRD:CAP-009} Avisos por e-mail — envio opt-in por evento [→ Details](plan/E010.md)
 
 ### Wave 4 — Auditoria
 
 > Fecha a pendência de acesso de auditoria (TODO item 3): leitura das tarefas executadas e classificação do atendimento sobre a base de E003, sem reescrever o PRD.
 
-- [ ] E011 [P1] [PRODUCT] [P] {PRD:CAP-003} Acesso de auditoria e classificação de tarefas executadas [→ Details](plan/E011.md)
+- [X] E011 [P1] [PRODUCT] [P] {PRD:CAP-003} Acesso de auditoria e classificação de tarefas executadas [→ Details](plan/E011.md)
 
 ## Dependency Diagram
 
