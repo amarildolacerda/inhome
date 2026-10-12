@@ -4,10 +4,13 @@ Custom project TODOs. Agents read this file at session start.
 
 ## Pending
 
-- [ ] Commit do bootstrap SDD + governança — arquivos alterados sem commit: `.github/sddp-config.md` (paths prd/sad/project-plan + Derived QC Policy), `project-instructions.md` (v2.1.0), `specs/{prd,sad,project-plan}.md` + `specs/plan/E001..E010.md` + `specs/prd-discovery.md` (novos), fix dos agents `.opencode/agents/sddp-*.md` (bash workaround) — aguarda pedido explícito do usuário
-- [ ] Padronização de nomenclatura em inglês no banco: fases 3–5 pendentes (enums de dado, papéis, superfície de API) — inventário, ordem e critérios em `docs/naming-conventions.md`; fase 2 (coluna + chaves de contrato JSON → `purpose_id`/`purpose_name`) concluída em 2026-10-12; fase 1 (tabelas) concluída em 2026-10-06
-- [ ] Rollup de release em `specs/project-plan.md`: marcar épicas E001–E010 + ondas entregues — só após pedido do usuário (muda digest de estado dos sigilos QC)
+- [ ] Padronização de nomenclatura em inglês no banco: fases 3–5 pendentes (enums de dado, papéis, superfície de API) — inventário, ordem e critérios em `docs/naming-conventions.md`; fase 2 (coluna + chaves de contrato JSON → `purpose_id`/`purpose_name`) concluída em 2026-10-12; fase 1 (tabelas) concluída em 2026-10-06. Fases 3–5 bloqueadas em decisão do usuário (tradução de enums; papéis; versionamento de API)
+
 ## Done
+
+- [X] Commit do bootstrap SDD + governança — `.github/sddp-config.md`, `project-instructions.md` v2.1.0, `specs/{prd,sad,project-plan}.md`, `specs/plan/E001..E010.md`, `specs/prd-discovery.md` e fix dos agents `.opencode/agents/sddp-*.md` todos commitados e limpos vs HEAD (verificado 2026-10-12)
+
+- [X] Rollup de release em `specs/project-plan.md` — 11 épicas (E001–E011) + ondas 1–4 marcadas `[X]`, commit `5c0cab4` (2026-10-12)
 
 - [X] Ciclo SDD de E001 concluído: `specs/00002-e001-ciclo-dominio-papeis-e-acesso` fechado com `.completed` + `.qc-passed` (QC PASS, 2026-10-06)
 - [X] Feature 00003 concluída: `specs/00003-workflow-assistido-contrato` com 40/40 tasks, checklists 87/87, `.completed` + `.qc-passed` (QC PASS, 2026-10-08)
