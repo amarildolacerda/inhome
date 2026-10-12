@@ -91,15 +91,15 @@
 | Path | SHA-256 |
 |------|---------|
 | backend/package.json | f950a727452adc8da4a5c5742714091bd0ed55623f200cd66a6c9392c23c4629 |
-| backend/src/config/database.js | c12d4ad124229ab399b75432b3a58b6b38e5be7673b3e24fa99ed27e7ee80a2c |
+| backend/src/config/database.js | dd8eb160af618f6ee17247a92f8cd3db4041825599c1dd7e3ff235a8e99e20e3 |
 | backend/src/middleware/auth.js | 34f61d0cd063ce68d69d2559299fe740f8175ee8fb166a0247f3f9156f46a561 |
-| backend/src/models/Contract.js | 502c98e20fa5e6f739f7d1b174e66db820a4eaa6881fc9777d7acf01d6aa28f2 |
+| backend/src/models/Contract.js | 3a1d41203c218de9950c1d0161eb73cee671b84507b02ed545400a07364be17c |
 | backend/src/models/Contract.test.js | 6db636d09582521eac546743fcd33efd2796e937e43718bef1a9757d94340497 |
-| backend/src/routes/contracts.js | 3ff9b980bd2ef72df8726b7a0ae817386a20283e143dcaa80908287374a3239a |
-| backend/src/routes/contracts.test.js | 96b65ba5ef4bdb0d08c1f6155a037ed972bbb7ab57aa992eeb388c0f23294518 |
+| backend/src/routes/contracts.js | ba621e019db46f12b711a49fd94123be6c1108a1b12f545c1f313bf563d34c16 |
+| backend/src/routes/contracts.test.js | 8834b9343cab35d0a2dfc6d7177a92de8a67cf704eeb34689ac4ef6657fd4899 |
 | backend/src/routes/domains.js | 212b3de98afcbdc5eb32fdd12da67729ce07dcebecefea278c040dd2c203f334 |
-| backend/src/routes/tasks.js | adfb8826f4f4051e85ed021f2b07dc31c5aa392466f1a1a29955242f13fa2592 |
-| backend/src/routes/tasks.test.js | 816e1a167ad1f347badafe90dffa230b8fc52335cbbb288375a0e3fb6638a92a |
+| backend/src/routes/tasks.js | 8862deff5e136ad8088ed2e015939afeb2b997a9f5398711e1936c6ad52673cc |
+| backend/src/routes/tasks.test.js | c92b466d0c92427afcc3d266046a82df51353678e8fea087e24b421a78286dca |
 | backend/test.sh | cb252c287dbab4a8add5e4480726e57b1db575100f855de59cdb1d3689b62911 |
 | frontend/pubspec.yaml | 15495b09cdbf0286f2f1bdef52652e2f4246f254f6394f881e7515e4a3e843b8 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |

@@ -99,8 +99,8 @@
 ## QC Evidence Manifest
 | Path | SHA-256 |
 |------|---------|
-| backend/src/routes/contracts.js | 3ff9b980bd2ef72df8726b7a0ae817386a20283e143dcaa80908287374a3239a |
-| backend/src/services/report.js | 3eec55f4181820fed6777eb7c1b811b8e6311897a16480bd169e26e64c362719 |
+| backend/src/routes/contracts.js | ba621e019db46f12b711a49fd94123be6c1108a1b12f545c1f313bf563d34c16 |
+| backend/src/services/report.js | 524e561728a086fd66b1019ace16340ccbf7ae7d3611bcb89f80c653dd82003b |
 | backend/src/services/report.test.js | cdcdc434d840108a63b862800171ee4c60fac9a00a8ca1d60a990642b22f4da9 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00010-e008-relatorio-pdf-csv/checklists/CHL001-security.md | 8e2c4b7b4cdb8703224be54ad53439420286af7bab1f1cfcd1bd39a1eac4295f |

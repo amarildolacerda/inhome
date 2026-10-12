@@ -106,11 +106,11 @@
 ## QC Evidence Manifest
 | Path | SHA-256 |
 |------|---------|
-| backend/src/config/database.js | c12d4ad124229ab399b75432b3a58b6b38e5be7673b3e24fa99ed27e7ee80a2c |
-| backend/src/config/database.test.js | 8359feb742eb4a4a2a53d7bc2efe1cb3c5d3186f206fea7aba6b26cbe1eda0e1 |
+| backend/src/config/database.js | dd8eb160af618f6ee17247a92f8cd3db4041825599c1dd7e3ff235a8e99e20e3 |
+| backend/src/config/database.test.js | 849a804f0f4168fa33d412272bbebcf9a4a9e1d400493b3ec15abf517f07ead0 |
 | backend/src/models/TaskClassification.js | 093880e7f719b013b2162b876d1f2f00c6bb47b41c099854cfbde5da68bc32dc |
-| backend/src/models/TaskClassification.test.js | 5458bb881d1f4dd2de17231e54b484510dcce1a61d2ac0db42d23a1dabc17ac6 |
-| backend/src/routes/audits.js | 502cc22d01112231cc65a6780e84783f409a7ece46d88213d4a016b1e926fd5c |
+| backend/src/models/TaskClassification.test.js | 2f616e075be5ff8e1b71237cb4cd7ea9ef04fdf76899900233479910c2efcb21 |
+| backend/src/routes/audits.js | eb0f88ac21a2de61302650369f4998f3eec0b593eb5afa9e6d16ae7c61d29c2b |
 | backend/src/routes/audits.test.js | 98610dcf95eb2e71cbb0867f63d528d23ef5c2333f54079c73b0007a2226ac1f |
 | backend/src/routes/users.js | c876001662f18f280c4eafb6ffb839d852cb1656fe4ce963d51aedea85fa205b |
 | backend/src/routes/users.test.js | d4656587eb3267e9cf10e798612dfd12a006dba4b16d6631c1973fdad742e257 |

@@ -91,7 +91,7 @@
 | Path | SHA-256 |
 |------|---------|
 | backend/src/middleware/auth.js | 34f61d0cd063ce68d69d2559299fe740f8175ee8fb166a0247f3f9156f46a561 |
-| backend/src/routes/dashboard.js | 4f32b24fab149566c515a7dea7d16c9f9ab1627c21d978b93bf9b44b4a61edbf |
+| backend/src/routes/dashboard.js | d970452dbbaee48fc42aa9eb42b210b4fa6053ac2e1d51d98f0454ca1be5bacb |
 | backend/src/routes/dashboard.test.js | b655fe514b627a785155d4bb72ab574ac28ca9af5e741279f856dea032b3df8b |
 | frontend/lib/main.dart | f4c6481f669d33f0119ebc98a3572a1cf68046ce0ee9c667cf42dbbc8663a263 |
 | frontend/lib/screens/dashboard_screen.dart | 536782455544479e096dc600188f3aafae248294e32cc7557ce9673e8e32ac76 |

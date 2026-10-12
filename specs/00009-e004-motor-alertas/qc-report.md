@@ -95,10 +95,10 @@
 ## QC Evidence Manifest
 | Path | SHA-256 |
 |------|---------|
-| backend/src/config/database.js | c12d4ad124229ab399b75432b3a58b6b38e5be7673b3e24fa99ed27e7ee80a2c |
-| backend/src/config/database.test.js | 8359feb742eb4a4a2a53d7bc2efe1cb3c5d3186f206fea7aba6b26cbe1eda0e1 |
-| backend/src/routes/alerts.js | 9a343d051312ddf9cae177b59c6fb8e6f8d786c9f74ad13b8429867e84266a9d |
-| backend/src/routes/alerts.test.js | e9a9839b0ba87c78eb31870045f228dcbf0da448dc204d80c92a19b016e5fa4d |
+| backend/src/config/database.js | dd8eb160af618f6ee17247a92f8cd3db4041825599c1dd7e3ff235a8e99e20e3 |
+| backend/src/config/database.test.js | 849a804f0f4168fa33d412272bbebcf9a4a9e1d400493b3ec15abf517f07ead0 |
+| backend/src/routes/alerts.js | 0bd126ebced5da06e3ea1d8e902b6f5edc3aa0a8ab30b1b7fd1faa0120ed1d8d |
+| backend/src/routes/alerts.test.js | 9040d13eb927ecc5832720e53c4808b468ad33fd2a9184edac72ddb9bf55ba5a |
 | backend/src/server.js | a88e51af8bf279ad655883bbc1138db59f94f9d76e90a3db86f7d96810b05bfd |
 | backend/src/services/alerts.js | 3cbef1caadc34c4d887caab2be296278526e4e6597dc2778a5d840e0fdc05a81 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |

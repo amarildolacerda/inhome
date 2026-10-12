@@ -106,12 +106,12 @@
 | Path | SHA-256 |
 |------|---------|
 | backend/package.json | f950a727452adc8da4a5c5742714091bd0ed55623f200cd66a6c9392c23c4629 |
-| backend/src/routes/alerts.js | 9a343d051312ddf9cae177b59c6fb8e6f8d786c9f74ad13b8429867e84266a9d |
-| backend/src/routes/alerts.test.js | e9a9839b0ba87c78eb31870045f228dcbf0da448dc204d80c92a19b016e5fa4d |
-| backend/src/routes/tasks.js | adfb8826f4f4051e85ed021f2b07dc31c5aa392466f1a1a29955242f13fa2592 |
-| backend/src/routes/tasks.test.js | 816e1a167ad1f347badafe90dffa230b8fc52335cbbb288375a0e3fb6638a92a |
+| backend/src/routes/alerts.js | 0bd126ebced5da06e3ea1d8e902b6f5edc3aa0a8ab30b1b7fd1faa0120ed1d8d |
+| backend/src/routes/alerts.test.js | 9040d13eb927ecc5832720e53c4808b468ad33fd2a9184edac72ddb9bf55ba5a |
+| backend/src/routes/tasks.js | 8862deff5e136ad8088ed2e015939afeb2b997a9f5398711e1936c6ad52673cc |
+| backend/src/routes/tasks.test.js | c92b466d0c92427afcc3d266046a82df51353678e8fea087e24b421a78286dca |
 | backend/src/services/alerts.js | 3cbef1caadc34c4d887caab2be296278526e4e6597dc2778a5d840e0fdc05a81 |
-| backend/src/services/email.js | 8355b554aca21163dcc618127c13c00d5a1d82fb8ff93cc941cd64e2cc25d1ae |
+| backend/src/services/email.js | 488dae58d5d7d58cdfa72a221aef2a1c1ca5b11c060d3317043e03f7fd47f2e9 |
 | backend/src/services/email.test.js | ad17d2f9a3175a672a7c036969612e831bf5fbd592656f92544d4b3a66bde155 |
 | backend/test.sh | cb252c287dbab4a8add5e4480726e57b1db575100f855de59cdb1d3689b62911 |
 | frontend/lib/screens/vencimentos_screen.dart | 3c5bb4e88da901d945c6a4ecff6092183083214bb6f9b63d9362268ed1db2d8e |

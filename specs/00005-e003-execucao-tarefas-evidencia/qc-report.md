@@ -99,8 +99,8 @@
 | backend/src/routes/attachments.js | 857e945a6dab3a753c2127e9db112b1eed0d5c5d1cea183def43f47e8cd88428 |
 | backend/src/routes/comments.js | cbdb7042aebe9347b24db52930fa639d43f1758cde00d494630523891fd37372 |
 | backend/src/routes/comments.test.js | 3ae139b07a435e05554394e6c75e35508ccb43d00cdb10c99bb444c48ba4f1e5 |
-| backend/src/routes/tasks.js | adfb8826f4f4051e85ed021f2b07dc31c5aa392466f1a1a29955242f13fa2592 |
-| backend/src/routes/tasks.test.js | 816e1a167ad1f347badafe90dffa230b8fc52335cbbb288375a0e3fb6638a92a |
+| backend/src/routes/tasks.js | 8862deff5e136ad8088ed2e015939afeb2b997a9f5398711e1936c6ad52673cc |
+| backend/src/routes/tasks.test.js | c92b466d0c92427afcc3d266046a82df51353678e8fea087e24b421a78286dca |
 | backend/src/routes/uploads.test.js | 7d0552d9e75d9b771bfaf9f9d590e5b74fa966c97d9c756f69aa1b85b442a44d |
 | backend/src/server.js | a88e51af8bf279ad655883bbc1138db59f94f9d76e90a3db86f7d96810b05bfd |
 | backend/test-uploads-proxy.sh | b67e823c8c02b283e97c502c380c33cc0297172cec708f731eb8b11663330a59 |

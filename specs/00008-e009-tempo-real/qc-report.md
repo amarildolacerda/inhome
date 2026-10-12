@@ -92,8 +92,8 @@
 | Path | SHA-256 |
 |------|---------|
 | backend/package.json | f950a727452adc8da4a5c5742714091bd0ed55623f200cd66a6c9392c23c4629 |
-| backend/src/routes/tasks.js | adfb8826f4f4051e85ed021f2b07dc31c5aa392466f1a1a29955242f13fa2592 |
-| backend/src/routes/tasks.test.js | 816e1a167ad1f347badafe90dffa230b8fc52335cbbb288375a0e3fb6638a92a |
+| backend/src/routes/tasks.js | 8862deff5e136ad8088ed2e015939afeb2b997a9f5398711e1936c6ad52673cc |
+| backend/src/routes/tasks.test.js | c92b466d0c92427afcc3d266046a82df51353678e8fea087e24b421a78286dca |
 | backend/src/server.js | a88e51af8bf279ad655883bbc1138db59f94f9d76e90a3db86f7d96810b05bfd |
 | backend/src/server.socket.test.js | 345bfc4cb759cb6ef06413266a8f5738e55e707a9b3c703708c35be3c179efee |
 | backend/src/services/events.js | 4b816bbc42df57f274a21b6aab0671ad091a4ee69475af35fb34c9fcbb992edc |

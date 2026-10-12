@@ -90,9 +90,9 @@
 ## QC Evidence Manifest
 | Path | SHA-256 |
 |------|---------|
-| backend/src/config/database.js | c12d4ad124229ab399b75432b3a58b6b38e5be7673b3e24fa99ed27e7ee80a2c |
-| backend/src/routes/search.js | 6d3bf31fd788753ee1725b11f23241e062d98e70d25f9dfcb898df41a0aae3bb |
-| backend/src/routes/search.test.js | 8e835206dfcd959ffc08892f6fd2964d53e9b14bb91fad5fb51202a5ac490cbb |
+| backend/src/config/database.js | dd8eb160af618f6ee17247a92f8cd3db4041825599c1dd7e3ff235a8e99e20e3 |
+| backend/src/routes/search.js | 8ee8dc248ddfdec0c611702e0931f55cc98c8b54b2cfa2e888e40dbbcd7b7f09 |
+| backend/src/routes/search.test.js | e10118c6e026e630ba2c2611c53dd2de98bd647c1cb7f4c305872e405a0016f9 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00007-e007-busca-filtros/checklists/CHL001-security.md | 353b822ddcbdc6dd47526cb587c6aa1d2503c3a6104afb4c114e97ec0b9113f8 |
 | specs/00007-e007-busca-filtros/checklists/CHL002-api-quality.md | bd9173147c69ae01f39eb257c434deb1a2ea5e8079d1cfaebcd243b0823851df |
