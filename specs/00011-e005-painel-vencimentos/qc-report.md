@@ -112,15 +112,15 @@
 ## QC Evidence Manifest
 | Path | SHA-256 |
 |------|---------|
-| backend/src/config/database.js | 7fcd0f3f6be4e50ba96dba0f97b30fab796235876c56bfece48c2c49542a54fc |
-| backend/src/routes/alerts.js | da7a74f5137ca9a5a9c26cbe4925936fc845819d85e7abe97411d93d56a394e9 |
-| backend/src/routes/alerts.test.js | ce8b42fa3cce4635d0c25a3ad22237a200796d537f13dd3a4199c541c64d4e2d |
+| backend/src/config/database.js | c12d4ad124229ab399b75432b3a58b6b38e5be7673b3e24fa99ed27e7ee80a2c |
+| backend/src/routes/alerts.js | 9a343d051312ddf9cae177b59c6fb8e6f8d786c9f74ad13b8429867e84266a9d |
+| backend/src/routes/alerts.test.js | e9a9839b0ba87c78eb31870045f228dcbf0da448dc204d80c92a19b016e5fa4d |
 | backend/src/services/alerts.js | 3cbef1caadc34c4d887caab2be296278526e4e6597dc2778a5d840e0fdc05a81 |
-| frontend/lib/main.dart | ed760ce9bc6013634ce1cede75f658d6ea43e14235adcbb22baf3c3c04319f7a |
+| frontend/lib/main.dart | f4c6481f669d33f0119ebc98a3572a1cf68046ce0ee9c667cf42dbbc8663a263 |
 | frontend/lib/screens/vencimentos_screen.dart | 3c5bb4e88da901d945c6a4ecff6092183083214bb6f9b63d9362268ed1db2d8e |
-| frontend/lib/services/api_service.dart | db577c2d79d821060ea8948f1da5bfe62aba9dbba4cd2fde2666cd44319a88d6 |
-| frontend/test/roles_nav_test.dart | 5a4618b9120a186f2440d8b7a65972009c3bbc894a656656946ff8a6cfd8329c |
-| frontend/test/vencimentos_screen_test.dart | af1bf05f21378a49451f31a77926998fa8741c2fa3de53978693e4558f03d346 |
+| frontend/lib/services/api_service.dart | 864a5fa676f765f52e9b1588aad5822c4285e02a9a6dd73e5946e3b2a078d0a3 |
+| frontend/test/roles_nav_test.dart | 2c36a128d29be3411426d919aa0754c37aa6b3ab4cde0a23b61b10178d1e6576 |
+| frontend/test/vencimentos_screen_test.dart | d66485b65e2a5a340a0728d33d45b8d0840d3be71909e040ff6071f3ad25bef6 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00011-e005-painel-vencimentos/checklists/CHL001-security.md | df418e7d3b5396c7b09afb09e1a0859f2546e011d1e765c122c888dd13595660 |
 | specs/00011-e005-painel-vencimentos/checklists/CHL002-api-quality.md | 2f58271d0c73db53a4e2af569edb6a1ba7124ea9d6ae86bbd0767437eaa28697 |

@@ -93,13 +93,13 @@
 |------|---------|
 | backend/package.json | f950a727452adc8da4a5c5742714091bd0ed55623f200cd66a6c9392c23c4629 |
 | backend/src/routes/tasks.js | adfb8826f4f4051e85ed021f2b07dc31c5aa392466f1a1a29955242f13fa2592 |
-| backend/src/routes/tasks.test.js | 63d333ff3bf80910b0a291eb665de784c5553d2df0f4ada63bb54c44295e73ce |
-| backend/src/server.js | 19e118041850d831e77125d01ff7ba65bab3ecbdadc673c7a39a3ae341bf089d |
+| backend/src/routes/tasks.test.js | 816e1a167ad1f347badafe90dffa230b8fc52335cbbb288375a0e3fb6638a92a |
+| backend/src/server.js | a88e51af8bf279ad655883bbc1138db59f94f9d76e90a3db86f7d96810b05bfd |
 | backend/src/server.socket.test.js | 345bfc4cb759cb6ef06413266a8f5738e55e707a9b3c703708c35be3c179efee |
 | backend/src/services/events.js | 4b816bbc42df57f274a21b6aab0671ad091a4ee69475af35fb34c9fcbb992edc |
 | backend/test.sh | cb252c287dbab4a8add5e4480726e57b1db575100f855de59cdb1d3689b62911 |
 | docker-compose.yml | 2d0449dd3e094cfcdddc7c2a361c985c80e64f1f2812d58a03b3f005eb88eec8 |
-| project-instructions.md | cb223e54fffb9964cc95bad25b7ab36c74481611eafac2fcb7399e0daeb91c6a |
+| project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00008-e009-tempo-real/checklists/CHL001-security.md | f2d9ab778aad30b91a8638eda5944ab6cf3f0a6484927cf9a6d90f1623bcc9f3 |
 | specs/00008-e009-tempo-real/checklists/CHL002-resilience.md | cefd0b99002b7a0c8c7368d52310fbb7b1a6cd01da7c1330eff514a315bb4f92 |
 | specs/00008-e009-tempo-real/checklists/CHL003-regression.md | 4932dd17c3729af3b6a9387e6db4d0ba177e0a40548bcff2d0ab90646f4618c9 |

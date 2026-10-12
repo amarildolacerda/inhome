@@ -90,10 +90,10 @@
 ## QC Evidence Manifest
 | Path | SHA-256 |
 |------|---------|
-| backend/src/config/database.js | f3853c151fecb800f2b2c3b1dd3d51cc8cbba9d450104f2245f3163f542b869c |
-| backend/src/routes/search.js | b885d119786395edace5cefd983f7749aaa54ff54360686f9cf84b4ec4768fa1 |
-| backend/src/routes/search.test.js | 81785276addf1b9742e9ed54ad4f9240918213d6ddceead78bd2d978c47ff53c |
-| project-instructions.md | cb223e54fffb9964cc95bad25b7ab36c74481611eafac2fcb7399e0daeb91c6a |
+| backend/src/config/database.js | c12d4ad124229ab399b75432b3a58b6b38e5be7673b3e24fa99ed27e7ee80a2c |
+| backend/src/routes/search.js | 6d3bf31fd788753ee1725b11f23241e062d98e70d25f9dfcb898df41a0aae3bb |
+| backend/src/routes/search.test.js | 8e835206dfcd959ffc08892f6fd2964d53e9b14bb91fad5fb51202a5ac490cbb |
+| project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00007-e007-busca-filtros/checklists/CHL001-security.md | 353b822ddcbdc6dd47526cb587c6aa1d2503c3a6104afb4c114e97ec0b9113f8 |
 | specs/00007-e007-busca-filtros/checklists/CHL002-api-quality.md | bd9173147c69ae01f39eb257c434deb1a2ea5e8079d1cfaebcd243b0823851df |
 | specs/00007-e007-busca-filtros/checklists/CHL003-performance.md | b5d9f7164de5b8464672a65e10adb03ee7def59f9f8f473b666a8eebdbbaccae |

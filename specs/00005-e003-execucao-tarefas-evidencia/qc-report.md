@@ -100,13 +100,13 @@
 | backend/src/routes/comments.js | cbdb7042aebe9347b24db52930fa639d43f1758cde00d494630523891fd37372 |
 | backend/src/routes/comments.test.js | 3ae139b07a435e05554394e6c75e35508ccb43d00cdb10c99bb444c48ba4f1e5 |
 | backend/src/routes/tasks.js | adfb8826f4f4051e85ed021f2b07dc31c5aa392466f1a1a29955242f13fa2592 |
-| backend/src/routes/tasks.test.js | 63d333ff3bf80910b0a291eb665de784c5553d2df0f4ada63bb54c44295e73ce |
+| backend/src/routes/tasks.test.js | 816e1a167ad1f347badafe90dffa230b8fc52335cbbb288375a0e3fb6638a92a |
 | backend/src/routes/uploads.test.js | 7d0552d9e75d9b771bfaf9f9d590e5b74fa966c97d9c756f69aa1b85b442a44d |
-| backend/src/server.js | 19e118041850d831e77125d01ff7ba65bab3ecbdadc673c7a39a3ae341bf089d |
+| backend/src/server.js | a88e51af8bf279ad655883bbc1138db59f94f9d76e90a3db86f7d96810b05bfd |
 | backend/test-uploads-proxy.sh | b67e823c8c02b283e97c502c380c33cc0297172cec708f731eb8b11663330a59 |
 | backend/test.sh | cb252c287dbab4a8add5e4480726e57b1db575100f855de59cdb1d3689b62911 |
 | frontend/nginx.conf | 21e96e61d7a49ae0645a95b1b04ca9497b8e57559e6a82064c5f4809ff888853 |
-| project-instructions.md | cb223e54fffb9964cc95bad25b7ab36c74481611eafac2fcb7399e0daeb91c6a |
+| project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00005-e003-execucao-tarefas-evidencia/checklists/CHL001-security.md | f9f076a73d346ba164e33c805bceef4b44c054bd40d8d28de589713b1d19c3a3 |
 | specs/00005-e003-execucao-tarefas-evidencia/checklists/CHL002-api-quality.md | 9df4deb589ef0d5960c573b66fbaa76bb0fddb34e0fea268566fbc8e5224a7bc |
 | specs/00005-e003-execucao-tarefas-evidencia/checklists/CHL003-data-integrity.md | 66dc1b89fdc238b018dcf92f534b5b30a556f397eda4546c54c910217b115682 |

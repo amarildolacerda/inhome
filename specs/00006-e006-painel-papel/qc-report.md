@@ -93,13 +93,13 @@
 | backend/src/middleware/auth.js | 34f61d0cd063ce68d69d2559299fe740f8175ee8fb166a0247f3f9156f46a561 |
 | backend/src/routes/dashboard.js | 4f32b24fab149566c515a7dea7d16c9f9ab1627c21d978b93bf9b44b4a61edbf |
 | backend/src/routes/dashboard.test.js | b655fe514b627a785155d4bb72ab574ac28ca9af5e741279f856dea032b3df8b |
-| frontend/lib/main.dart | 1b4b5876ad8a36a271bfac4812ddd41b75e28801a28076dc50b592e9bc3d1397 |
+| frontend/lib/main.dart | f4c6481f669d33f0119ebc98a3572a1cf68046ce0ee9c667cf42dbbc8663a263 |
 | frontend/lib/screens/dashboard_screen.dart | 536782455544479e096dc600188f3aafae248294e32cc7557ce9673e8e32ac76 |
 | frontend/lib/screens/projects_screen.dart | 920a2f61992f1a48f13ff2a18ebf2660eb790a9fcdf7eaa52a8f544f2f8076fd |
 | frontend/lib/screens/tasks_screen.dart | 5a7f3004f1a83779f457b020ce6083664e57bebdcd330ce3a8c11edc0c784a14 |
 | frontend/test/a11y_labels_test.dart | 14fb00a05e93deb256e3d749c831b9efc316be9c93bf4c1351724acfe77d793b |
 | frontend/test/web_browsers_test.dart | e850291f82c407e81a6c04b96ac293579199133f6fcf22d372ae2cdcb9743890 |
-| project-instructions.md | cb223e54fffb9964cc95bad25b7ab36c74481611eafac2fcb7399e0daeb91c6a |
+| project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00006-e006-painel-papel/checklists/CHL001-security.md | 0f3320fd0ce7c77cb59cefcf5b4df74712f04abadcabfba9bb351f203b475673 |
 | specs/00006-e006-painel-papel/checklists/CHL002-api-quality.md | 2796a046782a5ed9a9ffc0d0c225063fbf6379e75b6bf74ad7d587470ef7c96f |
 | specs/00006-e006-painel-papel/checklists/CHL003-ux.md | 73e35aa6311cbb1776acd9f9484b4ec3ad47ddeedb8a59669aa815757fc56e23 |

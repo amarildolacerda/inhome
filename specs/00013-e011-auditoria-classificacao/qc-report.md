@@ -106,8 +106,8 @@
 ## QC Evidence Manifest
 | Path | SHA-256 |
 |------|---------|
-| backend/src/config/database.js | 39f7bdaa620cce856f9e0b1d575e12e150a643fcd7ef0f13f4d2f92d5cea1a3b |
-| backend/src/config/database.test.js | 929dbb542f05ccfc1d7d41511b7987bbc98cdcc948c1a6263ddcb1b2da6ea376 |
+| backend/src/config/database.js | c12d4ad124229ab399b75432b3a58b6b38e5be7673b3e24fa99ed27e7ee80a2c |
+| backend/src/config/database.test.js | 8359feb742eb4a4a2a53d7bc2efe1cb3c5d3186f206fea7aba6b26cbe1eda0e1 |
 | backend/src/models/TaskClassification.js | 093880e7f719b013b2162b876d1f2f00c6bb47b41c099854cfbde5da68bc32dc |
 | backend/src/models/TaskClassification.test.js | 5458bb881d1f4dd2de17231e54b484510dcce1a61d2ac0db42d23a1dabc17ac6 |
 | backend/src/routes/audits.js | 502cc22d01112231cc65a6780e84783f409a7ece46d88213d4a016b1e926fd5c |
@@ -118,7 +118,7 @@
 | frontend/lib/main.dart | f4c6481f669d33f0119ebc98a3572a1cf68046ce0ee9c667cf42dbbc8663a263 |
 | frontend/lib/models/user.dart | dbfc8d897f31bb375b17124f8cff8b575b2d176d1098f43adbd1a20ba9933719 |
 | frontend/lib/screens/audit_screen.dart | 27e07ee0779eb0f5f3ea98f321cb4e5d3384762be71dd93fbe876fc006e538fa |
-| frontend/lib/services/api_service.dart | e25064e6fa9f5057b6ce947b00daca4703fe9e731e567285be3728b69462bb9c |
+| frontend/lib/services/api_service.dart | 864a5fa676f765f52e9b1588aad5822c4285e02a9a6dd73e5946e3b2a078d0a3 |
 | frontend/test/audit_nav_test.dart | 6aa8375f0447fd0d8ff651281ce09820edf70912e80c3a53f642e3d28eb5d5db |
 | frontend/test/roles_nav_test.dart | 2c36a128d29be3411426d919aa0754c37aa6b3ab4cde0a23b61b10178d1e6576 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |

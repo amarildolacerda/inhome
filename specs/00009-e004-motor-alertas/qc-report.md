@@ -95,13 +95,13 @@
 ## QC Evidence Manifest
 | Path | SHA-256 |
 |------|---------|
-| backend/src/config/database.js | 6b524b9c223a4ab1bc6c6bcfd9e392b969c31a28549404374614ef14908d5545 |
-| backend/src/config/database.test.js | 20d9e623f78d8e39f7d647333e349ac9019a3d8e68b4614dd77f5c36a192a386 |
-| backend/src/routes/alerts.js | e7820371147c3cd0b21cb0ac4337bbaedad3aba30718ff0504a563a9f58b326b |
-| backend/src/routes/alerts.test.js | 38bc4c6aa7a3d68e366f9312210246e35b35b74b672ea80401d28a2917c8da47 |
-| backend/src/server.js | 0753fdb291b31057da925a3d1bde1a11496e09efaecbfda00c7a1043c7a5e320 |
-| backend/src/services/alerts.js | 2a135aa83955a3e6ffa44d20ed7f1ad82b058bcbb76d7d5b21bbebfa862dd651 |
-| project-instructions.md | cb223e54fffb9964cc95bad25b7ab36c74481611eafac2fcb7399e0daeb91c6a |
+| backend/src/config/database.js | c12d4ad124229ab399b75432b3a58b6b38e5be7673b3e24fa99ed27e7ee80a2c |
+| backend/src/config/database.test.js | 8359feb742eb4a4a2a53d7bc2efe1cb3c5d3186f206fea7aba6b26cbe1eda0e1 |
+| backend/src/routes/alerts.js | 9a343d051312ddf9cae177b59c6fb8e6f8d786c9f74ad13b8429867e84266a9d |
+| backend/src/routes/alerts.test.js | e9a9839b0ba87c78eb31870045f228dcbf0da448dc204d80c92a19b016e5fa4d |
+| backend/src/server.js | a88e51af8bf279ad655883bbc1138db59f94f9d76e90a3db86f7d96810b05bfd |
+| backend/src/services/alerts.js | 3cbef1caadc34c4d887caab2be296278526e4e6597dc2778a5d840e0fdc05a81 |
+| project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00009-e004-motor-alertas/checklists/CHL001-data-integrity.md | 1cea5f3928012164cbc293a5462cb713bb6d241bc464210cd41fca51bf336857 |
 | specs/00009-e004-motor-alertas/checklists/CHL002-security.md | dff0ab73c5dec73ac4d94b4c9aad512037ad69ac7f3fb0e7c206c1313a351c9f |
 | specs/00009-e004-motor-alertas/checklists/CHL003-resilience.md | d25dffa59a60ec98c8d8925a486e812d0945f296fa983a9172f90af0e2d3f126 |
