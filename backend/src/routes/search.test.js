@@ -8,6 +8,7 @@ const { setupDataDir, initTestDb } = require('../support/testenv');
 setupDataDir();
 const { app } = require('../server');
 const { getDomainDb } = require('../config/database');
+const { code } = require('../config/enums');
 
 const SYS_EMAIL = process.env.PLATFORM_ADMIN_EMAIL || 'admin@platform.local';
 const SYS_PASSWORD = process.env.PLATFORM_ADMIN_PASSWORD || 'Admin@123';
@@ -336,7 +337,7 @@ test('FR-003 p95 abaixo de 2 s com ensureIndexes ativo', async () => {
   for (let i = 0; i < 2000; i += 1) {
     items.push({
       sql: 'INSERT INTO tasks (contract_id, title, description, status, priority, assignee_id, due_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      params: [c1Id, `Tarefa volume ${i}`, `desc ${i}`, i % 2 ? 'Em Progresso' : 'A Fazer', i % 3 ? 'low' : 'high', i % 2 ? p1Id : p2Id, futureDate(i % 100)],
+      params: [c1Id, `Tarefa volume ${i}`, `desc ${i}`, i % 2 ? code('tasks.status', 'Em Progresso') : code('tasks.status', 'A Fazer'), i % 3 ? 'low' : 'high', i % 2 ? p1Id : p2Id, futureDate(i % 100)],
     });
   }
   dbx2.runBatch(items);

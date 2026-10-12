@@ -9,6 +9,7 @@ const { setupDataDir, initTestDb } = require('../support/testenv');
 setupDataDir('alerts-test-');
 const { app } = require('../server');
 const { getPlatformDb, getDomainDb } = require('../config/database');
+const { code } = require('../config/enums');
 const { runExpirySweep, readWindows, DEFAULT_WINDOWS } = require('../services/alerts');
 const { setEmitter } = require('../services/events');
 
@@ -274,7 +275,10 @@ async function ensurePanelDomain() {
   P.encerrado = await createPanelContract(gestorCToken, 'Encerrado fora do painel', 200);
 
   const dbC = getDomainDb(domainC);
-  dbC.run("UPDATE contracts SET status = 'encerrado' WHERE id = ?", [P.encerrado.id]);
+  dbC.run('UPDATE contracts SET status = ? WHERE id = ?', [
+    code('contracts.status', 'encerrado'),
+    P.encerrado.id,
+  ]);
   // Incompletos: fixture legada (POST exige data válida) — o painel trata
   // qualquer linha sem previsão como incompleto e a mantém visível (SC-005).
   dbC.run(

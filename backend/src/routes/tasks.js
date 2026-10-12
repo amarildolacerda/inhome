@@ -9,6 +9,7 @@ const { getDomainDb } = require('../config/database');
 const { saveToUploads, decodeAndValidate } = require('../middleware/upload');
 const { notify } = require('../services/email');
 const { emitDomainEvent } = require('../services/events');
+const { code, label } = require('../config/enums');
 
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -36,6 +37,8 @@ function assertLinkedPrestador(db, contractId, userId) {
 function getTaskOr404(db, id) {
   const row = db.get('SELECT * FROM tasks WHERE id = ?', [Number(id)]);
   if (!row) throw httpError(404, 'Task not found');
+  // Fase 3: guarda código; as comparações de fluxo/409 seguem em texto PT.
+  row.status = label('tasks.status', row.status);
   return row;
 }
 
@@ -58,9 +61,9 @@ function markCompleted(db, task, user, text) {
     throw httpError(400, 'Conclusão exige texto');
   }
   db.run(
-    `UPDATE tasks SET status = 'Concluída', completed_text = ?, completed_at = datetime('now'),
+    `UPDATE tasks SET status = ?, completed_text = ?, completed_at = datetime('now'),
      completed_by = ?, updated_at = datetime('now') WHERE id = ?`,
-    [String(text).trim(), user.id, task.id]
+    [code('tasks.status', 'Concluída'), String(text).trim(), user.id, task.id]
   );
 }
 
@@ -149,8 +152,8 @@ function listTasks(req, res) {
     const tasks = rows.map((row) => {
       if (!activeByContract.has(row.contract_id)) {
         const active = db.get(
-          `SELECT id FROM workflow_versions WHERE contract_id = ? AND status = 'ativo'`,
-          [row.contract_id]
+          'SELECT id FROM workflow_versions WHERE contract_id = ? AND status = ?',
+          [row.contract_id, code('workflow_versions.status', 'ativo')]
         );
         activeByContract.set(row.contract_id, active ? active.id : null);
       }
@@ -259,8 +262,8 @@ async function updateTaskStatus(req, res) {
         text: `Evento: completion\nTarefa: ${task.title}\nTexto: ${String(text).trim()}`,
       });
     } else {
-      db.run("UPDATE tasks SET status = ?, updated_at = datetime('now') WHERE id = ?", [
-        next,
+      db.run('UPDATE tasks SET status = ?, updated_at = datetime(\'now\') WHERE id = ?', [
+        code('tasks.status', next),
         task.id,
       ]);
       Task.addHistory(db, task.id, 'status', req.user.id, `${task.status} → ${next}`);
@@ -353,9 +356,9 @@ async function reopenTask(req, res) {
       return res.status(400).json({ error: 'motivo é obrigatório' });
     }
     db.run(
-      `UPDATE tasks SET status = 'Em Progresso', completed_text = NULL, completed_at = NULL,
+      `UPDATE tasks SET status = ?, completed_text = NULL, completed_at = NULL,
        completed_by = NULL, updated_at = datetime('now') WHERE id = ?`,
-      [row.id]
+      [code('tasks.status', 'Em Progresso'), row.id]
     );
     Task.addHistory(db, row.id, 'reopen', req.user.id, String(motivo).trim());
     emitDomainEvent('task:updated', req.user.domainId, {

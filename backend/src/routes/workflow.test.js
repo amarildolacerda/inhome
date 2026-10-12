@@ -10,6 +10,7 @@ const { setupDataDir, initTestDb } = require('../support/testenv');
 setupDataDir();
 const { app } = require('../server');
 const { getDomainDb } = require('../config/database');
+const { code } = require('../config/enums');
 const ContractDefinition = require('../models/ContractDefinition');
 const TaskSuggestion = require('../models/TaskSuggestion');
 
@@ -169,7 +170,10 @@ test('FR-010 vira workflow', async () => {
 
   // opt-in joins the list and records who confirmed and when (FR-010)
   const active = db.get(
-    `SELECT id FROM workflow_versions WHERE contract_id = ? AND status = 'ativo'`,
+    `SELECT id FROM workflow_versions WHERE contract_id = ? AND status = ${code(
+      'workflow_versions.status',
+      'ativo'
+    )}`,
     [contractId]
   );
   const gestorId = db.get(`SELECT id FROM users WHERE email = 'gilda@iota.test'`).id;
@@ -306,7 +310,7 @@ test('FR-011 fluxo preservado', async () => {
   // FR-011 invariants: the move touched ONLY status/history — links, plan
   // and photos stay exactly as materialized (FR-016 cross-check)
   const row = db.get('SELECT * FROM tasks WHERE id = ?', [task]);
-  assert.strictEqual(row.status, 'Em Progresso');
+  assert.strictEqual(row.status, code('tasks.status', 'Em Progresso'));
   assert.ok(row.workflow_version_id, 'status update não derruba o vínculo');
   assert.ok(row.suggestion_item_id, 'status update não derruba a origem');
   const history = db.get(
@@ -315,7 +319,7 @@ test('FR-011 fluxo preservado', async () => {
   );
   assert.ok(history.c >= 1, 'transição registrada no histórico');
   const plan = db.get('SELECT status FROM execution_plans WHERE task_id = ?', [task]);
-  assert.strictEqual(plan.status, 'pendente', 'plano intocado pelo fluxo de status');
+  assert.strictEqual(plan.status, code('execution_plans.status', 'pendente'), 'plano intocado pelo fluxo de status');
   const photos = db.get('SELECT COUNT(*) AS c FROM task_photos WHERE task_id = ?', [task]);
   assert.strictEqual(photos.c, 0);
 

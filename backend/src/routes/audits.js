@@ -11,8 +11,11 @@ const { authenticateToken, requireRole, scopeDomain } = require('../middleware/a
 const { getDomainDb } = require('../config/database');
 const Task = require('../models/Task');
 const TaskClassification = require('../models/TaskClassification');
+const { code, label } = require('../config/enums');
 
-// Estados da visão de executadas — literais de status de E003 (FR-001).
+// Estados da visão de executadas — literais de status de E003 (FR-001), em
+// texto PT: o gate responde 400 com estes literais e o SQL compara o código
+// do enum (config/enums.js, fase 3).
 const EXECUTED = ['Revisão', 'Concluída'];
 
 // Domínio de estados da classificação — exatamente os três literais de
@@ -26,7 +29,10 @@ const STATES = ['atendido plenamente', 'atendido com resalva', 'deficiente (a co
 function listAuditTasks(req, res) {
   try {
     const db = getDomainDb(req.user.domainId);
-    const rows = db.all('SELECT * FROM tasks WHERE status IN (?, ?) ORDER BY id', EXECUTED);
+    const rows = db.all('SELECT * FROM tasks WHERE status IN (?, ?) ORDER BY id', [
+      code('tasks.status', EXECUTED[0]),
+      code('tasks.status', EXECUTED[1]),
+    ]);
     const tasks = rows.map((row) => ({
       ...Task.decorate(db, row),
       classification: TaskClassification.getByTask(db, row.id),
@@ -77,7 +83,7 @@ function putClassification(req, res) {
     if (note !== null && (typeof note !== 'string' || note.length > 500)) {
       return res.status(400).json({ error: 'note must be at most 500 characters' });
     }
-    if (!EXECUTED.includes(row.status)) {
+    if (!EXECUTED.includes(label('tasks.status', row.status))) {
       return res.status(400).json({ error: `task must be in ${EXECUTED.join(' or ')}` });
     }
     const classification = TaskClassification.upsert(db, {

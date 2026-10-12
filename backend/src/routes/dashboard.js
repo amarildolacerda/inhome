@@ -5,7 +5,10 @@ const router = express.Router();
 const Contract = require('../models/Contract');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const { getDomainDb } = require('../config/database');
+const { code, label } = require('../config/enums');
 
+// Fase 3 (config/enums.js): os SELECTs abaixo devolvem o código do enum; a
+// contagem e a exposição seguem em texto PT (tasksByStatus, effective_status).
 function summarizeTasks(rows) {
   const byStatus = {};
   const byPriority = {};
@@ -15,15 +18,16 @@ function summarizeTasks(rows) {
   let urgent = 0;
   let overdue = 0;
   for (const row of rows) {
-    byStatus[row.status] = (byStatus[row.status] || 0) + 1;
-    if (row.status === 'Concluída') {
+    const status = label('tasks.status', row.status);
+    byStatus[status] = (byStatus[status] || 0) + 1;
+    if (status === 'Concluída') {
       completed += 1;
     } else {
       byPriority[row.priority] = (byPriority[row.priority] || 0) + 1;
       if (row.priority === 'urgent') urgent += 1;
       if (row.due_date && row.due_date < today) overdue += 1;
     }
-    if (row.status === 'Em Progresso') inProgress += 1;
+    if (status === 'Em Progresso') inProgress += 1;
   }
   const total = rows.length;
   return {
@@ -42,7 +46,7 @@ function summarizeTasks(rows) {
 function summarizeContracts(rows) {
   const counts = { vigente: 0, atrasado: 0, encerrado: 0 };
   for (const row of rows) {
-    counts[Contract.effectiveStatus(row)] += 1;
+    counts[Contract.effectiveStatus({ ...row, status: label('contracts.status', row.status) })] += 1;
   }
   return counts;
 }
@@ -98,12 +102,16 @@ function getDomainMetrics(db, user) {
     .reverse()
     .map((row) => ({
       ...row,
-      effective_status: Contract.effectiveStatus(row),
+      status: label('contracts.status', row.status),
+      effective_status: Contract.effectiveStatus({
+        ...row,
+        status: label('contracts.status', row.status),
+      }),
       task_count: db.get('SELECT COUNT(*) AS c FROM tasks WHERE contract_id = ?', [row.id]).c,
-      completed_count: db.get(
-        "SELECT COUNT(*) AS c FROM tasks WHERE contract_id = ? AND status = 'Concluída'",
-        [row.id]
-      ).c,
+      completed_count: db.get('SELECT COUNT(*) AS c FROM tasks WHERE contract_id = ? AND status = ?', [
+        row.id,
+        code('tasks.status', 'Concluída'),
+      ]).c,
     }));
 
   return {

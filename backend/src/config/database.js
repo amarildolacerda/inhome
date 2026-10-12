@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { code, sqlCodes, sqlLegacyCase } = require('./enums');
 
 // ---------------------------------------------------------------------------
 // sql.js driver factory (AD-001)
@@ -144,39 +145,30 @@ const USERS_DDL = `CREATE TABLE IF NOT EXISTS users (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`;
 
-const DOMAIN_SCHEMA = [
-  USERS_DDL,
-  `CREATE TABLE IF NOT EXISTS purposes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,
-    active INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`,
-  `CREATE TABLE IF NOT EXISTS contracts (
+// Fase 3 da convenção de nomenclatura (2026-10-12): os 6 enums de dado são
+// INTEGER no banco (código estável base 1, fonte única em config/enums.js) e a
+// API segue expondo texto PT. Cada DDL abaixo é single source — usado pelo
+// CREATE TABLE fresh E pelo rebuild de migração preguiçosa (enumRebuild), do
+// mesmo jeito que USERS_DDL amarra o rebuild do role CHECK (E011).
+const CONTRACTS_DDL = `CREATE TABLE IF NOT EXISTS contracts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     object TEXT,
     purpose_id INTEGER REFERENCES purposes(id),
     start_date TEXT NOT NULL,
     forecast_date TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'vigente' CHECK (status IN ('vigente','encerrado')),
+    status INTEGER NOT NULL DEFAULT ${code('contracts.status', 'vigente')} CHECK (status IN ${sqlCodes('contracts.status', 'vigente', 'encerrado')}),
     created_by INTEGER REFERENCES users(id),
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`,
-  `CREATE TABLE IF NOT EXISTS contract_providers (
-    contract_id INTEGER NOT NULL REFERENCES contracts(id),
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    linked_at TEXT NOT NULL DEFAULT (datetime('now')),
-    PRIMARY KEY (contract_id, user_id)
-  )`,
-  `CREATE TABLE IF NOT EXISTS tasks (
+  )`;
+
+const TASKS_DDL = `CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     contract_id INTEGER NOT NULL REFERENCES contracts(id),
     title TEXT NOT NULL,
     description TEXT,
-    status TEXT NOT NULL DEFAULT 'A Fazer' CHECK (status IN ('A Fazer','Em Progresso','Revisão','Concluída')),
+    status INTEGER NOT NULL DEFAULT ${code('tasks.status', 'A Fazer')} CHECK (status IN ${sqlCodes('tasks.status', 'A Fazer', 'Em Progresso', 'Revisão', 'Concluída')}),
     priority TEXT NOT NULL DEFAULT 'medium',
     assignee_id INTEGER REFERENCES users(id),
     due_date TEXT,
@@ -189,7 +181,64 @@ const DOMAIN_SCHEMA = [
     opt_in_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`;
+
+const TASK_SUGGESTIONS_DDL = `CREATE TABLE IF NOT EXISTS task_suggestions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    definitions_id INTEGER NOT NULL REFERENCES contract_definitions(id),
+    kind INTEGER NOT NULL DEFAULT ${code('task_suggestions.kind', 'analise')} CHECK (kind IN ${sqlCodes('task_suggestions.kind', 'analise', 'revisao')}),
+    status INTEGER NOT NULL DEFAULT ${code('task_suggestions.status', 'pendente')} CHECK (status IN ${sqlCodes('task_suggestions.status', 'pendente', 'analisando', 'sugerido', 'falha', 'aprovada')}),
+    refined_from INTEGER REFERENCES task_suggestions(id),
+    refine_instructions TEXT,
+    error TEXT,
+    context_json TEXT,
+    started_at TEXT,
+    finished_at TEXT,
+    created_by INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`;
+
+const WORKFLOW_VERSIONS_DDL = `CREATE TABLE IF NOT EXISTS workflow_versions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    suggestion_id INTEGER NOT NULL REFERENCES task_suggestions(id),
+    status INTEGER NOT NULL DEFAULT ${code('workflow_versions.status', 'ativo')} CHECK (status IN ${sqlCodes('workflow_versions.status', 'ativo', 'substituido')}),
+    activated_by INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`;
+
+const EXECUTION_PLANS_DDL = `CREATE TABLE IF NOT EXISTS execution_plans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER NOT NULL REFERENCES tasks(id) UNIQUE,
+    status INTEGER NOT NULL DEFAULT ${code('execution_plans.status', 'pendente')} CHECK (status IN ${sqlCodes('execution_plans.status', 'pendente', 'gerado', 'falha')}),
+    passos TEXT,
+    criterios TEXT,
+    riscos TEXT,
+    error TEXT,
+    requested_by INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`;
+
+const DOMAIN_SCHEMA = [
+  USERS_DDL,
+  `CREATE TABLE IF NOT EXISTS purposes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
+  CONTRACTS_DDL,
+  `CREATE TABLE IF NOT EXISTS contract_providers (
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    linked_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (contract_id, user_id)
+  )`,
+  TASKS_DDL,
   `CREATE TABLE IF NOT EXISTS task_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     task_id INTEGER NOT NULL REFERENCES tasks(id),
@@ -237,22 +286,7 @@ const DOMAIN_SCHEMA = [
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE (contract_id, version)
   )`,
-  `CREATE TABLE IF NOT EXISTS task_suggestions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    contract_id INTEGER NOT NULL REFERENCES contracts(id),
-    definitions_id INTEGER NOT NULL REFERENCES contract_definitions(id),
-    kind TEXT NOT NULL DEFAULT 'analise' CHECK (kind IN ('analise','revisao')),
-    status TEXT NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente','analisando','sugerido','falha','aprovada')),
-    refined_from INTEGER REFERENCES task_suggestions(id),
-    refine_instructions TEXT,
-    error TEXT,
-    context_json TEXT,
-    started_at TEXT,
-    finished_at TEXT,
-    created_by INTEGER REFERENCES users(id),
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`,
+  TASK_SUGGESTIONS_DDL,
   `CREATE TABLE IF NOT EXISTS suggestion_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     suggestion_id INTEGER NOT NULL REFERENCES task_suggestions(id) ON DELETE CASCADE,
@@ -265,26 +299,8 @@ const DOMAIN_SCHEMA = [
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
-  `CREATE TABLE IF NOT EXISTS workflow_versions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    contract_id INTEGER NOT NULL REFERENCES contracts(id),
-    suggestion_id INTEGER NOT NULL REFERENCES task_suggestions(id),
-    status TEXT NOT NULL DEFAULT 'ativo' CHECK (status IN ('ativo','substituido')),
-    activated_by INTEGER REFERENCES users(id),
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`,
-  `CREATE TABLE IF NOT EXISTS execution_plans (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    task_id INTEGER NOT NULL REFERENCES tasks(id) UNIQUE,
-    status TEXT NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente','gerado','falha')),
-    passos TEXT,
-    criterios TEXT,
-    riscos TEXT,
-    error TEXT,
-    requested_by INTEGER REFERENCES users(id),
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`,
+  WORKFLOW_VERSIONS_DDL,
+  EXECUTION_PLANS_DDL,
   `CREATE TABLE IF NOT EXISTS revision_conflicts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     suggestion_id INTEGER NOT NULL REFERENCES task_suggestions(id),
@@ -324,11 +340,13 @@ const DOMAIN_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_task_suggestions_definitions ON task_suggestions(definitions_id)',
   // Só 1 análise em andamento por contrato: revisão durante análise aguarda
   // a anterior (edge case do spec; kind compartilha o mesmo contrato).
-  "CREATE UNIQUE INDEX IF NOT EXISTS uq_task_suggestions_analisando ON task_suggestions(contract_id) WHERE status = 'analisando'",
+  "CREATE UNIQUE INDEX IF NOT EXISTS uq_task_suggestions_analisando ON task_suggestions(contract_id) WHERE status = " +
+    code('task_suggestions.status', 'analisando'),
   'CREATE INDEX IF NOT EXISTS idx_suggestion_items_suggestion ON suggestion_items(suggestion_id)',
   'CREATE INDEX IF NOT EXISTS idx_workflow_versions_contract ON workflow_versions(contract_id)',
   // 1 workflow oficial (ativo) por contrato; substituição via UPDATE de status.
-  "CREATE UNIQUE INDEX IF NOT EXISTS uq_workflow_versions_ativo ON workflow_versions(contract_id) WHERE status = 'ativo'",
+  "CREATE UNIQUE INDEX IF NOT EXISTS uq_workflow_versions_ativo ON workflow_versions(contract_id) WHERE status = " +
+    code('workflow_versions.status', 'ativo'),
   'CREATE INDEX IF NOT EXISTS idx_tasks_workflow_version ON tasks(workflow_version_id)',
   'CREATE INDEX IF NOT EXISTS idx_tasks_suggestion_item ON tasks(suggestion_item_id)',
   'CREATE INDEX IF NOT EXISTS idx_revision_conflicts_suggestion ON revision_conflicts(suggestion_id)',
@@ -504,6 +522,62 @@ function migrateSchema(wrapper) {
       }
     }
   }
+
+  // Fase 3 da convenção de nomenclatura (2026-10-12): os 6 enums de dado
+  // passam a ser INTEGER no banco (código base 1, fonte única em enums.js) e a
+  // API continua expondo texto PT (tradução na borda pelo backend). SQLite
+  // não altera tipo nem CHECK de coluna, então cada tabela é reconstruída no
+  // lugar pelo precedente do rebuild do role CHECK em `users` (E011): CREATE
+  // temporário com o DDL atual, INSERT ... SELECT com CASE mapeando cada
+  // literal antigo para o seu código, drop + rename. A guarda é o tipo
+  // declarado da coluna (PRAGMA table_info): TEXT = legado, INTEGER = já
+  // migrado — dispara uma vez por arquivo e a segunda abertura é no-op. O
+  // rebuild roda em transação: literal legado fora da tabela (dado corrompido)
+  // estoura NOT NULL/CHECK e desfaz tudo, sem deixar tabela pela metade.
+  for (const enumTableSpec of ENUM_TABLE_MIGRATIONS) {
+    rebuildEnumTable(wrapper, enumTableSpec);
+  }
+}
+
+// Fase 3: tabela × colunas de enum a migrar (as 6 colunas do escopo).
+const ENUM_TABLE_MIGRATIONS = [
+  { table: 'contracts', ddl: CONTRACTS_DDL, enums: { status: 'contracts.status' } },
+  { table: 'tasks', ddl: TASKS_DDL, enums: { status: 'tasks.status' } },
+  {
+    table: 'task_suggestions',
+    ddl: TASK_SUGGESTIONS_DDL,
+    enums: { kind: 'task_suggestions.kind', status: 'task_suggestions.status' },
+  },
+  { table: 'workflow_versions', ddl: WORKFLOW_VERSIONS_DDL, enums: { status: 'workflow_versions.status' } },
+  { table: 'execution_plans', ddl: EXECUTION_PLANS_DDL, enums: { status: 'execution_plans.status' } },
+];
+
+function rebuildEnumTable(wrapper, { table, ddl, enums }) {
+  if (!tableExists(wrapper, table)) return;
+  const info = wrapper.all(`PRAGMA table_info(${table})`);
+  const needsRebuild = info.some(
+    (column) => Object.hasOwn(enums, column.name) && String(column.type).toUpperCase() === 'TEXT'
+  );
+  if (!needsRebuild) return; // fresh file (born INTEGER) or already migrated
+
+  // Colunas presentes no arquivo legado: um tasks pré-00003 não tem as 4
+  // colunas do workflow, então a lista vem do PRAGMA e as ausentes caem no
+  // DEFAULT da tabela nova (NULL).
+  const present = info.map((column) => column.name);
+  const selectList = present
+    .map((column) =>
+      Object.hasOwn(enums, column)
+        ? `${sqlLegacyCase(column, enums[column])} AS ${column}`
+        : column
+    )
+    .join(', ');
+  const temp = `${table}_enum_tmp`;
+  wrapper.transaction((tx) => {
+    tx.run(ddl.replace(`CREATE TABLE IF NOT EXISTS ${table}`, `CREATE TABLE ${temp}`));
+    tx.run(`INSERT INTO ${temp}(${present.join(', ')}) SELECT ${selectList} FROM ${table}`);
+    tx.run(`DROP TABLE ${table}`);
+    tx.run(`ALTER TABLE ${temp} RENAME TO ${table}`);
+  });
 }
 
 function openDb(file, kind, schema) {

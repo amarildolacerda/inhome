@@ -1,5 +1,7 @@
 'use strict';
 
+const { code, label } = require('../config/enums');
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function todayIso(now = new Date()) {
@@ -7,7 +9,8 @@ function todayIso(now = new Date()) {
 }
 
 // FR-008: an expired contract is only signalled as atrasado — stored status
-// stays 'vigente' until the gestor extends or closes it.
+// stays vigente until the gestor extends or closes it. Status aqui é sempre o
+// texto PT (a borda traduz o código gravado em decorate).
 function isOverdue(row, now = new Date()) {
   if (!row || row.status !== 'vigente') return false;
   if (!row.forecast_date || !DATE_RE.test(row.forecast_date)) return false;
@@ -42,10 +45,13 @@ class Contract {
     );
     const counts = db.get(
       `SELECT COUNT(*) AS total,
-              COALESCE(SUM(CASE WHEN status = 'Concluída' THEN 1 ELSE 0 END), 0) AS done
+              COALESCE(SUM(CASE WHEN status = ? THEN 1 ELSE 0 END), 0) AS done
        FROM tasks WHERE contract_id = ?`,
-      [row.id]
+      [code('tasks.status', 'Concluída'), row.id]
     );
+    // Fase 3: o banco guarda o código; `status` (derivado) e `db_status`
+    // (persistido) seguem saindo em texto PT, byte a byte como antes.
+    const storedStatus = label('contracts.status', row.status);
     return {
       id: row.id,
       name: row.name,
@@ -54,8 +60,8 @@ class Contract {
       purpose_name: purpose ? purpose.name : null,
       start_date: row.start_date,
       forecast_date: row.forecast_date,
-      status: effectiveStatus(row),
-      db_status: row.status,
+      status: effectiveStatus({ ...row, status: storedStatus }),
+      db_status: storedStatus,
       created_by: row.created_by,
       created_at: row.created_at,
       updated_at: row.updated_at,

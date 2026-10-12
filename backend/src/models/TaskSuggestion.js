@@ -5,11 +5,24 @@
 // the previous row is never updated (FR-008).
 
 const History = require('./History');
+const { code, label } = require('../config/enums');
 
 const SELECT_SUGGESTION = `
   SELECT s.*, d.version AS definition_version
     FROM task_suggestions s
     LEFT JOIN contract_definitions d ON d.id = s.definitions_id`;
+
+// Fase 3 (config/enums.js): `kind` e `status` são gravados como código
+// INTEGER; toda leitura que alimenta comparação de estado, 409 ou a borda da
+// API traduz de volta para o texto PT de antes.
+function translate(row) {
+  if (!row) return row;
+  return {
+    ...row,
+    kind: label('task_suggestions.kind', row.kind),
+    status: label('task_suggestions.status', row.status),
+  };
+}
 
 // openapi TaskSuggestion: DB `error` serializes as `erro`, `refined_from` as
 // `refinamento_de`, `definitions_id` resolves to `definition_version`.
@@ -83,19 +96,24 @@ function createSuggestion(db, { contractId, definitionsId, kind = 'analise', use
   db.run(
     `INSERT INTO task_suggestions(contract_id, definitions_id, kind, refined_from, refine_instructions, created_by)
      VALUES (?, ?, ?, ?, ?, ?)`,
-    [contractId, definitionsId, kind, refineFrom, instructions, userId]
+    [
+      contractId,
+      definitionsId,
+      code('task_suggestions.kind', kind),
+      refineFrom,
+      instructions,
+      userId,
+    ]
   );
   // sql.js: persist() (db.export) resets last_insert_rowid() to 0, so the new
   // row is read back through MAX(id) — safe here: JS is single-threaded and
   // no other write can interleave between the INSERT and this SELECT.
-  const row = db.get(
-    `${SELECT_SUGGESTION} WHERE s.id = (SELECT MAX(id) FROM task_suggestions)`
-  );
+  const row = find(db, db.get('SELECT MAX(id) AS id FROM task_suggestions').id);
   return serialize(row);
 }
 
 function find(db, suggestionId) {
-  return db.get(`${SELECT_SUGGESTION} WHERE s.id = ?`, [suggestionId]);
+  return translate(db.get(`${SELECT_SUGGESTION} WHERE s.id = ?`, [suggestionId]));
 }
 
 function findSerialized(db, suggestionId, includeItems) {
@@ -106,27 +124,38 @@ function findSerialized(db, suggestionId, includeItems) {
 
 // Latest version of a kind for the contract (analysis/review state, listing).
 function latestForContract(db, contractId, kind = 'analise') {
-  return db.get(
-    `${SELECT_SUGGESTION} WHERE s.contract_id = ? AND s.kind = ? ORDER BY s.id DESC LIMIT 1`,
-    [contractId, kind]
+  return translate(
+    db.get(
+      `${SELECT_SUGGESTION} WHERE s.contract_id = ? AND s.kind = ? ORDER BY s.id DESC LIMIT 1`,
+      [contractId, code('task_suggestions.kind', kind)]
+    )
   );
 }
 
 function listByContract(db, contractId, kind = 'analise') {
-  return db.all(
-    `${SELECT_SUGGESTION} WHERE s.contract_id = ? AND s.kind = ? ORDER BY s.id DESC`,
-    [contractId, kind]
-  );
+  return db
+    .all(
+      `${SELECT_SUGGESTION} WHERE s.contract_id = ? AND s.kind = ? ORDER BY s.id DESC`,
+      [contractId, code('task_suggestions.kind', kind)]
+    )
+    .map(translate);
 }
 
 // FR-018: a running or queued job blocks a new analysis (409). This also backs
-// the partial UNIQUE index on (contract_id) WHERE status='analisando'.
+// the partial UNIQUE index on (contract_id) WHERE status=analisando.
 function activeJob(db, contractId, kind = 'analise') {
-  return db.get(
-    `${SELECT_SUGGESTION}
-      WHERE s.contract_id = ? AND s.kind = ? AND s.status IN ('pendente','analisando')
+  return translate(
+    db.get(
+      `${SELECT_SUGGESTION}
+      WHERE s.contract_id = ? AND s.kind = ? AND s.status IN (?, ?)
       ORDER BY s.id DESC LIMIT 1`,
-    [contractId, kind]
+      [
+        contractId,
+        code('task_suggestions.kind', kind),
+        code('task_suggestions.status', 'pendente'),
+        code('task_suggestions.status', 'analisando'),
+      ]
+    )
   );
 }
 
@@ -149,12 +178,17 @@ function countKeptItems(db, suggestionId) {
 function markStarted(db, suggestionId, contextJson) {
   db.run(
     `UPDATE task_suggestions
-        SET status = 'analisando', context_json = ?, started_at = datetime('now'),
+        SET status = ?, context_json = ?, started_at = datetime('now'),
             updated_at = datetime('now')
-      WHERE id = ? AND status = 'pendente'`,
-    [contextJson, suggestionId]
+      WHERE id = ? AND status = ?`,
+    [
+      code('task_suggestions.status', 'analisando'),
+      contextJson,
+      suggestionId,
+      code('task_suggestions.status', 'pendente'),
+    ]
   );
-  return db.get('SELECT status FROM task_suggestions WHERE id = ?', [suggestionId]);
+  return statusOf(db, suggestionId);
 }
 
 // analisando → sugerido: items land in the same write as the transition.
@@ -168,45 +202,56 @@ function markSuggested(db, suggestionId, items) {
   });
   db.run(
     `UPDATE task_suggestions
-        SET status = 'sugerido', error = NULL, finished_at = datetime('now'),
+        SET status = ?, error = NULL, finished_at = datetime('now'),
             updated_at = datetime('now')
       WHERE id = ?`,
-    [suggestionId]
+    [code('task_suggestions.status', 'sugerido'), suggestionId]
   );
-  return db.get('SELECT status FROM task_suggestions WHERE id = ?', [suggestionId]);
+  return statusOf(db, suggestionId);
 }
 
 // analisando/pendente → falha: definitions are never touched (FR-006).
 function markFalha(db, suggestionId, error) {
   db.run(
     `UPDATE task_suggestions
-        SET status = 'falha', error = ?, finished_at = datetime('now'),
+        SET status = ?, error = ?, finished_at = datetime('now'),
             updated_at = datetime('now')
       WHERE id = ?`,
-    [String(error).slice(0, 1000), suggestionId]
+    [code('task_suggestions.status', 'falha'), String(error).slice(0, 1000), suggestionId]
   );
-  return db.get('SELECT status FROM task_suggestions WHERE id = ?', [suggestionId]);
+  return statusOf(db, suggestionId);
 }
 
 // falha → pendente: manual retry re-queues the SAME row (no auto retry).
 function requeue(db, suggestionId) {
   db.run(
     `UPDATE task_suggestions
-        SET status = 'pendente', error = NULL, started_at = NULL, finished_at = NULL,
+        SET status = ?, error = NULL, started_at = NULL, finished_at = NULL,
             updated_at = datetime('now')
-      WHERE id = ? AND status = 'falha'`,
-    [suggestionId]
+      WHERE id = ? AND status = ?`,
+    [
+      code('task_suggestions.status', 'pendente'),
+      suggestionId,
+      code('task_suggestions.status', 'falha'),
+    ]
   );
-  return db.get('SELECT status FROM task_suggestions WHERE id = ?', [suggestionId]);
+  return statusOf(db, suggestionId);
 }
 
 function markAprovada(db, suggestionId) {
   db.run(
-    `UPDATE task_suggestions SET status = 'aprovada', updated_at = datetime('now')
+    `UPDATE task_suggestions SET status = ?, updated_at = datetime('now')
       WHERE id = ?`,
-    [suggestionId]
+    [code('task_suggestions.status', 'aprovada'), suggestionId]
   );
-  return db.get('SELECT status FROM task_suggestions WHERE id = ?', [suggestionId]);
+  return statusOf(db, suggestionId);
+}
+
+// Os mark*/requeue devolvem o estado como o resto do backend compara: texto
+// PT (ex.: opencode/review conferem `status !== 'analisando'`).
+function statusOf(db, suggestionId) {
+  const row = db.get('SELECT status FROM task_suggestions WHERE id = ?', [suggestionId]);
+  return row ? { status: label('task_suggestions.status', row.status) } : null;
 }
 
 // FR-008/AD-006: refinement creates a NEW version (refined_from → previous)
@@ -233,9 +278,9 @@ function refineSuggestion(db, { sourceId, items, instructions, userId }) {
   });
   db.run(
     `UPDATE task_suggestions
-        SET status = 'sugerido', finished_at = datetime('now'), updated_at = datetime('now')
+        SET status = ?, finished_at = datetime('now'), updated_at = datetime('now')
       WHERE id = ?`,
-    [created.id]
+    [code('task_suggestions.status', 'sugerido'), created.id]
   );
   // FR-017: the new version lands in entity_history with its author (runs
   // inside the caller's transaction — the audit row commits with the version).

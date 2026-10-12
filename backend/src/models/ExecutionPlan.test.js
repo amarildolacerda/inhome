@@ -9,6 +9,7 @@ const { setupDataDir, initTestDb } = require('../support/testenv');
 const dataDir = setupDataDir();
 const database = require('../config/database');
 const ExecutionPlan = require('./ExecutionPlan');
+const { code } = require('../config/enums');
 
 let db;
 let taskId;
@@ -23,7 +24,9 @@ test.before(async () => {
   db.run(
     `INSERT INTO contracts(name, start_date, forecast_date) VALUES ('Obra Exec', '2026-01-01', '2026-12-31')`
   );
-  db.run(`INSERT INTO tasks(contract_id, title, status) VALUES (1, 'Tarefa do plano', 'A Fazer')`);
+  db.run(`INSERT INTO tasks(contract_id, title, status) VALUES (1, 'Tarefa do plano', ?)`, [
+    code('tasks.status', 'A Fazer'),
+  ]);
   taskId = db.get('SELECT id FROM tasks WHERE title = ?', ['Tarefa do plano']).id;
 });
 

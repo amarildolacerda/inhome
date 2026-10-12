@@ -13,6 +13,7 @@ const { setupDataDir, initTestDb } = require('../support/testenv');
 setupDataDir();
 const { app } = require('../server');
 const { getDomainDb } = require('../config/database');
+const { code } = require('../config/enums');
 const ContractDefinition = require('../models/ContractDefinition');
 const TaskSuggestion = require('../models/TaskSuggestion');
 
@@ -212,7 +213,7 @@ test('FR-015 plano não bloqueia', async () => {
   for (const id of planTaskIds) {
     const row = db.get('SELECT status, error FROM execution_plans WHERE task_id = ?', [id]);
     assert.ok(row, `shell pendente criado na ativação para ${id}`);
-    assert.strictEqual(row.status, 'pendente');
+    assert.strictEqual(row.status, code('execution_plans.status', 'pendente'));
     assert.strictEqual(row.error, null);
   }
 

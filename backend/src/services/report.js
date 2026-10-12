@@ -12,6 +12,7 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 const { UPLOAD_DIR } = require('../middleware/upload');
+const { label } = require('../config/enums');
 
 function pdfEscape(text) {
   return String(text)
@@ -341,9 +342,16 @@ function loadReportData(db, contractId) {
       const photo_paths = db
         .all('SELECT path FROM task_photos WHERE task_id = ? ORDER BY id', [row.id])
         .map((r) => r.path);
-      return { ...row, photo_paths, photo_count: photo_paths.length };
+      // Fase 3 (config/enums.js): o relatório imprime o texto PT de antes,
+      // não o código gravado.
+      return {
+        ...row,
+        status: label('tasks.status', row.status),
+        photo_paths,
+        photo_count: photo_paths.length,
+      };
     });
-  return { contract, tasks };
+  return { contract: { ...contract, status: label('contracts.status', contract.status) }, tasks };
 }
 
 // SC-007: tarefa, conclusão, executor, datas, fotos.

@@ -15,6 +15,7 @@ const { setupDataDir, initTestDb } = require('../support/testenv');
 setupDataDir();
 const { app } = require('../server');
 const { getDomainDb } = require('../config/database');
+const { code } = require('../config/enums');
 const { UPLOAD_DIR } = require('../middleware/upload');
 
 // Acceptance stub per plan.md ## Acceptance Test Stubs (RED until T019).
@@ -219,7 +220,7 @@ test('FR-010 flow+link', async () => {
   assert.strictEqual(step2.body.task.status, 'Revisão');
 
   // skipping a stage is refused
-  db.run("UPDATE tasks SET status = 'A Fazer' WHERE id = ?", [taskId]);
+  db.run('UPDATE tasks SET status = ? WHERE id = ?', [code('tasks.status', 'A Fazer'), taskId]);
   const skip = await request(app)
     .patch(`/api/tasks/${taskId}/status`)
     .set(as(movToken))
@@ -228,7 +229,7 @@ test('FR-010 flow+link', async () => {
   assert.match(skip.body.error, /Fluxo/i);
 
   // moving backward is refused (reopen flow is the gestor's, T019)
-  db.run("UPDATE tasks SET status = 'Revisão' WHERE id = ?", [taskId]);
+  db.run('UPDATE tasks SET status = ? WHERE id = ?', [code('tasks.status', 'Revisão'), taskId]);
   const back = await request(app)
     .patch(`/api/tasks/${taskId}/status`)
     .set(as(movToken))
@@ -249,7 +250,7 @@ test('FR-010 flow+link', async () => {
   assert.strictEqual(byOther.status, 403);
 
   // Concluída without text refused (edge case: sem texto → recusa)
-  db.run("UPDATE tasks SET status = 'Revisão' WHERE id = ?", [taskId]);
+  db.run('UPDATE tasks SET status = ? WHERE id = ?', [code('tasks.status', 'Revisão'), taskId]);
   const noText = await request(app)
     .patch(`/api/tasks/${taskId}/status`)
     .set(as(movToken))
@@ -567,7 +568,7 @@ test('FR-002 conclusão sem texto responde 400', async () => {
 
   // nada muda: status, evidência e histórico intactos
   const row = db.get('SELECT status FROM tasks WHERE id = ?', [taskId]);
-  assert.strictEqual(row.status, 'Revisão', 'status preservado');
+  assert.strictEqual(row.status, code('tasks.status', 'Revisão'), 'status preservado');
   const photos = db.get(
     'SELECT COUNT(*) AS n FROM task_photos WHERE task_id = ?',
     [taskId]
@@ -620,7 +621,7 @@ test('FR-003 fotos opcionais gravadas antes da referência', async () => {
     .send({ text: 'dezena', photos: many });
   assert.strictEqual(over.status, 400, JSON.stringify(over.body));
   const row2 = db.get('SELECT status FROM tasks WHERE id = ?', [taskId2]);
-  assert.strictEqual(row2.status, 'Revisão', 'status preservado no 400');
+  assert.strictEqual(row2.status, code('tasks.status', 'Revisão'), 'status preservado no 400');
   const photos2 = db.get(
     'SELECT COUNT(*) AS n FROM task_photos WHERE task_id = ?',
     [taskId2]
@@ -654,7 +655,7 @@ test('FR-005 reabertura sem motivo responde 400', async () => {
 
   // 400 antes de qualquer escrita: status e histórico intactos
   const row = db.get('SELECT status FROM tasks WHERE id = ?', [taskId]);
-  assert.strictEqual(row.status, 'Concluída', 'status preservado');
+  assert.strictEqual(row.status, code('tasks.status', 'Concluída'), 'status preservado');
   const after = db.get(
     'SELECT COUNT(*) AS n FROM task_history WHERE task_id = ?',
     [taskId]

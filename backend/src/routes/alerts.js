@@ -16,6 +16,7 @@ const express = require('express');
 const { authenticateToken, requireRole, scopeDomain } = require('../middleware/auth');
 const { runExpirySweep, readWindows, daysUntil, parseWindowsStrict } = require('../services/alerts');
 const { getPlatformDb, getDomainDb } = require('../config/database');
+const { code } = require('../config/enums');
 
 const mountAlertsRouter = express.Router();
 
@@ -68,10 +69,10 @@ function listPanel(req, res) {
                  FROM alert_events ae
                 WHERE ae.contract_id = c.id) AS event_pairs
          FROM contracts c
-        WHERE c.status = 'vigente'
+        WHERE c.status = ?
         ORDER BY incomplete DESC, c.forecast_date ASC, c.id ASC
         LIMIT ? OFFSET ?`,
-      [limit, offset]
+      [code('contracts.status', 'vigente'), limit, offset]
     );
 
     let total;
@@ -83,7 +84,8 @@ function listPanel(req, res) {
       const counts = db.get(
         `SELECT COUNT(*) AS total,
                 SUM(CASE WHEN forecast_date IS NULL OR forecast_date = '' THEN 1 ELSE 0 END) AS incomplete
-           FROM contracts WHERE status = 'vigente'`
+           FROM contracts WHERE status = ?`,
+        [code('contracts.status', 'vigente')]
       );
       total = counts?.total || 0;
       incompleteTotal = counts?.incomplete || 0;

@@ -1,6 +1,9 @@
 'use strict';
 
-// FR-010 flow: A Fazer → Em Progresso → Revisão → Concluída.
+const { code, label } = require('../config/enums');
+
+// FR-010 flow: A Fazer → Em Progresso → Revisão → Concluída. O fluxo roda em
+// texto PT na borda; o banco guarda o código (config/enums.js, fase 3).
 const FLOW = ['A Fazer', 'Em Progresso', 'Revisão', 'Concluída'];
 
 class Task {
@@ -14,10 +17,12 @@ class Task {
     const assignee = row.assignee_id
       ? db.get('SELECT id, name, email FROM users WHERE id = ?', [row.assignee_id])
       : null;
-    const contract = db.get('SELECT id, name, status FROM contracts WHERE id = ?', [row.contract_id]);
+    const contract = db.get('SELECT id, name FROM contracts WHERE id = ?', [row.contract_id]);
     const photoCount = db.get('SELECT COUNT(*) AS c FROM task_photos WHERE task_id = ?', [row.id]).c;
     return {
       ...row,
+      // fase 3: código gravado → texto PT exposto (igual ao de antes)
+      status: label('tasks.status', row.status),
       assignee_name: assignee ? assignee.name : null,
       assignee_email: assignee ? assignee.email : null,
       contract_name: contract ? contract.name : null,
@@ -34,11 +39,12 @@ class Task {
   static create(db, { contract_id, title, description, priority, assignee_id, due_date }) {
     db.run(
       `INSERT INTO tasks(contract_id, title, description, status, priority, assignee_id, due_date)
-       VALUES (?, ?, ?, 'A Fazer', ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         contract_id,
         title,
         description || null,
+        code('tasks.status', 'A Fazer'),
         priority || 'medium',
         assignee_id || null,
         due_date || null,

@@ -4,7 +4,7 @@ Custom project TODOs. Agents read this file at session start.
 
 ## Pending
 
-- [ ] Padronização de nomenclatura em inglês no banco: fases 3–5 pendentes (enums de dado, papéis, superfície de API) — inventário, ordem e critérios em `docs/naming-conventions.md`; fase 2 (coluna + chaves de contrato JSON → `purpose_id`/`purpose_name`) concluída em 2026-10-12; fase 1 (tabelas) concluída em 2026-10-06. Fases 3–5 bloqueadas em decisão do usuário (tradução de enums; papéis; versionamento de API)
+- [ ] Padronização de nomenclatura em inglês no banco: fase 5 pendente (superfície de API — decidido 2026-10-12: versionar v1/v2 antes de renomear); fase 4 decidida como manter (papéis em PT); fase 3 (enums → numérico + defines `config/enums.js`, API segue PT) concluída em 2026-10-12; fase 2 concluída em 2026-10-12; fase 1 (tabelas) concluída em 2026-10-06 — inventário, ordem e critérios em `docs/naming-conventions.md`
 
 ## Done
 

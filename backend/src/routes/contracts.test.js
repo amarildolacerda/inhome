@@ -8,6 +8,7 @@ const { setupDataDir, initTestDb } = require('../support/testenv');
 setupDataDir();
 const { app } = require('../server');
 const { getDomainDb } = require('../config/database');
+const { code } = require('../config/enums');
 
 const SYS_EMAIL = process.env.PLATFORM_ADMIN_EMAIL || 'admin@platform.local';
 const SYS_PASSWORD = process.env.PLATFORM_ADMIN_PASSWORD || 'Admin@123';
@@ -180,8 +181,8 @@ test('FR-007 unlink block', async () => {
   // open task blocks unlink (edge case: tarefas abertas travam desvinculação)
   db.run(
     `INSERT INTO tasks(contract_id, title, status, priority, assignee_id)
-     VALUES (?, 'Abrir portao', 'A Fazer', 'medium', ?)`,
-    [contract.id, prestadorId]
+     VALUES (?, 'Abrir portao', ?, 'medium', ?)`,
+    [contract.id, code('tasks.status', 'A Fazer'), prestadorId]
   );
   const blocked = await request(app)
     .delete(`/api/contracts/${contract.id}/prestadores/${prestadorId}`)
@@ -190,7 +191,8 @@ test('FR-007 unlink block', async () => {
   assert.match(blocked.body.error, /abertas/i);
 
   // closing the task releases the unlink
-  db.run("UPDATE tasks SET status = 'Concluída' WHERE contract_id = ? AND assignee_id = ?", [
+  db.run('UPDATE tasks SET status = ? WHERE contract_id = ? AND assignee_id = ?', [
+    code('tasks.status', 'Concluída'),
     contract.id,
     prestadorId,
   ]);
@@ -223,7 +225,7 @@ test('FR-008 overdue/extend', async () => {
 
   // stored status remains vigente — vencido so signaliza
   const stored = getDomainDb(domainId).get('SELECT status FROM contracts WHERE id = ?', [overdueId]);
-  assert.strictEqual(stored.status, 'vigente');
+  assert.strictEqual(stored.status, code('contracts.status', 'vigente'));
 
   // gestor prorroga → vigente again (SC-003)
   const extended = await request(app)
@@ -312,7 +314,7 @@ test('FR-026 1000 rows', async () => {
         'objeto perf',
         '2026-01-01',
         '2026-12-31',
-        i % 2 ? 'vigente' : 'encerrado',
+        i % 2 ? code('contracts.status', 'vigente') : code('contracts.status', 'encerrado'),
       ],
     });
   }
@@ -689,7 +691,7 @@ test('FR-008 prorrogação devolve vigente', async () => {
   // o banco só recebeu forecast_date — status gravado nunca foi atrasado
   const db = getDomainDb(domainId);
   const row = db.get('SELECT status, forecast_date FROM contracts WHERE id = ?', [id]);
-  assert.strictEqual(row.status, 'vigente');
+  assert.strictEqual(row.status, code('contracts.status', 'vigente'));
   assert.ok(row.forecast_date >= new Date().toISOString().slice(0, 10), 'previsão futura gravada');
 });
 
@@ -860,12 +862,14 @@ test('FR-013 filtro particiona os status', async () => {
 
   // totais por fatia batem com a partição no banco (sem sobreposição)
   const expVigente = db.get(
-    "SELECT COUNT(*) AS c FROM contracts WHERE status = 'vigente' AND forecast_date >= date('now')"
+    `SELECT COUNT(*) AS c FROM contracts WHERE status = ${code('contracts.status', 'vigente')} AND forecast_date >= date('now')`
   ).c;
   const expAtrasado = db.get(
-    "SELECT COUNT(*) AS c FROM contracts WHERE status = 'vigente' AND forecast_date < date('now')"
+    `SELECT COUNT(*) AS c FROM contracts WHERE status = ${code('contracts.status', 'vigente')} AND forecast_date < date('now')`
   ).c;
-  const expEncerrado = db.get("SELECT COUNT(*) AS c FROM contracts WHERE status = 'encerrado'").c;
+  const expEncerrado = db.get(
+    `SELECT COUNT(*) AS c FROM contracts WHERE status = ${code('contracts.status', 'encerrado')}`
+  ).c;
   const expTotal = db.get('SELECT COUNT(*) AS c FROM contracts').c;
   assert.strictEqual(expVigente + expAtrasado + expEncerrado, expTotal, 'partição cobre tudo');
 
@@ -953,7 +957,7 @@ test('FR-015 p95 abaixo de 2s com 5000', async () => {
         'objeto volume',
         '2026-01-01',
         i % 3 ? '2026-12-31' : '2026-09-01',
-        i % 4 ? 'vigente' : 'encerrado',
+        i % 4 ? code('contracts.status', 'vigente') : code('contracts.status', 'encerrado'),
       ],
     });
   }

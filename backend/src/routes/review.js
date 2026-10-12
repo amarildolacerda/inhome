@@ -20,6 +20,7 @@ const TaskSuggestion = require('../models/TaskSuggestion');
 const Task = require('../models/Task');
 const History = require('../models/History');
 const suggestionsRouter = require('./suggestions');
+const { code, label } = require('../config/enums');
 
 function httpError(status, message) {
   const err = new Error(message);
@@ -41,17 +42,23 @@ function contractOr404(db, rawId) {
   return contract.id;
 }
 
+// Fase 3 (config/enums.js): `task_suggestions.status` é gravado como código
+// INTEGER; gates, comparações e a borda da API seguem em texto PT.
+function withStatusLabel(row) {
+  return row ? { ...row, status: label('task_suggestions.status', row.status) } : row;
+}
+
 function findReview(db, contractId, rawId) {
   const id = Number(rawId);
   const row = Number.isInteger(id)
     ? db.get(
         `SELECT * FROM task_suggestions
-          WHERE id = ? AND contract_id = ? AND kind = 'revisao'`,
-        [id, contractId]
+          WHERE id = ? AND contract_id = ? AND kind = ?`,
+        [id, contractId, code('task_suggestions.kind', 'revisao')]
       )
     : null;
   if (!row) throw httpError(404, 'Review not found');
-  return row;
+  return withStatusLabel(row);
 }
 
 // FR-022: the context loaded when the review starts — the contract's
@@ -60,8 +67,8 @@ function findReview(db, contractId, rawId) {
 function loadReviewContext(db, contractId) {
   const definitions = ContractDefinition.latest(db, contractId);
   const active = db.get(
-    `SELECT id FROM workflow_versions WHERE contract_id = ? AND status = 'ativo'`,
-    [contractId]
+    'SELECT id FROM workflow_versions WHERE contract_id = ? AND status = ?',
+    [contractId, code('workflow_versions.status', 'ativo')]
   );
   const rows = db.all(
     `SELECT t.*, u.name AS assignee_name
@@ -75,7 +82,7 @@ function loadReviewContext(db, contractId) {
     contract_id: task.contract_id,
     title: task.title,
     description: task.description ?? null,
-    status: task.status,
+    status: label('tasks.status', task.status),
     priority: task.priority ?? null,
     assignee_id: task.assignee_id ?? null,
     assignee_name: task.assignee_name ?? null,
@@ -180,10 +187,14 @@ function submitRevision(db, reviewId, proposals, authorId) {
     });
     tx.run(
       `UPDATE task_suggestions
-          SET status = 'sugerido', error = NULL, finished_at = datetime('now'),
+          SET status = ?, error = NULL, finished_at = datetime('now'),
               updated_at = datetime('now')
-        WHERE id = ? AND status = 'analisando'`,
-      [reviewId]
+        WHERE id = ? AND status = ?`,
+      [
+        code('task_suggestions.status', 'sugerido'),
+        reviewId,
+        code('task_suggestions.status', 'analisando'),
+      ]
     );
   });
   // FR-017: the proposal version registers its author + date.
@@ -300,9 +311,13 @@ function startQueuedReviews(domainId, contractId) {
   const db = getDomainDb(domainId);
   const queued = db.all(
     `SELECT id FROM task_suggestions
-      WHERE contract_id = ? AND kind = 'revisao' AND status = 'pendente'
+      WHERE contract_id = ? AND kind = ? AND status = ?
       ORDER BY id`,
-    [contractId]
+    [
+      contractId,
+      code('task_suggestions.kind', 'revisao'),
+      code('task_suggestions.status', 'pendente'),
+    ]
   );
   for (const row of queued) {
     setImmediate(() => {
@@ -369,11 +384,11 @@ function listReviews(req, res) {
     const contractId = contractOr404(db, req.params.id);
     const rows = db.all(
       `SELECT * FROM task_suggestions
-        WHERE contract_id = ? AND kind = 'revisao'
+        WHERE contract_id = ? AND kind = ?
         ORDER BY id DESC`,
-      [contractId]
+      [contractId, code('task_suggestions.kind', 'revisao')]
     );
-    return res.json({ reviews: rows.map(serializeReviewSummary) });
+    return res.json({ reviews: rows.map((row) => serializeReviewSummary(withStatusLabel(row))) });
   } catch (error) {
     return res.status(error.status || 500).json({ error: error.message });
   }
@@ -458,14 +473,20 @@ function applyApprovedRevision(req, res) {
         if (item.target_task_id == null) {
           tx.run(
             `INSERT INTO tasks(contract_id, title, description, status, suggestion_item_id)
-             VALUES (?, ?, ?, 'A Fazer', ?)`,
-            [contractId, item.title, item.description ?? null, item.id]
+             VALUES (?, ?, ?, ?, ?)`,
+            [
+              contractId,
+              item.title,
+              item.description ?? null,
+              code('tasks.status', 'A Fazer'),
+              item.id,
+            ]
           );
           // sql.js: last_insert_rowid() resets on persist — read back MAX(id).
           const taskRow = tx.get('SELECT * FROM tasks WHERE id = (SELECT MAX(id) FROM tasks)');
           tx.run('INSERT INTO execution_plans(task_id, status) VALUES (?, ?)', [
             taskRow.id,
-            'pendente',
+            code('execution_plans.status', 'pendente'),
           ]);
           Task.addHistory(tx, taskRow.id, 'create', req.user.id, null);
           created += 1;
@@ -477,10 +498,11 @@ function applyApprovedRevision(req, res) {
           item.target_task_id,
           contractId,
         ]);
-        if (!task || task.status !== 'A Fazer') {
-          const statusAlvo = task ? task.status : 'inexistente';
+        const taskStatus = task ? label('tasks.status', task.status) : null;
+        if (!task || taskStatus !== 'A Fazer') {
+          const statusAlvo = taskStatus || 'inexistente';
           const motivo = task
-            ? `Tarefa em ${task.status} — mudança não aplicada`
+            ? `Tarefa em ${taskStatus} — mudança não aplicada`
             : 'Tarefa não existe — mudança não aplicada';
           tx.run(
             `INSERT INTO revision_conflicts(suggestion_id, task_id, status_alvo, motivo)

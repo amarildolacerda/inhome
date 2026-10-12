@@ -11,16 +11,18 @@ const { getDomainDb } = require('../config/database');
 const Task = require('../models/Task');
 const TaskSuggestion = require('../models/TaskSuggestion');
 const History = require('../models/History');
+const { code, label } = require('../config/enums');
 
 // openapi WorkflowVersion: the column is `activated_by`, the wire field is
-// `created_by` (the gestor that activated this version).
+// `created_by` (the gestor that activated this version). Fase 3: o banco
+// guarda o código do enum e a API segue expondo 'ativo'/'substituido'.
 function serializeWorkflow(row) {
   if (!row) return null;
   return {
     id: row.id,
     contract_id: row.contract_id,
     suggestion_id: row.suggestion_id,
-    status: row.status,
+    status: label('workflow_versions.status', row.status),
     created_by: row.activated_by ?? null,
     created_at: row.created_at,
   };
@@ -28,10 +30,10 @@ function serializeWorkflow(row) {
 
 // One `ativo` version per contract (partial UNIQUE). null = never approved.
 function activeWorkflow(db, contractId) {
-  return db.get(
-    `SELECT * FROM workflow_versions WHERE contract_id = ? AND status = 'ativo'`,
-    [contractId]
-  );
+  return db.get('SELECT * FROM workflow_versions WHERE contract_id = ? AND status = ?', [
+    contractId,
+    code('workflow_versions.status', 'ativo'),
+  ]);
 }
 
 // openapi WorkflowTask: real task fields plus `in_workflow`, relative to the
@@ -61,16 +63,24 @@ function contractOr404(db, rawId) {
 // back: no task exists outside an active workflow version.
 function activateWorkflow(db, { suggestion, userId }) {
   const previous = db.get(
-    `SELECT id FROM workflow_versions WHERE contract_id = ? AND status = 'ativo'`,
-    [suggestion.contract_id]
+    'SELECT id FROM workflow_versions WHERE contract_id = ? AND status = ?',
+    [suggestion.contract_id, code('workflow_versions.status', 'ativo')]
   );
   if (previous) {
-    db.run(`UPDATE workflow_versions SET status = 'substituido' WHERE id = ?`, [previous.id]);
+    db.run('UPDATE workflow_versions SET status = ? WHERE id = ?', [
+      code('workflow_versions.status', 'substituido'),
+      previous.id,
+    ]);
   }
   db.run(
     `INSERT INTO workflow_versions(contract_id, suggestion_id, status, activated_by)
-     VALUES (?, ?, 'ativo', ?)`,
-    [suggestion.contract_id, suggestion.id, userId]
+     VALUES (?, ?, ?, ?)`,
+    [
+      suggestion.contract_id,
+      suggestion.id,
+      code('workflow_versions.status', 'ativo'),
+      userId,
+    ]
   );
   // sql.js: no last_insert_rowid() after persist — read back through MAX(id).
   const workflowRow = db.get(
@@ -86,13 +96,21 @@ function activateWorkflow(db, { suggestion, userId }) {
   const tasks = keptItems.map((item) => {
     db.run(
       `INSERT INTO tasks(contract_id, title, description, status, workflow_version_id, suggestion_item_id)
-       VALUES (?, ?, ?, 'A Fazer', ?, ?)`,
-      [suggestion.contract_id, item.title, item.description ?? null, workflowRow.id, item.id]
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        suggestion.contract_id,
+        item.title,
+        item.description ?? null,
+        code('tasks.status', 'A Fazer'),
+        workflowRow.id,
+        item.id,
+      ]
     );
     const taskRow = db.get(`SELECT id FROM tasks WHERE id = (SELECT MAX(id) FROM tasks)`);
     // FR-014: activation never waits for the plan — it exists as `pendente`.
-    db.run(`INSERT INTO execution_plans(task_id, status, requested_by) VALUES (?, 'pendente', ?)`, [
+    db.run('INSERT INTO execution_plans(task_id, status, requested_by) VALUES (?, ?, ?)', [
       taskRow.id,
+      code('execution_plans.status', 'pendente'),
       userId,
     ]);
     return {

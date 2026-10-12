@@ -7,6 +7,7 @@ const { authenticateToken, requireRole, scopeDomain } = require('../middleware/a
 const { validate } = require('../middleware/validate');
 const { getDomainDb } = require('../config/database');
 const { generateContractPdf, exportContractCsv } = require('../services/report');
+const { code, label } = require('../config/enums');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -103,12 +104,18 @@ function listContracts(req, res) {
       // FR-013 (AD-002): particiona no SQL, nunca pós-filtra a página —
       // preserva total e paginação. atrasado = gravado vigente com previsão
       // estritamente anterior a hoje; no dia da previsão segue vigente (Q3).
+      // Fase 3: o predicado compara o código do enum (config/enums.js); o
+      // filtro continua chegando em texto PT.
+      const vigente = code('contracts.status', 'vigente');
       if (wanted === 'encerrado') {
-        statusWhere = " WHERE c.status = 'encerrado'";
+        statusWhere = ' WHERE c.status = ?';
+        statusParams.push(code('contracts.status', 'encerrado'));
       } else if (wanted === 'vigente') {
-        statusWhere = " WHERE c.status = 'vigente' AND c.forecast_date >= date('now')";
+        statusWhere = " WHERE c.status = ? AND c.forecast_date >= date('now')";
+        statusParams.push(vigente);
       } else {
-        statusWhere = " WHERE c.status = 'vigente' AND c.forecast_date < date('now')";
+        statusWhere = " WHERE c.status = ? AND c.forecast_date < date('now')";
+        statusParams.push(vigente);
       }
     }
     const total = db.get(`SELECT COUNT(*) AS c ${base}${statusWhere}`, [
@@ -224,8 +231,8 @@ function unlinkPrestador(req, res) {
     if (!linked) return res.status(404).json({ error: 'Prestador not linked' });
     const open = db.get(
       `SELECT COUNT(*) AS c FROM tasks
-       WHERE contract_id = ? AND assignee_id = ? AND status != 'Concluída'`,
-      [row.id, userId]
+       WHERE contract_id = ? AND assignee_id = ? AND status != ?`,
+      [row.id, userId, code('tasks.status', 'Concluída')]
     ).c;
     if (open > 0) {
       return res
@@ -248,7 +255,7 @@ function extendContract(req, res) {
   try {
     const db = getDomainDb(req.user.domainId);
     const row = getContractOr404(db, req.params.id);
-    if (row.status === 'encerrado') {
+    if (label('contracts.status', row.status) === 'encerrado') {
       return res.status(400).json({ error: 'Encerrado contract cannot be extended' });
     }
     const forecast = (req.body || {}).forecast_date;
@@ -270,12 +277,13 @@ function closeContract(req, res) {
   try {
     const db = getDomainDb(req.user.domainId);
     const row = getContractOr404(db, req.params.id);
-    if (row.status === 'encerrado') {
+    if (label('contracts.status', row.status) === 'encerrado') {
       return res.status(400).json({ error: 'Contract already encerrado' });
     }
-    db.run("UPDATE contracts SET status = 'encerrado', updated_at = datetime('now') WHERE id = ?", [
-      row.id,
-    ]);
+    db.run(
+      'UPDATE contracts SET status = ?, updated_at = datetime(\'now\') WHERE id = ?',
+      [code('contracts.status', 'encerrado'), row.id]
+    );
     res.json({ contract: Contract.decorate(db, getContractOr404(db, row.id)) });
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });

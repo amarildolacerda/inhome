@@ -8,6 +8,7 @@ const { setupDataDir } = require('../support/testenv');
 
 const dataDir = setupDataDir();
 const database = require('../config/database');
+const { code, label } = require('./enums');
 
 test('FR-024 db/domain', async () => {
   await database.initSqlDriver();
@@ -394,6 +395,7 @@ test('00003 workflow schema: 7 tables + additive tasks columns + partial uniques
   raw.run(
     "INSERT INTO contracts(name, start_date, forecast_date) VALUES ('C-antigo', '2026-01-01', '2026-12-31')"
   );
+  // legado: gravado como texto (a migração da fase 3 converte na abertura)
   raw.run("INSERT INTO tasks(contract_id, title, status) VALUES (1, 'Tarefa legada', 'A Fazer')");
   fs.writeFileSync(file, Buffer.from(raw.export()));
   raw.close();
@@ -454,23 +456,27 @@ test('00003 workflow schema: 7 tables + additive tasks columns + partial uniques
     "INSERT INTO contract_definitions(contract_id, version, finalidade, limitacoes, alvo, escopo, premissas, entregaveis) VALUES (1, 1, 'f', 'l', 'a', 'e', 'p', 'ent')"
   );
   freshDb.run(
-    "INSERT INTO task_suggestions(contract_id, definitions_id, kind, status) VALUES (1, 1, 'analise', 'analisando')"
+    `INSERT INTO task_suggestions(contract_id, definitions_id, kind, status) VALUES (1, 1, ?, ?)`,
+    [code('task_suggestions.kind', 'analise'), code('task_suggestions.status', 'analisando')]
   );
   assert.throws(
     () =>
       freshDb.run(
-        "INSERT INTO task_suggestions(contract_id, definitions_id, kind, status) VALUES (1, 1, 'revisao', 'analisando')"
+        `INSERT INTO task_suggestions(contract_id, definitions_id, kind, status) VALUES (1, 1, ?, ?)`,
+        [code('task_suggestions.kind', 'revisao'), code('task_suggestions.status', 'analisando')]
       ),
     /UNIQUE|constraint/i,
     'só 1 registro analisando por contrato'
   );
   freshDb.run(
-    "INSERT INTO workflow_versions(contract_id, suggestion_id, status) VALUES (1, 1, 'ativo')"
+    `INSERT INTO workflow_versions(contract_id, suggestion_id, status) VALUES (1, 1, ?)`,
+    [code('workflow_versions.status', 'ativo')]
   );
   assert.throws(
     () =>
       freshDb.run(
-        "INSERT INTO workflow_versions(contract_id, suggestion_id, status) VALUES (1, 1, 'ativo')"
+        `INSERT INTO workflow_versions(contract_id, suggestion_id, status) VALUES (1, 1, ?)`,
+        [code('workflow_versions.status', 'ativo')]
       ),
     /UNIQUE|constraint/i,
     'só 1 workflow ativo por contrato'
@@ -586,4 +592,207 @@ test('00009 alert migrations: alert_events domain table + domains.alert_windows 
   const reopened = database.getDomainDb(legacy.id);
   const rows = reopened.all('SELECT COUNT(*) AS c FROM alert_events');
   assert.strictEqual(rows[0].c, 1, 're-open is side-effect free');
+});
+
+// Fase 3 da convenção de nomenclatura (2026-10-12): os 6 enums de dado são
+// gravados como INTEGER (código base 1, fonte única em config/enums.js) e a
+// API continua expondo texto PT. Um domínio legado — as 6 colunas em TEXT com
+// os literais antigos, índices parciais com predicado textual — é
+// reconstruído no lugar na abertura: mapeamento correto, contagens e ids
+// preservados, índices recriados em código e a segunda abertura é no-op.
+test('fase 3: enums de dado TEXT → INTEGER (rebuild preguiçoso)', async () => {
+  const SQL = await database.initSqlDriver();
+  const platform = database.getPlatformDb();
+  platform.run('INSERT INTO domains(name, slug) VALUES (?, ?)', ['LegacyEnums', 'legacy-enums']);
+  const legacy = platform.get('SELECT id FROM domains WHERE slug = ?', ['legacy-enums']);
+
+  // arquivo legado escrito direto no disco: DDL de antes da fase 3
+  const file = path.join(dataDir, 'domains', `${legacy.id}.db`);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const raw = new SQL.Database();
+  raw.run(`CREATE TABLE contracts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    object TEXT,
+    purpose_id INTEGER,
+    start_date TEXT NOT NULL,
+    forecast_date TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'vigente' CHECK (status IN ('vigente','encerrado')),
+    created_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  raw.run(`CREATE TABLE tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    title TEXT NOT NULL,
+    description TEXT,
+    status TEXT NOT NULL DEFAULT 'A Fazer' CHECK (status IN ('A Fazer','Em Progresso','Revisão','Concluída')),
+    priority TEXT NOT NULL DEFAULT 'medium',
+    assignee_id INTEGER,
+    due_date TEXT,
+    completed_text TEXT,
+    completed_at TEXT,
+    completed_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  raw.run(`CREATE TABLE task_suggestions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    definitions_id INTEGER NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'analise' CHECK (kind IN ('analise','revisao')),
+    status TEXT NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente','analisando','sugerido','falha','aprovada')),
+    refined_from INTEGER,
+    refine_instructions TEXT,
+    error TEXT,
+    context_json TEXT,
+    started_at TEXT,
+    finished_at TEXT,
+    created_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  raw.run(`CREATE TABLE workflow_versions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    suggestion_id INTEGER NOT NULL REFERENCES task_suggestions(id),
+    status TEXT NOT NULL DEFAULT 'ativo' CHECK (status IN ('ativo','substituido')),
+    activated_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  raw.run(`CREATE TABLE execution_plans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER NOT NULL REFERENCES tasks(id) UNIQUE,
+    status TEXT NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente','gerado','falha')),
+    passos TEXT,
+    criterios TEXT,
+    riscos TEXT,
+    error TEXT,
+    requested_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  // índices parciais legados: predicado textual, o formato de antes
+  raw.run(
+    "CREATE UNIQUE INDEX uq_task_suggestions_analisando ON task_suggestions(contract_id) WHERE status = 'analisando'"
+  );
+  raw.run(
+    "CREATE UNIQUE INDEX uq_workflow_versions_ativo ON workflow_versions(contract_id) WHERE status = 'ativo'"
+  );
+  raw.run(
+    `INSERT INTO contracts(name, start_date, forecast_date, status) VALUES
+      ('C-vigente', '2026-01-01', '2026-12-31', 'vigente'),
+      ('C-encerrado', '2026-01-01', '2026-06-30', 'encerrado')`
+  );
+  raw.run(
+    `INSERT INTO tasks(contract_id, title, status) VALUES
+      (1, 'T1', 'A Fazer'), (1, 'T2', 'Em Progresso'), (1, 'T3', 'Revisão'), (2, 'T4', 'Concluída')`
+  );
+  raw.run(`CREATE TABLE contract_definitions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contract_id INTEGER NOT NULL,
+    version INTEGER NOT NULL,
+    finalidade TEXT NOT NULL,
+    limitacoes TEXT NOT NULL,
+    alvo TEXT NOT NULL,
+    escopo TEXT NOT NULL,
+    premissas TEXT NOT NULL,
+    entregaveis TEXT NOT NULL,
+    created_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (contract_id, version)
+  )`);
+  raw.run(
+    `INSERT INTO contract_definitions(contract_id, version, finalidade, limitacoes, alvo, escopo, premissas, entregaveis)
+     VALUES (1, 1, 'f', 'l', 'a', 'e', 'p', 'ent')`
+  );
+  raw.run(
+    `INSERT INTO task_suggestions(contract_id, definitions_id, kind, status) VALUES
+      (1, 1, 'analise', 'sugerido'), (1, 1, 'revisao', 'analisando')`
+  );
+  raw.run(
+    `INSERT INTO workflow_versions(contract_id, suggestion_id, status) VALUES
+      (1, 1, 'substituido'), (1, 2, 'ativo')`
+  );
+  raw.run(
+    `INSERT INTO execution_plans(task_id, status) VALUES (1, 'gerado'), (2, 'falha')`
+  );
+  fs.writeFileSync(file, Buffer.from(raw.export()));
+  raw.close();
+
+  // abertura pelo caminho da aplicação: migrateSchema antes de applySchema
+  const db = database.getDomainDb(legacy.id);
+
+  // as 6 colunas nascem INTEGER e o CHECK vira numérico
+  const enumColumns = [
+    ['contracts', 'status'],
+    ['tasks', 'status'],
+    ['task_suggestions', 'kind'],
+    ['task_suggestions', 'status'],
+    ['workflow_versions', 'status'],
+    ['execution_plans', 'status'],
+  ];
+  for (const [table, column] of enumColumns) {
+    const info = db.all(`PRAGMA table_info(${table})`).find((c) => c.name === column);
+    assert.strictEqual(String(info.type).toUpperCase(), 'INTEGER', `${table}.${column} INTEGER`);
+    const ddl = db.get(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+      [table]
+    ).sql;
+    assert.ok(ddl.includes(`${column} INTEGER`), `${table}.${column} declarado INTEGER`);
+    assert.ok(!ddl.includes(`${column} TEXT`), `${table}.${column} sem tipo TEXT legado`);
+  }
+  const tasksDdl = db.get("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'tasks'").sql;
+  assert.match(tasksDdl, /status INTEGER NOT NULL DEFAULT 1 CHECK \(status IN \(1, 2, 3, 4\)\)/, tasksDdl);
+
+  // mapeamento correto: cada literal vira o seu código estável
+  assert.strictEqual(db.get('SELECT status FROM contracts WHERE id = 1').status, 1, 'vigente → 1');
+  assert.strictEqual(db.get('SELECT status FROM contracts WHERE id = 2').status, 2, 'encerrado → 2');
+  const t3 = db.get("SELECT status FROM tasks WHERE title = 'T3'");
+  assert.strictEqual(t3.status, 3, "'Revisão' → 3");
+  assert.strictEqual(label('tasks.status', t3.status), 'Revisão', 'volta ao texto PT');
+  assert.strictEqual(db.get("SELECT status FROM tasks WHERE title = 'T4'").status, 4, 'Concluída → 4');
+  const analise = db.get('SELECT kind, status FROM task_suggestions WHERE id = 1');
+  assert.strictEqual(analise.kind, 1, 'analise → 1');
+  assert.strictEqual(analise.status, 3, 'sugerido → 3');
+  assert.strictEqual(db.get('SELECT status FROM task_suggestions WHERE id = 2').status, 2, 'analisando → 2');
+  assert.strictEqual(db.get('SELECT status FROM workflow_versions WHERE id = 2').status, 1, 'ativo → 1');
+  assert.strictEqual(db.get('SELECT status FROM execution_plans WHERE task_id = 1').status, 2, 'gerado → 2');
+
+  // contagens e ids preservados (nada é reescrito à mão)
+  assert.strictEqual(db.get('SELECT COUNT(*) AS c FROM contracts').c, 2);
+  assert.strictEqual(db.get('SELECT COUNT(*) AS c FROM tasks').c, 4);
+  assert.strictEqual(db.get('SELECT COUNT(*) AS c FROM task_suggestions').c, 2);
+  assert.strictEqual(db.get('SELECT COUNT(*) AS c FROM workflow_versions').c, 2);
+  assert.strictEqual(db.get('SELECT COUNT(*) AS c FROM execution_plans').c, 2);
+  assert.strictEqual(db.get("SELECT title FROM tasks WHERE id = 3").title, 'T3', 'id seguido');
+
+  // índices parciais recriados em código, não em texto
+  const indexes = db
+    .all("SELECT name, sql FROM sqlite_master WHERE type = 'index' AND sql IS NOT NULL")
+    .reduce((acc, row) => Object.assign(acc, { [row.name]: row.sql }), {});
+  assert.match(indexes.uq_task_suggestions_analisando, /WHERE status = 2$/, indexes.uq_task_suggestions_analisando);
+  assert.match(indexes.uq_workflow_versions_ativo, /WHERE status = 1$/, indexes.uq_workflow_versions_ativo);
+  assert.match(indexes.idx_tasks_status, /status/, indexes.idx_tasks_status);
+
+  // a invariante continua valendo depois do rebuild (UNIQUE numérico)
+  assert.throws(
+    () => db.run('INSERT INTO workflow_versions(contract_id, suggestion_id, status) VALUES (1, 1, 1)'),
+    /UNIQUE|constraint/i,
+    'só 1 workflow ativo por contrato'
+  );
+
+  // segunda abertura = no-op: mesmos códigos, mesmas contagens
+  database.resetDatabaseCache();
+  await database.initSqlDriver();
+  const again = database.getDomainDb(legacy.id);
+  assert.strictEqual(again.get('SELECT status FROM contracts WHERE id = 1').status, 1);
+  assert.strictEqual(again.get("SELECT status FROM tasks WHERE title = 'T3'").status, 3);
+  assert.strictEqual(again.get('SELECT COUNT(*) AS c FROM tasks').c, 4);
+  assert.strictEqual(again.get('SELECT COUNT(*) AS c FROM task_suggestions').c, 2);
+  const againIndexes = again
+    .all("SELECT name, sql FROM sqlite_master WHERE type = 'index' AND sql IS NOT NULL")
+    .reduce((acc, row) => Object.assign(acc, { [row.name]: row.sql }), {});
+  assert.match(againIndexes.uq_task_suggestions_analisando, /WHERE status = 2$/);
 });

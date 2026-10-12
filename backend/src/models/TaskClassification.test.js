@@ -7,6 +7,7 @@ const assert = require('node:assert');
 const { setupDataDir, initTestDb } = require('../support/testenv');
 
 setupDataDir();
+const { code } = require('../config/enums');
 
 let db;
 
@@ -22,7 +23,9 @@ test.before(async () => {
   db.run(
     "INSERT INTO contracts(name, start_date, forecast_date) VALUES ('C','2026-01-01','2026-12-31')"
   );
-  db.run("INSERT INTO tasks(contract_id, title, status) VALUES (1, 'Executada', 'Concluída')");
+  db.run('INSERT INTO tasks(contract_id, title, status) VALUES (1, \'Executada\', ?)', [
+    code('tasks.status', 'Concluída'),
+  ]);
 });
 
 test('FR-003 single current record', async () => {

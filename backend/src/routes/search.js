@@ -6,12 +6,24 @@ const Contract = require('../models/Contract');
 const Task = require('../models/Task');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const { getDomainDb } = require('../config/database');
+const { code } = require('../config/enums');
 
 // FR-016: combined filters — contrato, status, prioridade, prestador,
 // finalidade, prazo. Prestador searches stay inside their own scope.
 function likeParam(value) {
   if (value === undefined || value === null || value === '') return null;
   return `%${String(value).replace(/[%_\\]/g, (m) => `\\${m}`)}%`;
+}
+
+// Fase 3: o filtro continua chegando em texto PT; o SQL compara o código do
+// enum (config/enums.js). Status fora da tabela não vira 500 — ele simplesmente
+// não casa nenhuma linha, o mesmo resultado do texto gravado de antes.
+function queryStatusCode(enumName, wanted) {
+  try {
+    return code(enumName, wanted);
+  } catch {
+    return -1;
+  }
 }
 
 function paging(query) {
@@ -34,7 +46,7 @@ function searchContracts(req, res) {
     }
     if (req.query.status) {
       where.push('c.status = ?');
-      params.push(req.query.status);
+      params.push(queryStatusCode('contracts.status', req.query.status));
     }
     if (req.query.purpose_id) {
       where.push('c.purpose_id = ?');
@@ -75,7 +87,7 @@ function searchTasks(req, res) {
     }
     if (req.query.status) {
       where.push('t.status = ?');
-      params.push(req.query.status);
+      params.push(queryStatusCode('tasks.status', req.query.status));
     }
     if (req.query.priority) {
       where.push('t.priority = ?');

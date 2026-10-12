@@ -11,6 +11,7 @@ const { setupDataDir, initTestDb } = require('../support/testenv');
 setupDataDir();
 const { app } = require('../server');
 const { getDomainDb } = require('../config/database');
+const { code } = require('../config/enums');
 const suggestionsRouter = require('./suggestions');
 
 // Fake OpenCode CLI: echoes a valid suggestion payload so the analysis job
@@ -271,13 +272,13 @@ test('FR-007 edita/remove', async () => {
   assert.strictEqual(undone.body.item.removed, false);
 
   // 409 while the suggestion is not `sugerido` (state forced for the check)
-  db.run(`UPDATE task_suggestions SET status = 'pendente' WHERE id = ?`, [sid]);
+  db.run('UPDATE task_suggestions SET status = ? WHERE id = ?', [code('task_suggestions.status', 'pendente'), sid]);
   const notEditable = await request(app)
     .patch(`/api/suggestions/${sid}/items/${first.id}`)
     .set(as(gestorToken))
     .send({ titulo: 'Não deve entrar' });
   assert.strictEqual(notEditable.status, 409, JSON.stringify(notEditable.body));
-  db.run(`UPDATE task_suggestions SET status = 'sugerido' WHERE id = ?`, [sid]);
+  db.run('UPDATE task_suggestions SET status = ? WHERE id = ?', [code('task_suggestions.status', 'sugerido'), sid]);
 
   // 400: empty body and blank title are validation failures
   const empty = await request(app)
@@ -412,13 +413,19 @@ test('FR-008 refino versiona', async () => {
   );
 
   // 409: only a `sugerido` version may be refined (state forced for the check)
-  db.run(`UPDATE task_suggestions SET status = 'pendente' WHERE id = ?`, [created.id]);
+  db.run('UPDATE task_suggestions SET status = ? WHERE id = ?', [
+      code('task_suggestions.status', 'pendente'),
+      created.id,
+    ]);
   const notRefinable = await request(app)
     .post(`/api/suggestions/${created.id}/refine`)
     .set(as(gestorToken))
     .send({ instrucoes: 'Não deve refinar' });
   assert.strictEqual(notRefinable.status, 409, JSON.stringify(notRefinable.body));
-  db.run(`UPDATE task_suggestions SET status = 'sugerido' WHERE id = ?`, [created.id]);
+  db.run('UPDATE task_suggestions SET status = ? WHERE id = ?', [
+      code('task_suggestions.status', 'sugerido'),
+      created.id,
+    ]);
 });
 
 // T040 (openapi listSuggestions, contracts/openapi.yaml:309): the contract
@@ -577,7 +584,7 @@ test('FR-009 exige ≥1 item', async () => {
   );
   assert.strictEqual(
     db.get(`SELECT status FROM task_suggestions WHERE id = ?`, [sid]).status,
-    'sugerido',
+    code('task_suggestions.status', 'sugerido'),
     'sugestão segue sugestível'
   );
 
@@ -604,12 +611,17 @@ test('FR-009 exige ≥1 item', async () => {
 
   // database invariants: version active, plans pending, suggestion approved
   assert.strictEqual(
-    db.get(`SELECT COUNT(*) AS c FROM workflow_versions WHERE status = 'ativo'`).c,
+    db.get(
+      `SELECT COUNT(*) AS c FROM workflow_versions WHERE status = ${code(
+        'workflow_versions.status',
+        'ativo'
+      )}`
+    ).c,
     1
   );
   assert.strictEqual(
     db.get(`SELECT status FROM task_suggestions WHERE id = ?`, [sid]).status,
-    'aprovada'
+    code('task_suggestions.status', 'aprovada')
   );
   const linked = db.get(
     'SELECT COUNT(*) AS c FROM tasks WHERE workflow_version_id IS NOT NULL AND suggestion_item_id IS NOT NULL'
@@ -618,7 +630,10 @@ test('FR-009 exige ≥1 item', async () => {
   const plans = db.get(
     `SELECT COUNT(*) AS c FROM execution_plans ep
        JOIN tasks t ON t.id = ep.task_id
-      WHERE t.workflow_version_id IS NOT NULL AND ep.status = 'pendente'`
+      WHERE t.workflow_version_id IS NOT NULL AND ep.status = ${code(
+        'execution_plans.status',
+        'pendente'
+      )}`
   );
   assert.strictEqual(plans.c, 1, 'FR-014: plano pendente nasce junto da tarefa');
 
@@ -662,7 +677,7 @@ test('FR-009 exige ≥1 item', async () => {
   const versions = db.all('SELECT status FROM workflow_versions ORDER BY id');
   assert.deepStrictEqual(
     versions.map((row) => row.status),
-    ['substituido', 'ativo'],
+    [code('workflow_versions.status', 'substituido'), code('workflow_versions.status', 'ativo')],
     'uma única versão ativa por contrato'
   );
   assert.strictEqual(

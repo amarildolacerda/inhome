@@ -38,6 +38,7 @@ process.env.OPENCODE_ARGS = fakeCli;
 
 const { app } = require('../server');
 const { getDomainDb } = require('../config/database');
+const { code } = require('../config/enums');
 const ContractDefinition = require('../models/ContractDefinition');
 const TaskSuggestion = require('../models/TaskSuggestion');
 const History = require('../models/History');
@@ -429,8 +430,14 @@ test('FR-023 aplicação só em A Fazer com conflitos', async () => {
   const defRow = ContractDefinition.latest(db, contractId);
   db.run(
     `INSERT INTO task_suggestions(contract_id, definitions_id, kind, status, created_by)
-     VALUES (?, ?, 'revisao', 'sugerido', ?)`,
-    [contractId, defRow.id, gestorId]
+     VALUES (?, ?, ?, ?, ?)`,
+    [
+      contractId,
+      defRow.id,
+      code('task_suggestions.kind', 'revisao'),
+      code('task_suggestions.status', 'sugerido'),
+      gestorId,
+    ]
   );
   const rid = db.get('SELECT MAX(id) AS id FROM task_suggestions').id;
 
@@ -490,7 +497,7 @@ test('FR-023 aplicação só em A Fazer com conflitos', async () => {
   const afterEdit = snapshot(tEdit);
   assert.strictEqual(afterEdit.task.title, 'Medição revisada pela vigência');
   assert.strictEqual(afterEdit.task.description, 'Comparar com o orçamento vigente');
-  assert.strictEqual(afterEdit.task.status, 'A Fazer');
+  assert.strictEqual(afterEdit.task.status, code('tasks.status', 'A Fazer'));
   assert.strictEqual(afterEdit.history, beforeEdit.history, 'edição de campos não escreve histórico');
 
   // tarefa criada: A Fazer, fora do workflow (opt-in), plano pendente, origem
@@ -500,12 +507,12 @@ test('FR-023 aplicação só em A Fazer com conflitos', async () => {
   );
   const createdTask = db.get('SELECT * FROM tasks WHERE suggestion_item_id = ?', [criarItem.id]);
   assert.ok(createdTask, 'tarefa criada linkada à proposta');
-  assert.strictEqual(createdTask.status, 'A Fazer');
+  assert.strictEqual(createdTask.status, code('tasks.status', 'A Fazer'));
   assert.strictEqual(createdTask.workflow_version_id, null, 'entra no workflow só com opt-in (FR-010)');
   assert.strictEqual(createdTask.contract_id, contractId);
   const plan = db.get('SELECT * FROM execution_plans WHERE task_id = ?', [createdTask.id]);
   assert.ok(plan, 'plano pendente para a tarefa nova (SC-006)');
-  assert.strictEqual(plan.status, 'pendente');
+  assert.strictEqual(plan.status, code('execution_plans.status', 'pendente'));
   const createEntry = db.get(
     `SELECT * FROM task_history WHERE task_id = ? AND action = 'create'`,
     [createdTask.id]
@@ -513,7 +520,14 @@ test('FR-023 aplicação só em A Fazer com conflitos', async () => {
   assert.ok(createEntry, 'criação registrada no histórico, como POST /tasks');
   // remoção/fechamento não existem: nenhum status além dos citados foi gravado
   assert.strictEqual(
-    db.get(`SELECT COUNT(*) AS c FROM tasks WHERE status NOT IN ('A Fazer','Em Progresso','Revisão','Concluída')`).c,
+    db.get(
+      `SELECT COUNT(*) AS c FROM tasks WHERE status NOT IN (${[
+        'A Fazer',
+        'Em Progresso',
+        'Revisão',
+        'Concluída',
+      ].map((name) => code('tasks.status', name)).join(', ')})`
+    ).c,
     0
   );
 
@@ -542,8 +556,14 @@ test('FR-023 aplicação só em A Fazer com conflitos', async () => {
   // sem propostas → 400, linha intacta
   db.run(
     `INSERT INTO task_suggestions(contract_id, definitions_id, kind, status, created_by)
-     VALUES (?, ?, 'revisao', 'sugerido', ?)`,
-    [contractId, defRow.id, gestorId]
+     VALUES (?, ?, ?, ?, ?)`,
+    [
+      contractId,
+      defRow.id,
+      code('task_suggestions.kind', 'revisao'),
+      code('task_suggestions.status', 'sugerido'),
+      gestorId,
+    ]
   );
   const emptyRid = db.get('SELECT MAX(id) AS id FROM task_suggestions').id;
   const empty = await request(app)
@@ -566,7 +586,7 @@ test('FR-023 aplicação só em A Fazer com conflitos', async () => {
 // análise; retry manual após falha (mesma política de FR-018).
 test('FR-024 gatilho manual sem reanálise', async () => {
   const analiseBefore = db.get(
-    `SELECT COUNT(*) AS c FROM task_suggestions WHERE kind = 'analise'`
+    `SELECT COUNT(*) AS c FROM task_suggestions WHERE kind = ${code('task_suggestions.kind', 'analise')}`
   ).c;
   const defsBefore = db.get('SELECT COUNT(*) AS c FROM contract_definitions').c;
 
@@ -579,7 +599,12 @@ test('FR-024 gatilho manual sem reanálise', async () => {
   const review = await waitForReview(rid1, 'sugerido');
   assert.strictEqual(review.proposals.length, 2, 'propostas do job manual');
   assert.strictEqual(
-    db.get(`SELECT COUNT(*) AS c FROM task_suggestions WHERE kind = 'analise'`).c,
+    db.get(
+      `SELECT COUNT(*) AS c FROM task_suggestions WHERE kind = ${code(
+        'task_suggestions.kind',
+        'analise'
+      )}`
+    ).c,
     analiseBefore,
     'sem nova sugestão de análise'
   );

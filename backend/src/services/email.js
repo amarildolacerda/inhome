@@ -1,6 +1,7 @@
 'use strict';
 
 const net = require('net');
+const { code } = require('../config/enums');
 
 // FR-017 / AD-004 / SC-010: SMTP_* opt-in gate. Without SMTP_HOST/SMTP_PORT
 // there are zero sends and zero errors. Four triggers: assignment, completion,
@@ -156,7 +157,8 @@ async function runDueSweep() {
     const due = db.all(
       `SELECT t.id, t.title, t.due_date, u.email AS assignee_email
        FROM tasks t JOIN users u ON u.id = t.assignee_id
-       WHERE t.due_date = date('now') AND t.status != 'Concluída'`
+       WHERE t.due_date = date('now') AND t.status != ?`,
+      [code('tasks.status', 'Concluída')]
     );
     for (const task of due) {
       const already = db.get(

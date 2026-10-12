@@ -7,6 +7,11 @@
 // falha, falha → pendente on regeneration.
 
 const History = require('./History');
+const { code, label } = require('../config/enums');
+
+// Fase 3 (config/enums.js): `status` é gravado como código INTEGER e lido de
+// volta em texto PT — o resto do backend (rotas, 409, serialização) compara
+// e expõe os literais de antes.
 
 // openapi ExecutionPlan: JSON columns become arrays, `error` serializes as
 // `erro`, and `suggestion_version` resolves the suggestion version that
@@ -47,7 +52,8 @@ function serialize(db, row, task = null) {
 }
 
 function getForTask(db, taskId) {
-  return db.get('SELECT * FROM execution_plans WHERE task_id = ?', [Number(taskId)]);
+  const row = db.get('SELECT * FROM execution_plans WHERE task_id = ?', [Number(taskId)]);
+  return row ? { ...row, status: label('execution_plans.status', row.status) } : null;
 }
 
 // The approval materialization creates shells; ensureRow covers tasks that
@@ -55,8 +61,8 @@ function getForTask(db, taskId) {
 // INSERT OR IGNORE keeps task_id UNIQUE — an existing row is never reset.
 function ensureRow(db, taskId, userId = null) {
   db.run(
-    `INSERT OR IGNORE INTO execution_plans(task_id, status, requested_by) VALUES (?, 'pendente', ?)`,
-    [Number(taskId), userId]
+    `INSERT OR IGNORE INTO execution_plans(task_id, status, requested_by) VALUES (?, ?, ?)`,
+    [Number(taskId), code('execution_plans.status', 'pendente'), userId]
   );
   return getForTask(db, taskId);
 }
@@ -82,10 +88,11 @@ function upsertPlan(db, { taskId, plan, requestedBy = null }) {
   }
   db.run(
     `UPDATE execution_plans
-        SET status = 'gerado', passos = ?, criterios = ?, riscos = ?, error = NULL,
+        SET status = ?, passos = ?, criterios = ?, riscos = ?, error = NULL,
             requested_by = COALESCE(?, requested_by), updated_at = datetime('now')
       WHERE task_id = ?`,
     [
+      code('execution_plans.status', 'gerado'),
       JSON.stringify(plan.passos),
       JSON.stringify(plan.criterios),
       JSON.stringify(plan.riscos),
@@ -99,9 +106,9 @@ function upsertPlan(db, { taskId, plan, requestedBy = null }) {
 function markFalha(db, taskId, error) {
   db.run(
     `UPDATE execution_plans
-        SET status = 'falha', error = ?, updated_at = datetime('now')
+        SET status = ?, error = ?, updated_at = datetime('now')
       WHERE task_id = ?`,
-    [String(error).slice(0, 1000), Number(taskId)]
+    [code('execution_plans.status', 'falha'), String(error).slice(0, 1000), Number(taskId)]
   );
   return getForTask(db, taskId);
 }
@@ -110,9 +117,13 @@ function markFalha(db, taskId, error) {
 function requeue(db, taskId) {
   db.run(
     `UPDATE execution_plans
-        SET status = 'pendente', error = NULL, updated_at = datetime('now')
-      WHERE task_id = ? AND status = 'falha'`,
-    [Number(taskId)]
+        SET status = ?, error = NULL, updated_at = datetime('now')
+      WHERE task_id = ? AND status = ?`,
+    [
+      code('execution_plans.status', 'pendente'),
+      Number(taskId),
+      code('execution_plans.status', 'falha'),
+    ]
   );
   return getForTask(db, taskId);
 }
