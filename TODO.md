@@ -4,9 +4,9 @@ Custom project TODOs. Agents read this file at session start.
 
 ## Pending
 
-- [ ] Padronização de nomenclatura em inglês no banco: fase 5 pendente (superfície de API — decidido 2026-10-12: versionar v1/v2 antes de renomear); fase 4 decidida como manter (papéis em PT); fase 3 (enums → numérico + defines `config/enums.js`, API segue PT) concluída em 2026-10-12; fase 2 concluída em 2026-10-12; fase 1 (tabelas) concluída em 2026-10-06 — inventário, ordem e critérios em `docs/naming-conventions.md`
-
 ## Done
+
+- [X] Padronização de nomenclatura em inglês — fase 5 (superfície de API) concluída em 2026-10-12: prefixo `/api/v2` com alias compartilhado de handlers (v1 congelado), paths/sufixos EN (`/purposes`, `/providers`, `:extend`, `:close`), mensagens de erro em inglês + campo `code` estável; frontend migrado para v2. Fases 1–3 concluídas, fase 4 mantida (papéis em PT) — inventário e ciclo de vida do v1 em `docs/naming-conventions.md`
 
 - [X] Commit do bootstrap SDD + governança — `.github/sddp-config.md`, `project-instructions.md` v2.1.0, `specs/{prd,sad,project-plan}.md`, `specs/plan/E001..E010.md`, `specs/prd-discovery.md` e fix dos agents `.opencode/agents/sddp-*.md` todos commitados e limpos vs HEAD (verificado 2026-10-12)
 

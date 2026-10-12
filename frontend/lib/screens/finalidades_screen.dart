@@ -33,7 +33,7 @@ class _FinalidadesScreenState extends State<FinalidadesScreen> {
     });
     try {
       final role = await api.role;
-      final result = await api.get('/finalidades');
+      final result = await api.get('/purposes');
       setState(() {
         _role = role;
         _finalidades =
@@ -97,15 +97,15 @@ class _FinalidadesScreenState extends State<FinalidadesScreen> {
     final body = {'name': nameController.text.trim()};
     try {
       if (isEdit) {
-        await api.put('/finalidades/${finalidade['id']}', body: body);
+        await api.put('/purposes/${finalidade['id']}', body: body);
       } else {
-        await api.post('/finalidades', body: body);
+        await api.post('/purposes', body: body);
       }
       _loadFinalidades();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
+            .showSnackBar(SnackBar(content: Text(_errorText(e))));
       }
     }
   }
@@ -134,14 +134,27 @@ class _FinalidadesScreenState extends State<FinalidadesScreen> {
 
     if (confirmed != true) return;
     try {
-      await api.delete('/finalidades/${finalidade['id']}');
+      await api.delete('/purposes/${finalidade['id']}');
       _loadFinalidades();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$e')));
+            .showSnackBar(SnackBar(content: Text(_errorText(e))));
       }
     }
+  }
+
+  /// Texto de erro do backend para o usuário: o `code` estável da fase 5 vira
+  /// frase PT amigável (produto é PT); sem código casado, a mensagem crua.
+  String _errorText(Object e) {
+    final code = e is ApiException ? e.code : null;
+    switch (code) {
+      case 'PURPOSE_ALREADY_EXISTS':
+        return 'Já existe uma finalidade com esse nome.';
+      case 'PURPOSE_NOT_FOUND':
+        return 'Finalidade não encontrada.';
+    }
+    return '$e';
   }
 
   @override

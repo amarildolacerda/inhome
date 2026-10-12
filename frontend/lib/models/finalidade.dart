@@ -1,4 +1,4 @@
-/// [FR-005]: dicionário de finalidades do domínio (GET/POST /finalidades).
+/// [FR-005]: dicionário de finalidades do domínio (GET/POST /purposes).
 class Finalidade {
   final int id;
   final String name;

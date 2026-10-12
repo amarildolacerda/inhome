@@ -570,6 +570,40 @@ check_val "histórico registra reabertura" "1" "$(printf '%s' "$BODY" | node -e 
 api GET "/api/tasks?domainId=9999" "" "$ADMIN_TOKEN"
 check_http "domainId estrangeiro 403" 403
 
+# --- 19. API v2 (fase 5: alias v1 → v2) --------------------------------------
+echo ""
+echo "=== 19. API v2 ==="
+
+# health espelhado
+api GET /api/v2/health
+check_http "GET /api/v2/health" 200
+
+# purposes sob o segmento EN — mesmo router, shape de resposta inalterado
+api POST /api/v2/purposes '{"name":"Smoke Purpose V2"}' "$ADMIN_TOKEN"
+check_http "POST /api/v2/purposes" 201
+PURPOSE_V2_ID="$(jget finalidade.id)"
+check_nonempty "v2 purpose id" "$PURPOSE_V2_ID"
+api GET /api/v2/purposes "" "$ADMIN_TOKEN"
+check_http "GET /api/v2/purposes" 200
+check_val "v2 listing carrega a chave finalidades" "1" "$(jcount finalidades 'Smoke Purpose V2')"
+api GET /api/finalidades "" "$ADMIN_TOKEN"
+check_val "v1 congelada lemos o mesmo dicionario" "1" "$(jcount finalidades 'Smoke Purpose V2')"
+
+# aliases em ingles nos mesmos handlers de prorrogar/encerrar
+api POST "/api/v2/contracts/$CONTRACT_ID/extend" '{"forecast_date":"2027-12-31"}' "$ADMIN_TOKEN"
+check_http "POST /api/v2/contracts/:id/extend" 200
+api POST "/api/v2/contracts/$CONTRACT_ID/close" "" "$ADMIN_TOKEN"
+check_http "POST /api/v2/contracts/:id/close" 200
+api POST "/api/v2/contracts/$CONTRACT_ID/close" "" "$ADMIN_TOKEN"
+check_http "POST /api/v2/contracts/:id/close (repetido)" 400
+check_val "code estavel no reencerramento" "CONTRACT_ALREADY_CLOSED" "$(jget code)"
+
+# rota aninhada sob /api/v2/contracts (mesmo handler do /prestadores v1)
+api POST "/api/v2/contracts/$CONTRACT_ID/providers" "{\"user_id\":$PRESTADOR_ID}" "$ADMIN_TOKEN"
+check_http "POST /api/v2/contracts/:id/providers (repetido)" 409
+api POST "/api/v2/contracts/$CONTRACT_ID/tasks" '{"title":"Smoke V2 Task"}' "$ADMIN_TOKEN"
+check_http "POST /api/v2/contracts/:id/tasks" 201
+
 # --- summary ----------------------------------------------------------------
 echo ""
 if [ "$FAIL" -eq 0 ]; then

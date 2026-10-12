@@ -55,6 +55,7 @@ test('FR-012 reopen', async () => {
     .send({ motivo: '  ' });
   assert.strictEqual(noMotivo.status, 400);
   assert.match(noMotivo.body.error, /motivo/i);
+  assert.strictEqual(noMotivo.body.code, 'TASK_REOPEN_REASON_REQUIRED');
 
   // gestor reabre com motivo → volta ao fluxo e registra quem/por quê (SC-006)
   const reopened = await request(app)
@@ -169,7 +170,8 @@ test('FR-010 flow+link', async () => {
     .set(as(gestorToken))
     .send({ title: 'Nao atribuivel', assignee_id: outId });
   assert.strictEqual(unlinked.status, 400);
-  assert.match(unlinked.body.error, /vinculado/i);
+  assert.match(unlinked.body.error, /not linked/i);
+  assert.strictEqual(unlinked.body.code, 'PRESTADOR_NOT_LINKED');
 
   // assigning a non-prestador is refused
   const db = getDomainDb(domainId);
@@ -226,7 +228,8 @@ test('FR-010 flow+link', async () => {
     .set(as(movToken))
     .send({ status: 'Revisão' });
   assert.strictEqual(skip.status, 400);
-  assert.match(skip.body.error, /Fluxo/i);
+  assert.match(skip.body.error, /invalid flow/i);
+  assert.strictEqual(skip.body.code, 'TASK_INVALID_FLOW');
 
   // moving backward is refused (reopen flow is the gestor's, T019)
   db.run('UPDATE tasks SET status = ? WHERE id = ?', [code('tasks.status', 'Revisão'), taskId]);
@@ -256,7 +259,8 @@ test('FR-010 flow+link', async () => {
     .set(as(movToken))
     .send({ status: 'Concluída' });
   assert.strictEqual(noText.status, 400);
-  assert.match(noText.body.error, /texto/i);
+  assert.match(noText.body.error, /requires text/i);
+  assert.strictEqual(noText.body.code, 'TASK_CONCLUSION_TEXT_REQUIRED');
 
   // completing with text finishes the flow
   const done = await request(app)
@@ -334,7 +338,7 @@ test('FR-011 complete', async () => {
     .set(as(movToken))
     .send({ text: '   ', photos: [] });
   assert.strictEqual(noText.status, 400);
-  assert.match(noText.body.error, /texto/i);
+  assert.match(noText.body.error, /requires text/i);
 
   // gestor cannot complete (FR-011: prestador conclui só as suas)
   const byGestor = await request(app)
@@ -564,7 +568,7 @@ test('FR-002 conclusão sem texto responde 400', async () => {
     .set(as(movToken))
     .send({ text: '   ', photos: [] });
   assert.strictEqual(res.status, 400, JSON.stringify(res.body));
-  assert.match(res.body.error, /texto/i);
+  assert.match(res.body.error, /requires text/i);
 
   // nada muda: status, evidência e histórico intactos
   const row = db.get('SELECT status FROM tasks WHERE id = ?', [taskId]);

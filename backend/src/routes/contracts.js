@@ -11,10 +11,17 @@ const { code, label } = require('../config/enums');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-function httpError(status, message) {
+function httpError(status, message, code) {
   const err = new Error(message);
   err.status = status;
+  // fase 5: código estável aditivo — o payload segue { error, code? }.
+  if (code) err.code = code;
   return err;
+}
+
+// fase 5: emite o code estável junto do texto, quando o erro carrega um.
+function errorPayload(error) {
+  return error.code ? { error: error.message, code: error.code } : { error: error.message };
 }
 
 function validDate(value) {
@@ -48,8 +55,8 @@ function createContract(req, res) {
       const purpose = db.get('SELECT id, active FROM purposes WHERE id = ?', [
         Number(body.purpose_id),
       ]);
-      if (!purpose) throw httpError(400, 'purpose_id does not exist');
-      if (!purpose.active) throw httpError(400, 'finalidade is retired');
+      if (!purpose) throw httpError(400, 'purpose_id does not exist', 'PURPOSE_NOT_FOUND');
+      if (!purpose.active) throw httpError(400, 'purpose is retired', 'PURPOSE_RETIRED');
       purposeId = purpose.id;
     }
 
@@ -71,7 +78,7 @@ function createContract(req, res) {
     );
     res.status(201).json({ contract: Contract.decorate(db, row) });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    res.status(error.status || 500).json(errorPayload(error));
   }
 }
 
@@ -134,7 +141,7 @@ function listContracts(req, res) {
       offset,
     });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    res.status(error.status || 500).json(errorPayload(error));
   }
 }
 
@@ -151,7 +158,7 @@ function getContract(req, res) {
     }
     res.json({ contract: Contract.decorate(db, row) });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    res.status(error.status || 500).json(errorPayload(error));
   }
 }
 
@@ -190,7 +197,7 @@ function updateContract(req, res) {
     db.run(`UPDATE contracts SET ${fields.join(', ')} WHERE id = ?`, params);
     res.json({ contract: Contract.decorate(db, getContractOr404(db, row.id)) });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    res.status(error.status || 500).json(errorPayload(error));
   }
 }
 
@@ -214,7 +221,7 @@ function linkPrestador(req, res) {
     db.run('INSERT INTO contract_providers(contract_id, user_id) VALUES (?, ?)', [row.id, userId]);
     res.status(201).json({ contract: Contract.decorate(db, getContractOr404(db, row.id)) });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    res.status(error.status || 500).json(errorPayload(error));
   }
 }
 
@@ -237,7 +244,11 @@ function unlinkPrestador(req, res) {
     if (open > 0) {
       return res
         .status(400)
-        .json({ error: 'Tarefas abertas travam desvinculação', open_tasks: open });
+        .json({
+          error: 'Open tasks block unlink',
+          open_tasks: open,
+          code: 'OPEN_TASKS_BLOCK_UNLINK',
+        });
     }
     db.run('DELETE FROM contract_providers WHERE contract_id = ? AND user_id = ?', [
       row.id,
@@ -245,7 +256,7 @@ function unlinkPrestador(req, res) {
     ]);
     res.json({ contract: Contract.decorate(db, getContractOr404(db, row.id)) });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    res.status(error.status || 500).json(errorPayload(error));
   }
 }
 
@@ -256,7 +267,7 @@ function extendContract(req, res) {
     const db = getDomainDb(req.user.domainId);
     const row = getContractOr404(db, req.params.id);
     if (label('contracts.status', row.status) === 'encerrado') {
-      return res.status(400).json({ error: 'Encerrado contract cannot be extended' });
+      return res.status(400).json({ error: 'Contract encerrado cannot be extended', code: 'CONTRACT_CLOSED' });
     }
     const forecast = (req.body || {}).forecast_date;
     if (!validDate(forecast)) {
@@ -268,7 +279,7 @@ function extendContract(req, res) {
     ]);
     res.json({ contract: Contract.decorate(db, getContractOr404(db, row.id)) });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    res.status(error.status || 500).json(errorPayload(error));
   }
 }
 
@@ -278,7 +289,7 @@ function closeContract(req, res) {
     const db = getDomainDb(req.user.domainId);
     const row = getContractOr404(db, req.params.id);
     if (label('contracts.status', row.status) === 'encerrado') {
-      return res.status(400).json({ error: 'Contract already encerrado' });
+      return res.status(400).json({ error: 'Contract already encerrado', code: 'CONTRACT_ALREADY_CLOSED' });
     }
     db.run(
       'UPDATE contracts SET status = ?, updated_at = datetime(\'now\') WHERE id = ?',
@@ -286,7 +297,7 @@ function closeContract(req, res) {
     );
     res.json({ contract: Contract.decorate(db, getContractOr404(db, row.id)) });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    res.status(error.status || 500).json(errorPayload(error));
   }
 }
 
@@ -307,7 +318,7 @@ function deleteContract(req, res) {
     db.run('DELETE FROM contracts WHERE id = ?', [row.id]);
     res.json({ message: 'Contract deleted' });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    res.status(error.status || 500).json(errorPayload(error));
   }
 }
 
@@ -321,7 +332,7 @@ function reportPdf(req, res) {
     res.setHeader('Content-Disposition', `attachment; filename="contrato-${row.id}.pdf"`);
     res.send(buf);
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    res.status(error.status || 500).json(errorPayload(error));
   }
 }
 
@@ -334,7 +345,7 @@ function reportCsv(req, res) {
     res.setHeader('Content-Disposition', `attachment; filename="contrato-${row.id}.csv"`);
     res.send(csv);
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    res.status(error.status || 500).json(errorPayload(error));
   }
 }
 
@@ -363,6 +374,13 @@ router.get('/:id/report.pdf', requireRole('admin', 'gestor'), reportPdf);
 router.get('/:id/report.csv', requireRole('admin', 'gestor'), reportCsv);
 // FR-009: admin only — requireRole('admin') after the gestor-capable routes.
 router.delete('/:id', requireRole('admin'), deleteContract);
+
+// fase 5: alias v1 → v2 — segmentos em inglês apontando para os mesmos
+// handlers das rotas PT (/prorrogar, /encerrar, /prestadores).
+router.post('/:id/extend', requireRole('admin', 'gestor'), extendContract);
+router.post('/:id/close', requireRole('admin', 'gestor'), closeContract);
+router.post('/:id/providers', requireRole('admin', 'gestor'), linkPrestador);
+router.delete('/:id/providers/:userId', requireRole('admin', 'gestor'), unlinkPrestador);
 
 router.createContract = createContract;
 router.linkPrestador = linkPrestador;

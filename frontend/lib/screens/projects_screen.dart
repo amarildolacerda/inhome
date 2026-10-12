@@ -3,7 +3,7 @@ import '../services/api_service.dart';
 import '../models/contract.dart';
 import 'contract_detail_screen.dart';
 
-/// [FR-006] / [AD-003]: lista de contratos do domínio em /api/contracts.
+/// [FR-006] / [AD-003]: lista de contratos do domínio em /api/v2/contracts.
 /// O endpoint antigo /projects não existe — todo retorno é tratado aqui,
 /// com SnackBar para sucesso e para falha de rede/servidor.
 class ProjectsScreen extends StatefulWidget {
@@ -73,7 +73,13 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       _snack('Contrato criado');
       await _loadContracts();
     } catch (e) {
-      _snack(_errorText(e, 'Falha ao salvar'));
+      // fase 5: finalidade aposentada virou mensagem EN no backend — o code
+      // estável vira frase PT amigável; demais erros seguem cruos.
+      if (e is ApiException && e.code == 'PURPOSE_RETIRED') {
+        _snack('A finalidade escolhida foi aposentada — escolha outra.');
+      } else {
+        _snack(_errorText(e, 'Falha ao salvar'));
+      }
     }
   }
 

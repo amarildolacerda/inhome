@@ -7,8 +7,25 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:socket_io_client/socket_io_client.dart' show Socket;
 
+/// Erro de API carregando o payload de erro do backend — `code` é o campo
+/// estável aditivo da fase 5 da nomenclatura, presente quando o backend o
+/// envia. `toString()` devolve só a mensagem: os tratamentos existentes de
+/// `Exception: ...` e os `contains(...)` de mensagem seguem funcionando.
+class ApiException implements Exception {
+  ApiException(this.message, {this.code, this.statusCode});
+
+  final String message;
+  final String? code;
+  final int? statusCode;
+
+  @override
+  String toString() => message;
+}
+
 class ApiService {
-  static const String baseUrl = '/api';
+  // fase 5 da nomenclatura: o cliente fala com o prefixo v2 (/api/v2/*);
+  // o backend monta os mesmos routers lá e mantém /api/* congelado como v1.
+  static const String baseUrl = '/api/v2';
 
   /// [FR-020]: singleton Socket.io do domínio. Criado sem auto-connect e com
   /// o JWT da sessão no handshake — o servidor recusa conexão sem token e só
@@ -126,7 +143,11 @@ class ApiService {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return body ?? <String, dynamic>{};
     }
-    throw Exception(body?['error'] ?? 'Request failed');
+    throw ApiException(
+      (body?['error'] ?? 'Request failed').toString(),
+      code: body?['code']?.toString(),
+      statusCode: response.statusCode,
+    );
   }
 
   Map<String, dynamic>? _decode(String source) {
@@ -489,7 +510,11 @@ class ApiService {
       return response.bodyBytes;
     }
     final body = _decode(response.body);
-    throw Exception(body?['error'] ?? 'Download failed');
+    throw ApiException(
+      (body?['error'] ?? 'Download failed').toString(),
+      code: body?['code']?.toString(),
+      statusCode: response.statusCode,
+    );
   }
 
   /// [FR-023]: base64 do arquivo para o JSON {filename, dataBase64} aceito por

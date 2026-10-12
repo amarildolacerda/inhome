@@ -113,7 +113,20 @@ class _TaskListTileState extends State<TaskListTile> {
   }
 
   /// Remove o invólucro 'Exception: ...' (ou 'Exception(...)') do erro.
+  ///
+  /// fase 5: os códigos estáveis do PATCH /tasks/:id/status viram frase PT
+  /// amigável; sem code o texto cru (já EN no backend) segue como fallback.
   String _errorText(Object error, String fallback) {
+    if (error is ApiException) {
+      switch (error.code) {
+        case 'TASK_MOVE_FORBIDDEN':
+          return 'Só o prestador vinculado move a tarefa';
+        case 'TASK_CONCLUSION_TEXT_REQUIRED':
+          return 'A conclusão exige o texto da tarefa';
+        case 'TASK_INVALID_FLOW':
+          return 'Fluxo inválido para esta tarefa';
+      }
+    }
     var text = error.toString().trim();
     if (text.startsWith('Exception(') && text.endsWith(')')) {
       text = text.substring('Exception('.length, text.length - 1);

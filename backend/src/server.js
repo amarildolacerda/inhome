@@ -86,8 +86,35 @@ app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/alerts', require('./routes/alerts')); // 00009 E004 FR-006: POST /sweep (admin)
 app.use('/api/audits', require('./routes/audits')); // 00013 E011 FR-001..004: visão de auditoria
 
+// fase 5: alias v1 → v2. Mesmos routers sob /api/v2; v1 fica congelado.
+// Exceção de nome: finalidades monta em /api/v2/purposes (segmento EN).
+app.use('/api/v2/auth', require('./routes/auth'));
+app.use('/api/v2/domains', require('./routes/domains'));
+app.use('/api/v2/users', require('./routes/users'));
+app.use('/api/v2/purposes', require('./routes/finalidades'));
+app.use('/api/v2/contracts', require('./routes/contracts'));
+app.use('/api/v2/contracts', require('./routes/definitions'));
+app.use('/api/v2/contracts', require('./routes/workflow'));
+app.use('/api/v2/contracts', require('./routes/review'));
+app.use('/api/v2/contracts', suggestionsRouter.nested);
+app.use('/api/v2/suggestions', suggestionsRouter);
+app.use('/api/v2/opencode', require('./routes/opencodeConfig'));
+app.use('/api/v2/contracts', tasksRouter.nested);
+app.use('/api/v2/tasks', tasksRouter);
+app.use('/api/v2/tasks', require('./routes/executionPlan'));
+app.use('/api/v2/tasks', require('./routes/comments'));
+app.use('/api/v2/tasks', require('./routes/attachments'));
+app.use('/api/v2/search', require('./routes/search'));
+app.use('/api/v2/dashboard', require('./routes/dashboard'));
+app.use('/api/v2/alerts', require('./routes/alerts'));
+app.use('/api/v2/audits', require('./routes/audits'));
+
 // Health check
 app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+// fase 5: alias v1 → v2
+app.get('/api/v2/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 

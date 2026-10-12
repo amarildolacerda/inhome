@@ -14,10 +14,17 @@ const { code, label } = require('../config/enums');
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-function httpError(status, message) {
+function httpError(status, message, code) {
   const err = new Error(message);
   err.status = status;
+  // fase 5: código estável aditivo — o payload segue { error, code? }.
+  if (code) err.code = code;
   return err;
+}
+
+// fase 5: emite o code estável junto do texto, quando o erro carrega um.
+function errorPayload(error) {
+  return error.code ? { error: error.message, code: error.code } : { error: error.message };
 }
 
 // FR-010 / SC-004: a task may only be assigned to a prestador who is linked
@@ -30,7 +37,9 @@ function assertLinkedPrestador(db, contractId, userId) {
     'SELECT 1 AS ok FROM contract_providers WHERE contract_id = ? AND user_id = ?',
     [contractId, user.id]
   );
-  if (!linked) throw httpError(400, 'Prestador não está vinculado ao contrato');
+  if (!linked) {
+    throw httpError(400, 'Prestador is not linked to this contract', 'PRESTADOR_NOT_LINKED');
+  }
   return user.id;
 }
 
@@ -51,14 +60,14 @@ function canSeeTask(user, task) {
 // Mover da tarefa: only the assigned (linked) prestador (FR-010).
 function assertMover(user, task) {
   if (user.role !== 'prestador' || task.assignee_id !== user.id) {
-    const err = httpError(403, 'Só o prestador vinculado move a tarefa');
+    const err = httpError(403, 'Only the linked prestador can move the task', 'TASK_MOVE_FORBIDDEN');
     throw err;
   }
 }
 
 function markCompleted(db, task, user, text) {
   if (!text || !String(text).trim()) {
-    throw httpError(400, 'Conclusão exige texto');
+    throw httpError(400, 'Task conclusion requires text', 'TASK_CONCLUSION_TEXT_REQUIRED');
   }
   db.run(
     `UPDATE tasks SET status = ?, completed_text = ?, completed_at = datetime('now'),
@@ -128,7 +137,7 @@ async function createTask(req, res) {
     }
     res.status(201).json({ task });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    res.status(error.status || 500).json(errorPayload(error));
   }
 }
 
@@ -165,7 +174,7 @@ function listTasks(req, res) {
     });
     res.json({ tasks });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    res.status(error.status || 500).json(errorPayload(error));
   }
 }
 
@@ -178,7 +187,7 @@ function getTask(req, res) {
     }
     res.json({ task, history: Task.history(db, task.id) });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    res.status(error.status || 500).json(errorPayload(error));
   }
 }
 
@@ -223,7 +232,7 @@ async function updateTaskFields(req, res) {
     }
     res.json({ task });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    res.status(error.status || 500).json(errorPayload(error));
   }
 }
 
@@ -245,7 +254,10 @@ async function updateTaskStatus(req, res) {
     const currentIdx = Task.flowIndex(task.status);
     const nextIdx = Task.flowIndex(next);
     if (nextIdx !== currentIdx + 1) {
-      return res.status(400).json({ error: `Fluxo inválido: ${task.status} → ${next}` });
+      return res.status(400).json({
+        error: `Invalid flow: ${task.status} → ${next}`,
+        code: 'TASK_INVALID_FLOW',
+      });
     }
 
     if (next === 'Concluída') {
@@ -277,7 +289,7 @@ async function updateTaskStatus(req, res) {
 
     res.json({ task: Task.findById(db, task.id) });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    res.status(error.status || 500).json(errorPayload(error));
   }
 }
 
@@ -293,10 +305,16 @@ async function completeTask(req, res) {
       return res.status(404).json({ error: 'Task not found' });
     }
     if (req.user.role !== 'prestador' || row.assignee_id !== req.user.id) {
-      return res.status(403).json({ error: 'Só o prestador responsável conclui a tarefa' });
+      return res.status(403).json({
+        error: 'Only the assigned prestador can complete the task',
+        code: 'TASK_COMPLETION_FORBIDDEN',
+      });
     }
     if (row.status !== 'Revisão') {
-      return res.status(400).json({ error: 'Conclusão exige status Revisão' });
+      return res.status(400).json({
+        error: 'Task conclusion requires status Revisão',
+        code: 'TASK_CONCLUSION_STATUS_REQUIRED',
+      });
     }
 
     const body = req.body || {};
@@ -304,7 +322,7 @@ async function completeTask(req, res) {
     // não pode deixar a tarefa já Concluída (estado parcial indevido).
     const photos = Array.isArray(body.photos) ? body.photos : [];
     if (photos.length > 10) {
-      return res.status(400).json({ error: 'no máximo 10 fotos por conclusão' });
+      return res.status(400).json({ error: 'at most 10 photos per conclusion', code: 'TASK_MAX_PHOTOS' });
     }
     // FR-009: tipo/tamanho fora do padrão → 400 antes de qualquer escrita
     // (nenhuma foto gravada, tarefa não muda de status).
@@ -334,7 +352,7 @@ async function completeTask(req, res) {
 
     res.json({ task: Task.findById(db, row.id) });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    res.status(error.status || 500).json(errorPayload(error));
   }
 }
 
@@ -346,14 +364,17 @@ async function reopenTask(req, res) {
     const db = getDomainDb(req.user.domainId);
     const row = getTaskOr404(db, req.params.id);
     if (req.user.role === 'prestador') {
-      return res.status(403).json({ error: 'Prestador não reabre tarefas' });
+      return res.status(403).json({ error: 'Prestador cannot reopen tasks', code: 'TASK_REOPEN_FORBIDDEN' });
     }
     if (row.status !== 'Concluída') {
-      return res.status(400).json({ error: 'Só tarefas Concluída podem ser reabertas' });
+      return res.status(400).json({
+        error: 'Only Concluída tasks can be reopened',
+        code: 'TASK_REOPEN_STATUS_REQUIRED',
+      });
     }
     const motivo = (req.body || {}).motivo;
     if (!motivo || !String(motivo).trim()) {
-      return res.status(400).json({ error: 'motivo é obrigatório' });
+      return res.status(400).json({ error: 'motivo is required', code: 'TASK_REOPEN_REASON_REQUIRED' });
     }
     db.run(
       `UPDATE tasks SET status = ?, completed_text = NULL, completed_at = NULL,
@@ -374,7 +395,7 @@ async function reopenTask(req, res) {
     });
     res.json({ task: Task.findById(db, row.id) });
   } catch (error) {
-    res.status(error.status || 500).json({ error: error.message });
+    res.status(error.status || 500).json(errorPayload(error));
   }
 }
 

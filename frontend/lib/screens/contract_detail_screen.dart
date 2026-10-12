@@ -120,7 +120,13 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
       _snack('Tarefa criada');
       await _loadTasks();
     } catch (e) {
-      _snack(_errorText(e, 'Falha ao salvar'));
+      // fase 5: vínculo inválido virou mensagem EN no backend — o code
+      // estável vira frase PT amigável; demais erros seguem cruos.
+      if (e is ApiException && e.code == 'PRESTADOR_NOT_LINKED') {
+        _snack('Prestador não está vinculado ao contrato');
+      } else {
+        _snack(_errorText(e, 'Falha ao salvar'));
+      }
     }
   }
 

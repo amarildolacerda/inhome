@@ -25,6 +25,12 @@ info:
     responde 404 sem revelar existência.
 
     Erros: corpo `{ "error": "..." }` em todos os códigos de erro.
+
+    Fase 5 da nomenclatura (2026-10-12): os sufixos de rota em português
+    (`/prestadores`, `/prorrogar`, `/encerrar`) ficam congelados em v1
+    (`deprecated`) e ganham alias em inglês sob `/api/v2` (`/providers`,
+    `/extend`, `/close`) apontando para os mesmos handlers. O CRUD de
+    finalidades segue fora deste documento.
 servers:
   - url: /
     description: "Mesmo origin (nginx :80) ou backend local na porta 3001"
@@ -151,8 +157,9 @@ paths:
     post:
       tags: [Contracts]
       summary: "Vincula prestador por id (admin, gestor)"
-      description: "Contrato pode ser criado sem prestadores; o vínculo é por id de usuário."
+      description: "Contrato pode ser criado sem prestadores; o vínculo é por id de usuário. Congelado em v1 — usar `/api/v2/contracts/{id}/providers`."
       operationId: linkPrestador
+      deprecated: true
       requestBody:
         required: true
         content:
@@ -185,7 +192,9 @@ paths:
     delete:
       tags: [Contracts]
       summary: "Desvincula prestador (admin, gestor)"
+      description: "Congelado em v1 — usar `/api/v2/contracts/{id}/providers/{userId}`."
       operationId: unlinkPrestador
+      deprecated: true
       responses:
         "200":
           description: "Vínculo removido"
@@ -207,8 +216,9 @@ paths:
       description: |
         Contrato encerrado → 400 (FR-003). Prorrogar contrato `atrasado` para
         data futura devolve `vigente` na leitura seguinte, sem escrita manual
-        (FR-008).
+        (FR-008). Congelado em v1 — usar `/api/v2/contracts/{id}/extend`.
       operationId: extendContract
+      deprecated: true
       requestBody:
         required: true
         content:
@@ -239,8 +249,122 @@ paths:
       summary: "Encerra contrato (admin, gestor)"
       description: |
         Grava `encerrado` (FR-004). Encerramento repetido → 400. Tarefas abertas
-        não bloqueiam o encerramento.
+        não bloqueiam o encerramento. Congelado em v1 — usar
+        `/api/v2/contracts/{id}/close`.
       operationId: closeContract
+      deprecated: true
+      responses:
+        "200":
+          description: "Contrato encerrado"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contract: { $ref: "#/components/schemas/Contract" }
+        "400": { $ref: "#/components/responses/ClientError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  # fase 5 da nomenclatura: alias v2 em inglês — mesmos handlers, mesmos
+  # payloads; somente o segmento de rota muda.
+  /api/v2/contracts/{id}/providers:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Contracts]
+      summary: "Vincula prestador por id (admin, gestor) — alias v2 de /prestadores"
+      description: "Mesmo handler de `/api/contracts/{id}/prestadores`. Contrato pode ser criado sem prestadores; o vínculo é por id de usuário."
+      operationId: linkProviderV2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id: { type: integer, example: 7 }
+      responses:
+        "200":
+          description: "Contrato com o vínculo aplicado"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contract: { $ref: "#/components/schemas/Contract" }
+        "400": { $ref: "#/components/responses/ClientError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v2/contracts/{id}/providers/{userId}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+      - name: userId
+        in: path
+        required: true
+        schema: { type: integer }
+    delete:
+      tags: [Contracts]
+      summary: "Desvincula prestador (admin, gestor) — alias v2 de /prestadores/{userId}"
+      description: "Mesmo handler de `/api/contracts/{id}/prestadores/{userId}`."
+      operationId: unlinkProviderV2
+      responses:
+        "200":
+          description: "Vínculo removido"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v2/contracts/{id}/extend:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Contracts]
+      summary: "Prorroga a previsão (admin, gestor) — alias v2 de /prorrogar"
+      description: |
+        Mesmo handler de `/api/contracts/{id}/prorrogar`. Contrato encerrado →
+        400 (FR-003); prorrogar `atrasado` para data futura devolve `vigente`
+        na leitura seguinte (FR-008).
+      operationId: extendContractV2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [forecast_date]
+              properties:
+                forecast_date: { type: string, format: date, example: "2027-03-31" }
+      responses:
+        "200":
+          description: "Contrato com nova previsão"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contract: { $ref: "#/components/schemas/Contract" }
+        "400": { $ref: "#/components/responses/ClientError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v2/contracts/{id}/close:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [Contracts]
+      summary: "Encerra contrato (admin, gestor) — alias v2 de /encerrar"
+      description: |
+        Mesmo handler de `/api/contracts/{id}/encerrar`. Grava `encerrado`
+        (FR-004); encerramento repetido → 400; tarefas abertas não bloqueiam.
+      operationId: closeContractV2
       responses:
         "200":
           description: "Contrato encerrado"

@@ -188,7 +188,8 @@ test('FR-007 unlink block', async () => {
     .delete(`/api/contracts/${contract.id}/prestadores/${prestadorId}`)
     .set(as(gestorToken));
   assert.strictEqual(blocked.status, 400);
-  assert.match(blocked.body.error, /abertas/i);
+  assert.match(blocked.body.error, /open tasks/i);
+  assert.strictEqual(blocked.body.code, 'OPEN_TASKS_BLOCK_UNLINK');
 
   // closing the task releases the unlink
   db.run('UPDATE tasks SET status = ? WHERE contract_id = ? AND assignee_id = ?', [
@@ -989,4 +990,83 @@ test('FR-015 p95 abaixo de 2s com 5000', async () => {
     total.body.total,
     'partição segue íntegra com 5.000 contratos'
   );
+});
+
+// fase 5: /api/v2 espelha a v1 com os mesmos handlers; aliases de rota em
+// inglês (extend/close/providers) respondem com os mesmos códigos das rotas
+// PT, e o payload de erro ganha o code estável aditivo.
+test('fase 5: v2 mounts e aliases de rota', async () => {
+  const created = await request(app)
+    .post('/api/v2/contracts')
+    .set(as(adminToken))
+    .send({
+      name: 'Fase 5 Alias',
+      purpose_id: finalidadeId,
+      start_date: futureDate(0),
+      forecast_date: futureDate(10),
+    });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.body));
+  const id = created.body.contract.id;
+
+  // v2 enxerga o mesmo dado da v1
+  const v2Get = await request(app).get(`/api/v2/contracts/${id}`).set(as(gestorToken));
+  assert.strictEqual(v2Get.status, 200, JSON.stringify(v2Get.body));
+  assert.strictEqual(v2Get.body.contract.name, 'Fase 5 Alias');
+
+  // alias extend: mesmo código do /prorrogar v1
+  const extendV2 = await request(app)
+    .post(`/api/v2/contracts/${id}/extend`)
+    .set(as(gestorToken))
+    .send({ forecast_date: futureDate(120) });
+  assert.strictEqual(extendV2.status, 200, JSON.stringify(extendV2.body));
+  assert.strictEqual(extendV2.body.contract.forecast_date, futureDate(120));
+
+  // alias close + trava de reencerramento com code estável
+  const closeV2 = await request(app).post(`/api/v2/contracts/${id}/close`).set(as(gestorToken));
+  assert.strictEqual(closeV2.status, 200, JSON.stringify(closeV2.body));
+  const closeAgain = await request(app).post(`/api/v2/contracts/${id}/close`).set(as(gestorToken));
+  assert.strictEqual(closeAgain.status, 400);
+  assert.strictEqual(closeAgain.body.error, 'Contract already encerrado');
+  assert.strictEqual(closeAgain.body.code, 'CONTRACT_ALREADY_CLOSED');
+  const extendClosed = await request(app)
+    .post(`/api/v2/contracts/${id}/extend`)
+    .set(as(gestorToken))
+    .send({ forecast_date: futureDate(200) });
+  assert.strictEqual(extendClosed.status, 400);
+  assert.strictEqual(extendClosed.body.code, 'CONTRACT_CLOSED');
+
+  // alias providers: mesmos códigos do /prestadores v1
+  const linkV2 = await request(app)
+    .post(`/api/v2/contracts/${id}/providers`)
+    .set(as(adminToken))
+    .send({ user_id: prestadorId });
+  assert.strictEqual(linkV2.status, 201, JSON.stringify(linkV2.body));
+  const linkAgain = await request(app)
+    .post(`/api/v2/contracts/${id}/providers`)
+    .set(as(adminToken))
+    .send({ user_id: prestadorId });
+  assert.strictEqual(linkAgain.status, 409);
+  const unlinkV2 = await request(app)
+    .delete(`/api/v2/contracts/${id}/providers/${prestadorId}`)
+    .set(as(adminToken));
+  assert.strictEqual(unlinkV2.status, 200, JSON.stringify(unlinkV2.body));
+
+  // v1 segue idêntica no mesmo contrato
+  const v1Get = await request(app).get(`/api/contracts/${id}`).set(as(gestorToken));
+  assert.strictEqual(v1Get.status, 200);
+  assert.strictEqual(v1Get.body.contract.status, 'encerrado');
+
+  // code estável também no POST v2 (campo error permanece)
+  const missingPurpose = await request(app)
+    .post('/api/v2/contracts')
+    .set(as(gestorToken))
+    .send({
+      name: 'Fase 5 Proposito Fantasma',
+      purpose_id: 999999,
+      start_date: futureDate(0),
+      forecast_date: futureDate(10),
+    });
+  assert.strictEqual(missingPurpose.status, 400);
+  assert.strictEqual(missingPurpose.body.error, 'purpose_id does not exist');
+  assert.strictEqual(missingPurpose.body.code, 'PURPOSE_NOT_FOUND');
 });

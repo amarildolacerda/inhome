@@ -141,3 +141,48 @@ test('FR-005 finalidade CRUD', async () => {
     1
   );
 });
+
+// fase 5: /api/v2/purposes monta o MESMO router de /api/finalidades — aliases
+// de URL apenas; o shape de resposta continua com as chaves PT (finalidade /
+// finalidades), e o 409 carrega o code estável aditivo.
+test('fase 5: v2 purposes alias', async () => {
+  const created = await request(app)
+    .post('/api/v2/purposes')
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({ name: 'Fase 5 Proposito' });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.body));
+  const v2Id = created.body.finalidade.id;
+  assert.ok(v2Id > 0, 'resposta v2 segue com a chave finalidade');
+
+  const listV2 = await request(app)
+    .get('/api/v2/purposes')
+    .set('Authorization', `Bearer ${adminToken}`);
+  assert.strictEqual(listV2.status, 200, JSON.stringify(listV2.body));
+  assert.ok(Array.isArray(listV2.body.finalidades), 'chave finalidades inalterada no v2');
+  assert.ok(listV2.body.finalidades.some((f) => f.id === v2Id));
+
+  // o mesmo dicionário é visível pela rota v1 congelada
+  const listV1 = await request(app)
+    .get('/api/finalidades')
+    .set('Authorization', `Bearer ${adminToken}`);
+  assert.strictEqual(listV1.status, 200);
+  assert.ok(listV1.body.finalidades.some((f) => f.id === v2Id), 'v1 e v2 leem o mesmo dado');
+
+  // duplicata recusada com code estável
+  const dup = await request(app)
+    .post('/api/v2/purposes')
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({ name: 'Fase 5 Proposito' });
+  assert.strictEqual(dup.status, 409);
+  assert.strictEqual(dup.body.error, 'Purpose already exists');
+  assert.strictEqual(dup.body.code, 'PURPOSE_ALREADY_EXISTS');
+
+  // id inexistente → 404 com code estável
+  const missing = await request(app)
+    .put('/api/v2/purposes/999999')
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({ name: 'Ghost' });
+  assert.strictEqual(missing.status, 404);
+  assert.strictEqual(missing.body.error, 'Purpose not found');
+  assert.strictEqual(missing.body.code, 'PURPOSE_NOT_FOUND');
+});
