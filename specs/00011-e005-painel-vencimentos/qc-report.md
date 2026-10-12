@@ -118,7 +118,7 @@
 | backend/src/services/alerts.js | 3cbef1caadc34c4d887caab2be296278526e4e6597dc2778a5d840e0fdc05a81 |
 | frontend/lib/main.dart | f4c6481f669d33f0119ebc98a3572a1cf68046ce0ee9c667cf42dbbc8663a263 |
 | frontend/lib/screens/vencimentos_screen.dart | 3c5bb4e88da901d945c6a4ecff6092183083214bb6f9b63d9362268ed1db2d8e |
-| frontend/lib/services/api_service.dart | 864a5fa676f765f52e9b1588aad5822c4285e02a9a6dd73e5946e3b2a078d0a3 |
+| frontend/lib/services/api_service.dart | 7fb65869ec8eb2746da21bd9faa8f2989719cfd838b30ab4605c8939a7d900c7 |
 | frontend/test/roles_nav_test.dart | 2c36a128d29be3411426d919aa0754c37aa6b3ab4cde0a23b61b10178d1e6576 |
 | frontend/test/vencimentos_screen_test.dart | d66485b65e2a5a340a0728d33d45b8d0840d3be71909e040ff6071f3ad25bef6 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |

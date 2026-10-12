@@ -92,12 +92,12 @@
 | Path | SHA-256 |
 |------|---------|
 | backend/package.json | f950a727452adc8da4a5c5742714091bd0ed55623f200cd66a6c9392c23c4629 |
-| backend/src/routes/tasks.js | 8862deff5e136ad8088ed2e015939afeb2b997a9f5398711e1936c6ad52673cc |
-| backend/src/routes/tasks.test.js | c92b466d0c92427afcc3d266046a82df51353678e8fea087e24b421a78286dca |
-| backend/src/server.js | a88e51af8bf279ad655883bbc1138db59f94f9d76e90a3db86f7d96810b05bfd |
+| backend/src/routes/tasks.js | a78e7b6ec2b03ca0be443ca4dfcb9c23828ba59f1494ee18cb33278685d0d665 |
+| backend/src/routes/tasks.test.js | 909891037b533bd5ca9b581fad9f7d0f1cee37a8a6f3df3aaad15d13a8ec7e51 |
+| backend/src/server.js | aef98350b0e901b95fa62e4681e26c695e7d234c9f29e561875e436a512b360e |
 | backend/src/server.socket.test.js | 345bfc4cb759cb6ef06413266a8f5738e55e707a9b3c703708c35be3c179efee |
 | backend/src/services/events.js | 4b816bbc42df57f274a21b6aab0671ad091a4ee69475af35fb34c9fcbb992edc |
-| backend/test.sh | cb252c287dbab4a8add5e4480726e57b1db575100f855de59cdb1d3689b62911 |
+| backend/test.sh | 30d89c1c21992a50ccac56586936dca70a617be69e3cbb58ce1d6b9e22d929ac |
 | docker-compose.yml | 2d0449dd3e094cfcdddc7c2a361c985c80e64f1f2812d58a03b3f005eb88eec8 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00008-e009-tempo-real/checklists/CHL001-security.md | f2d9ab778aad30b91a8638eda5944ab6cf3f0a6484927cf9a6d90f1623bcc9f3 |

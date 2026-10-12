@@ -95,7 +95,7 @@
 | backend/src/routes/dashboard.test.js | b655fe514b627a785155d4bb72ab574ac28ca9af5e741279f856dea032b3df8b |
 | frontend/lib/main.dart | f4c6481f669d33f0119ebc98a3572a1cf68046ce0ee9c667cf42dbbc8663a263 |
 | frontend/lib/screens/dashboard_screen.dart | 536782455544479e096dc600188f3aafae248294e32cc7557ce9673e8e32ac76 |
-| frontend/lib/screens/projects_screen.dart | 920a2f61992f1a48f13ff2a18ebf2660eb790a9fcdf7eaa52a8f544f2f8076fd |
+| frontend/lib/screens/projects_screen.dart | 5d5c18113324992ccef5ed2f5cd39c0e997152ddd12487b4e79a203290831ef6 |
 | frontend/lib/screens/tasks_screen.dart | 5a7f3004f1a83779f457b020ce6083664e57bebdcd330ce3a8c11edc0c784a14 |
 | frontend/test/a11y_labels_test.dart | 14fb00a05e93deb256e3d749c831b9efc316be9c93bf4c1351724acfe77d793b |
 | frontend/test/web_browsers_test.dart | e850291f82c407e81a6c04b96ac293579199133f6fcf22d372ae2cdcb9743890 |

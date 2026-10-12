@@ -99,7 +99,7 @@
 | backend/src/config/database.test.js | 849a804f0f4168fa33d412272bbebcf9a4a9e1d400493b3ec15abf517f07ead0 |
 | backend/src/routes/alerts.js | 0bd126ebced5da06e3ea1d8e902b6f5edc3aa0a8ab30b1b7fd1faa0120ed1d8d |
 | backend/src/routes/alerts.test.js | 9040d13eb927ecc5832720e53c4808b468ad33fd2a9184edac72ddb9bf55ba5a |
-| backend/src/server.js | a88e51af8bf279ad655883bbc1138db59f94f9d76e90a3db86f7d96810b05bfd |
+| backend/src/server.js | aef98350b0e901b95fa62e4681e26c695e7d234c9f29e561875e436a512b360e |
 | backend/src/services/alerts.js | 3cbef1caadc34c4d887caab2be296278526e4e6597dc2778a5d840e0fdc05a81 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00009-e004-motor-alertas/checklists/CHL001-data-integrity.md | 1cea5f3928012164cbc293a5462cb713bb6d241bc464210cd41fca51bf336857 |
