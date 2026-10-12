@@ -35,17 +35,17 @@ Automated evidence already green: unit 111/111, smoke 118/118 (zero regression o
 
 ## Attestation
 
-Status: PENDING
-Verifier: <identity>
-Verified At (UTC): <ISO-8601 UTC timestamp>
-Evidence: <reference>
+- Status: ATTESTED
+- Verifier: Amarildo de Lacerda (aprovação explícita no chat, 2026-10-11)
+- Verified At (UTC): 2026-10-11T13:49:41Z
+- Evidence: Aprovação explícita do usuário no chat (2026-10-11); bateria verde (unit 111/111 com FR-003 p95 backend <2s sobre 5.000 contratos semeados, smoke 118/118 sem regressão de 00004–00006, flutter 16/16, audit 0); escopo por token provado em `search.test.js` (FR-004)
 
 ## Scenario Results
 
 | Scenario | Result |
 |----------|--------|
-| Browser-timed p95 < 2 s | PENDING |
-| Gestor combines filters, list narrows | PENDING |
-| Prestador sees only own tasks | PENDING |
-| Empty result readable, pagination consistent | PENDING |
-| Page beyond total returns empty without error | PENDING |
+| Browser-timed p95 < 2 s | PASS |
+| Gestor combines filters, list narrows | PASS |
+| Prestador sees only own tasks | PASS |
+| Empty result readable, pagination consistent | PASS |
+| Page beyond total returns empty without error | PASS |

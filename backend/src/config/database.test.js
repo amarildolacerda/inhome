@@ -92,6 +92,52 @@ test('username migration for legacy domain dbs', async () => {
   assert.strictEqual(row.username, null, 'migrated column is nullable');
 });
 
+// E011 (FR-005): domains created before the auditor role carry the old role
+// CHECK — SQLite cannot ALTER it, so the users table is rebuilt in place on
+// open: existing rows keep their ids, auditor becomes insertable.
+test('E011 auditor role rebuild for legacy domain dbs', async () => {
+  const SQL = await database.initSqlDriver();
+  const platform = database.getPlatformDb();
+  platform.run('INSERT INTO domains(name, slug) VALUES (?, ?)', ['LegacyRole', 'legacy-role']);
+  const legacy = platform.get('SELECT id FROM domains WHERE slug = ?', ['legacy-role']);
+
+  const file = path.join(dataDir, 'domains', `${legacy.id}.db`);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const raw = new SQL.Database();
+  raw.run(`CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    username TEXT UNIQUE,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('admin','gestor','prestador')),
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  raw.run(
+    "INSERT INTO users(name, email, password_hash, role) VALUES ('Old','old.role@legacy.test','x','gestor')"
+  );
+  fs.writeFileSync(file, Buffer.from(raw.export()));
+  raw.close();
+
+  const db = database.getDomainDb(legacy.id);
+  const sql = db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'").sql;
+  assert.ok(sql.includes("'auditor'"), 'role CHECK rebuilt');
+
+  // pre-E011 rows survive with the same id
+  const old = db.get("SELECT id, role FROM users WHERE email = 'old.role@legacy.test'");
+  assert.strictEqual(old.role, 'gestor');
+  assert.strictEqual(old.id, 1);
+
+  // auditor now passes the CHECK
+  db.run(
+    "INSERT INTO users(name, email, password_hash, role) VALUES ('Aud','aud@legacy.test','y','auditor')"
+  );
+  const aud = db.get("SELECT role FROM users WHERE email = 'aud@legacy.test'");
+  assert.strictEqual(aud.role, 'auditor');
+});
+
 // English is the table-naming standard: legacy domain files carrying
 // `finalidades`/`contract_prestadores` must migrate in place on open — rows
 // kept, FKs rewritten, safe to run on every open.
@@ -388,4 +434,63 @@ test('transaction(): commits atomically and rolls back on error', async () => {
     reopened.get(`SELECT COUNT(*) AS c FROM contracts WHERE name LIKE 'Tx-ok%'`).c,
     2
   );
+});
+
+// 00009 E004 (FR-001/FR-005): additive lazy migrations — alert_events on the
+// domain side (Q5 pattern: guard fires before applySchema, exactly once per
+// file) and domains.alert_windows on the platform side (PRAGMA guard, same
+// shape as the username/tasks column precedents). Idempotent by construction.
+test('00009 alert migrations: alert_events domain table + domains.alert_windows platform column', async () => {
+  const SQL = await database.initSqlDriver();
+  const platform = database.getPlatformDb();
+
+  // platform side: a fresh open of an existing platform.db (created by an
+  // earlier test) already ran migrateSchema once; the column is present and
+  // every domain row defaults to NULL (-> [90,60,30,15] in readWindows).
+  const platformColumns = platform.all('PRAGMA table_info(domains)').map((column) => column.name);
+  assert.ok(platformColumns.includes('alert_windows'), 'platform domains gains alert_windows');
+  const anyDomain = platform.get('SELECT alert_windows FROM domains LIMIT 1');
+  assert.strictEqual(anyDomain.alert_windows, null, 'NULL means default windows, zero setup');
+
+  // domain side: a legacy file without alert_events gains it on open, with
+  // the UNIQUE(contract_id, window_days) dedup constraint intact.
+  platform.run('INSERT INTO domains(name, slug) VALUES (?, ?)', ['Alertas', 'alertas-legacy']);
+  const legacy = platform.get('SELECT id FROM domains WHERE slug = ?', ['alertas-legacy']);
+  const file = path.join(dataDir, 'domains', `${legacy.id}.db`);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const raw = new SQL.Database();
+  raw.run(`CREATE TABLE contracts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    object TEXT NOT NULL,
+    finalidade_id INTEGER,
+    start_date TEXT NOT NULL,
+    forecast_date TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'vigente',
+    created_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  fs.writeFileSync(file, Buffer.from(raw.export()));
+  raw.close();
+
+  const db = database.getDomainDb(legacy.id);
+  const tables = db.get("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'alert_events'");
+  assert.ok(tables, 'alert_events created lazily on legacy open');
+  const ddl = db.get("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'alert_events'");
+  assert.ok(ddl.sql.includes('UNIQUE(contract_id, window_days)'), 'dedup constraint in DDL');
+
+  // fresh insert works; the second identical (contract, window) is refused
+  db.run("INSERT INTO alert_events(contract_id, window_days, email_status) VALUES (1, 30, 'skipped')");
+  assert.throws(
+    () => db.run("INSERT INTO alert_events(contract_id, window_days, email_status) VALUES (1, 30, 'sent')"),
+    /UNIQUE/i
+  );
+
+  // re-open through the cache-clearing hook: migration must not fire twice
+  database.resetDatabaseCache();
+  await database.initSqlDriver();
+  const reopened = database.getDomainDb(legacy.id);
+  const rows = reopened.all('SELECT COUNT(*) AS c FROM alert_events');
+  assert.strictEqual(rows[0].c, 1, 're-open is side-effect free');
 });

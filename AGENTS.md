@@ -128,7 +128,7 @@ Drop compression and use normal explicit prose when brevity could create ambigui
 - user questions showing confusion or repetition
 - policy, compliance, or safety-sensitive nuance
 
-Resume compact mode after the risky section is clear.
+Resume compact mode after the risky section is clear e executar commit no github em `dev`.
 
 ### Boundaries
 

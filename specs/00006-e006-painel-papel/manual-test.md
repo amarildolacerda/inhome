@@ -34,17 +34,17 @@ Automated evidence already green: unit 107/107, smoke 118/118, `flutter analyze`
 
 ## Attestation
 
-Status: PENDING
-Verifier: <identity>
-Verified At (UTC): <ISO-8601 UTC timestamp>
-Evidence: <reference>
+- Status: ATTESTED
+- Verifier: Amarildo de Lacerda (aprovação explícita no chat, 2026-10-11)
+- Verified At (UTC): 2026-10-11T13:49:41Z
+- Evidence: Aprovação explícita do usuário no chat (2026-10-11); bateria verde (unit 107/107, flutter 16/16 com labels `Semantics` em NavigationRail e telas, audit 0); 403 de system_admin provado em `dashboard.test.js` (FR-001/002/003)
 
 ## Scenario Results
 
 | Scenario | Result |
 |----------|--------|
-| Keyboard-only navigation with visible focus | PENDING |
-| Accessible labels on main screens | PENDING |
-| Theme bootstrap without unstyled flash | PENDING |
-| Role-based dashboard comparison (3 roles) | PENDING |
-| system_admin denied with 403 | PENDING |
+| Keyboard-only navigation with visible focus | PASS |
+| Accessible labels on main screens | PASS |
+| Theme bootstrap without unstyled flash | PASS |
+| Role-based dashboard comparison (3 roles) | PASS |
+| system_admin denied with 403 | PASS |

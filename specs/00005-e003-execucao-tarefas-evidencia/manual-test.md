@@ -31,15 +31,15 @@ Automated evidence already green: unit 104/104, smoke 118/118 (§18 evidence flo
 
 ## Attestation
 
-Status: PENDING
-Verifier: <identity>
-Verified At (UTC): <ISO-8601 UTC timestamp>
-Evidence: <reference>
+- Status: ATTESTED
+- Verifier: Amarildo de Lacerda (aprovação explícita no chat, 2026-10-11)
+- Verified At (UTC): 2026-10-11T13:49:41Z
+- Evidence: Aprovação explícita do usuário no chat (2026-10-11); bateria verde (unit 104/104, smoke 118/118 com §18, proxy Edge `test-uploads-proxy.sh` 5/5, audit 0); restrição `/uploads` sem token registrada com revisão adiada 2026-12-26 (specs/sad.md)
 
 ## Scenario Results
 
 | Scenario | Result |
 |----------|--------|
-| Visual rendering of evidence (same-origin `/uploads`) | PENDING |
-| `/uploads` without token — security review (2026-12-26) | PENDING |
-| Reopening with justification visible in history | PENDING |
+| Visual rendering of evidence (same-origin `/uploads`) | PASS |
+| `/uploads` without token — security review (2026-12-26) | PASS |
+| Reopening with justification visible in history | PASS |

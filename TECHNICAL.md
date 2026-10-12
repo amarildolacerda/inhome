@@ -47,6 +47,12 @@ project-manager/
 #### Dashboard
 - `GET /api/dashboard/stats` — Métricas e estatísticas
 
+#### Alertas e vencimentos
+- `GET /api/alerts/sweep` — Executa a varredura de vencimentos (admin/gestor)
+- `GET /api/alerts/panel` — Painel agrupado pelas janelas de alerta, com paginação (admin/gestor)
+- `GET /api/alerts/windows` — Lê as janelas configuradas do domínio (admin/gestor)
+- `PUT /api/alerts/windows` — Grava as janelas do domínio, validadas (admin/gestor)
+
 ### Headers de Autenticação
 
 Todas as rotas protegidas requerem:

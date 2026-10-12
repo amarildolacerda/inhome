@@ -263,6 +263,34 @@ class ApiService {
     return _mapList(result['tasks']);
   }
 
+  // ---- Painel de próximos vencimentos (E005 / CAP-004) -------------------
+
+  /// [FR-004]: GET /alerts/panel — página única (limit 1–200, offset >= 0).
+  /// Os blocos (campo `window` de cada item) são derivados na tela: uma
+  /// requisição por leitura, nunca uma por bloco.
+  Future<Map<String, dynamic>> getPanel({int? limit, int? offset}) {
+    return get('/alerts/panel${_query({'limit': limit, 'offset': offset})}');
+  }
+
+  /// [FR-005]: GET /alerts/windows — domínio novo devolve o default
+  /// [90, 60, 30, 15] sem nenhum setup prévio.
+  Future<List<int>> getWindows() async {
+    final result = await get('/alerts/windows');
+    return _intList(result['windows']);
+  }
+
+  /// [FR-006]: PUT /alerts/windows — `null` restaura o default; payload
+  /// inválido chega como exceção com a mensagem de 400 do backend.
+  Future<List<int>> putWindows(List<int>? windows) async {
+    final result = await put('/alerts/windows', body: {'windows': windows});
+    return _intList(result['windows']);
+  }
+
+  List<int> _intList(dynamic value) {
+    if (value is! List) return <int>[];
+    return value.whereType<num>().map((entry) => entry.toInt()).toList();
+  }
+
   // ---- Workflow assistido por OpenCode (E0003, T029) ---------------------
 
   /// [FR-001]: GET /contracts/:id/definitions — última versão salva; null
@@ -563,6 +591,33 @@ class ApiService {
       parts.add('${Uri.encodeQueryComponent(key)}=${Uri.encodeQueryComponent(text)}');
     });
     return parts.isEmpty ? '' : '?${parts.join('&')}';
+  }
+
+  // ---- Auditoria de tarefas executadas (E011, FR-001..004) ---------------
+
+  /// [FR-001]: GET /audits/tasks — só 'Revisão'/'Concluída' do domínio; cada
+  /// item carrega `classification` (null enquanto não classificada).
+  Future<List<Map<String, dynamic>>> listAuditTasks() async {
+    final result = await get('/audits/tasks');
+    return _mapList(result['tasks']);
+  }
+
+  /// [FR-001]: GET /audits/tasks/:id — detalhe com history e attachments.
+  Future<Map<String, dynamic>> getAuditTask(int taskId) async {
+    final result = await get('/audits/tasks/$taskId');
+    return _asMap(result);
+  }
+
+  /// [FR-002]: PUT /audits/tasks/:id/classification — grava ou substitui a
+  /// classificação corrente; estado inválido ou nota > 500 chega como
+  /// exceção com a mensagem 400 do backend.
+  Future<Map<String, dynamic>> putClassification(
+    int taskId, {
+    required String state,
+    String? note,
+  }) {
+    return put('/audits/tasks/$taskId/classification',
+        body: {'state': state, 'note': note});
   }
 
   List<Map<String, dynamic>> _mapList(dynamic value) {

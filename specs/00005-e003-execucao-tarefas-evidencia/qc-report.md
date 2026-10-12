@@ -1,94 +1,94 @@
-# QC Report: Execução de tarefas com evidência (E003 / 00005)
+# QC Report: E003 Execução, Tarefas e Evidência (00005)
 
-**Date**: 2026-10-09T22:35:00Z  
+**Date**: 2026-10-11T14:18:00Z  
 **Feature Directory**: specs/00005-e003-execucao-tarefas-evidencia  
-**Overall Verdict**: BLOCKED
+**Overall Verdict**: PASS
 
 ## QC Scope Baseline
-- Baseline Commit: 26ff3f99008ee2e0b665e6f4376108aa1d0d5049
+- Baseline Commit: 9aaaf32c865adad44b69562a1f38122bd10dafb1
 - Mode: Full
-- Prior Baseline: N/A (no prior qc-report.md)
-- Changed Files: N/A (full run; working tree carries E003 plus pre-existing uncommitted 00001/00004 work — untouched by this feature)
-- Test Selection: Full suites (unit, smoke, Edge proxy, flutter, lint, audit)
-- Scope Safety: first QC run for this workspace; only a full run can bind evidence digests.
+- Prior Baseline: N/A (prior report BLOCKED at attestation; evidence digest stale after human edit of manual-test.md — full re-run required)
+- Changed Files: N/A (full run)
+- Test Selection: Full suites (unit, smoke, Edge proxy, flutter, lint, audit, syntax)
+- Scope Safety: Prior manifest's manual-test.md digest no longer matched exact bytes after attestation; full run re-seals the complete prior scope including the Edge proxy suite.
+
+## Changes from Prior Run
+| Metric | Previous | Current | Delta |
+|--------|----------|---------|-------|
+| Unit (backend node --test) | 104/104 | 115/115 | +11 (later-epic suites; no regression) |
+| Smoke (backend/test.sh) | 118/118 | 118/118 | 0 |
+| Edge proxy (test-uploads-proxy.sh) | 5/5 | 5/5 | 0 |
+| Flutter widget tests | 13/13 | 16/16 | +3 (later-epic tests; no regression) |
+| Security audit (high) | 0 vulns | 0 vulns | 0 |
+| Manual attestation | PENDING | ATTESTED | cleared by human verifier |
 
 ## Summary
 | Check | Status | Details |
 |-------|--------|---------|
-| Unit tests | PASSED | node --test, 104/104 (baseline 94 + 10 E003) |
-| Smoke (backend/test.sh) | PASSED | 118/118 incl. §18 evidence flow |
-| Edge proxy (test-uploads-proxy.sh) | PASSED | 5/5 — 200 + image/* via nginx :80 |
-| Flutter analyze + tests | PASSED | analyze clean, 13/13 |
-| Lint (node --check) | PASSED | all backend/src/**/*.js |
-| Security audit | PASSED | npm audit --audit-level=high: 0 vulnerabilities |
-| Policy Auditor | PASS | 0 CRITICAL violations vs project-instructions v2.1.0 |
-| Story Verifier | PASSED | US1–US4 + SC-001..SC-004 traced |
-| Checklist spot-check | PASSED | Security/Testing items from 3 checklists |
-| Browser runtime / manual | BLOCKED | visual `/uploads` rendering needs human attestation |
+| Unit tests | PASSED | 115/115, 0 fail (Node v24.18.1, backend stopped during run) |
+| Smoke suite | PASSED | 118/118 (PORT=3199, backend/test.sh) |
+| Edge proxy suite | PASSED | 5/5 (FR-008: uploads served by Edge, never SPA index) |
+| Flutter analyze | PASSED | "No issues found!" (SDK Docker ghcr.io/cirruslabs/flutter:stable) |
+| Flutter tests | PASSED | 16/16 |
+| node --check | PASSED | all backend/src/*.js |
+| Security audit | PASSED | npm --prefix backend audit --audit-level=high → 0 vulnerabilities |
+| Policy Auditor | PASS | inline audit of spec/plan/tasks vs project-instructions.md: 0 violations |
+| Manual attestation | PASS | ATTESTED by Amarildo de Lacerda, 2026-10-11T13:49:41Z, all scenarios PASS |
 
 ## Test Results — PASSED
-- Runner: node --test (unit), Total: 104, Passed: 104, Failed: 0
-- Runner: backend/test.sh (smoke, PORT 3199), Total: 118, Passed: 118, Failed: 0
-- Runner: backend/test-uploads-proxy.sh (Edge :80), Total: 5, Passed: 5, Failed: 0
-- Runner: flutter test (Docker stable), Total: 13, Passed: 13, Failed: 0
+- Runner: `npm --prefix backend test`. Total 115, Passed 115, Failed 0.
+- Runner: `bash backend/test.sh` (PORT=3199). Total 118, Passed 118, Failed 0.
+- Runner: `bash backend/test-uploads-proxy.sh` (Edge :80). Total 5, Passed 5, Failed 0.
+- Runner: `docker run ghcr.io/cirruslabs/flutter:stable` → `flutter pub get && flutter analyze && flutter test`. 16 passed, 0 failed.
+- Runner: `find backend/src -name '*.js' -exec node --check`. All pass.
+- Runner: `npm --prefix backend audit --audit-level=high`. 0 vulnerabilities.
 
 ## Failure Index
 | ID | Category | Severity | File:Line | Description | Bug Task |
 |----|----------|----------|-----------|-------------|----------|
+| — | — | — | — | none | — |
 
 ## Code Coverage — SKIPPED
-- Threshold: Not configured (project instructions: coverage target empty)
-- Status: SKIPPED — mandatory suites green serve as the quality bar.
+- Threshold: Not configured (Coverage Target empty in .github/sddp-config.md)
 
 ## Static Analysis — PASSED
-- Tool: node --check (backend), flutter analyze (frontend)
+- Tool: `flutter analyze` (frontend), `node --check` (backend syntax)
 - Critical issues: 0, Warnings: 0
 
 ## Security Audit — PASSED
-- Tool: npm audit --audit-level=high
+- Tool: `npm --prefix backend audit --audit-level=high`
 - Vulnerabilities found: 0
-- Route/isolation review (manual, mandated): pending human pass — recorded in manual-test.md scenarios 1–2.
 
 ## Project Instructions Compliance — PASSED
-- No violations. dev branch, test-gated promotion, TODO.md read at session start, layout PRESERVE_EXISTING_LAYOUT (only plan-declared files added), stack unchanged, no new dependencies.
+- No violations
 
-## Requirements Traceability — 4/4 work items verified, 3/4 SC verified (SC-003 automated part only)
+## Requirements Traceability — 21/21 work items verified
 | ID | Type | Status | Notes |
 |----|------|--------|-------|
-| US1 | Work Item | PASSED | FR-001..FR-004: flow/complete (updateTaskStatus, completeTask, markCompleted), 400 sem texto sem escrita, até 10 fotos antes da referência, comentário/anexo com autor e data |
-| US2 | Work Item | PASSED | FR-005/FR-006: reabertura sem motivo → 400 sem escrita; admin/gravam autor/motivo/data no histórico |
-| US3 | Work Item | PASSED | FR-007/FR-008: bloco `location ^~ /uploads/` Host+X-Real-IP no Edge; GET /uploads/<arquivo> → 200 image/* comprovado no stack nginx |
-| US4 | Work Item | PASSED | FR-009..FR-011: validação tipo/tamanho antes do disco; `scopeDomain()` nos 3 roteadores → 403; `canSeeTask()` exportado e restrito |
-| SC-001 | Success Criteria | PASSED | smoke §18: conclusão com texto+fotos, 400 sem texto sem rastro |
-| SC-002 | Success Criteria | PASSED | smoke §18 + unit: reabertura grava autor/motivo/data; sem motivo não escreve |
-| SC-003 | Success Criteria | PARTIAL | proxy Edge 5/5 automatizado; renderização visual no navegador exige attestation humana (manual-test.md cenário 1) |
-| SC-004 | Success Criteria | PASSED | unit FR-009/FR-010/FR-011 + smoke §18: 400 sem resíduo, 403 de domínio cruzado |
+| T001–T021 | Work Items | PASSED | all `[X]` in tasks.md, 0 unchecked |
+| Manual scenarios | Scenario Results | PASSED | all rows PASS in manual-test.md |
 
 ## Traceability Gaps
-- None: FR-001..FR-011 each have ≥1 completed task and a green per-requirement test or Edge check.
+- None
 
-## Checklist Fulfillment — 3 checklists spot-checked
-- CHL001 Security: guard de escopo antes de qualquer consulta (FR-010 403 read+write) — PASSED
-- CHL001 Security: `/uploads` sem token com revisão fixada em 2026-12-26 e nomes opacos — PASSED (revisão humana pendente no manual-test)
-- CHL002 API Quality: 400/403 fail-fast antes de escrita; asserções por requisito — PASSED
-- CHL003 Data Integrity: arquivo gravado antes da referência (FR-003 assert em disco); recusa 400 sem resíduo (FR-009) — PASSED
+## Checklist Fulfillment — 42/42 spot-checked
+- CHL001-security (14/14), CHL002-api-quality (14/14), CHL003-data-integrity (14/14) — all `[X]` at implement time; intent satisfied by delivered upload/comment/attachment routes + tests
 
 ## Performance — SKIPPED
-- No performance NFRs in spec.
+- No performance NFRs in spec.md
 
 ## Accessibility — SKIPPED
-- No accessibility NFRs in this epic; existing a11y suite untouched (13/13).
+- No accessibility NFRs in spec.md
 
 ## Browser Runtime Validation — MANUAL VERIFICATION NEEDED
-- Mode: Manual fallback (no native or MCP browser tool exposed in this harness)
-- Browser tool: N/A
-- App start: docker compose up -d (Edge :80 already serving the rebuilt frontend image)
-- Target: http://localhost/
-- Automated substitutes executed: backend/test-uploads-proxy.sh (5/5) and smoke §18 /uploads static check (200 image/png). Visual inline rendering of a completed task's photos remains human-only.
+- Mode: Manual fallback (human attestation)
+- Browser tool: N/A (no browser tool exposed in this harness)
+- Target: local app via docker compose (Edge :80)
+- Scenarios validated by human verifier: see manual-test.md
 
 ## Manual Testing — Required
-- Reference: [manual-test.md](manual-test.md)
-- Attestation: PENDING (visual rendering, `/uploads` security review dated 2026-12-26, reopening history on screen)
+- See [specs/00005-e003-execucao-tarefas-evidencia/manual-test.md](manual-test.md)
+- Attestation: ATTESTED — Verifier: Amarildo de Lacerda (aprovação explícita no chat, 2026-10-11); Verified At (UTC): 2026-10-11T13:49:41Z; every Scenario Results row PASS
 
 ## QC Evidence Manifest
 | Path | SHA-256 |
@@ -110,17 +110,13 @@
 | specs/00005-e003-execucao-tarefas-evidencia/checklists/CHL001-security.md | f9f076a73d346ba164e33c805bceef4b44c054bd40d8d28de589713b1d19c3a3 |
 | specs/00005-e003-execucao-tarefas-evidencia/checklists/CHL002-api-quality.md | 9df4deb589ef0d5960c573b66fbaa76bb0fddb34e0fea268566fbc8e5224a7bc |
 | specs/00005-e003-execucao-tarefas-evidencia/checklists/CHL003-data-integrity.md | 66dc1b89fdc238b018dcf92f534b5b30a556f397eda4546c54c910217b115682 |
-| specs/00005-e003-execucao-tarefas-evidencia/manual-test.md | b1300ea246c4745e46cefba1b149e2f7d76c4377ec780b10eafdafa5a20f6000 |
+| specs/00005-e003-execucao-tarefas-evidencia/manual-test.md | 310ce7a948d68b30a8b5d8a59a2d6a671a55396a031811defae3964af4d22546 |
 | specs/00005-e003-execucao-tarefas-evidencia/plan.md | b92dd565dd8fd2c9a0db9e169a64d2943937891f45b5aa64fed99a378d46cb8f |
 | specs/00005-e003-execucao-tarefas-evidencia/spec.md | 32fe089319f126f76851ab757941b9c12dda8f23d4bc66e1c2bc8e3453626481 |
 | specs/00005-e003-execucao-tarefas-evidencia/tasks.md | 263b347d385e2c9967fc9bb9d91631aaea8ce6f8ba55d3488da7c0fe5214651f |
 
 ## Tool Recommendations
-- None: all plan-configured tools (node --test, test.sh, proxy script, flutter analyze/test, node --check, npm audit) ran successfully.
-
-## Bug Context
-| Bug Task | Error Output | Stack Trace | Related Test |
-|----------|-------------|-------------|--------------|
+- None
 
 ## Bug Tasks Generated
-- None. BLOCKED is solely the pending human attestation in [manual-test.md](manual-test.md); no bug task is added for that state.
+- None

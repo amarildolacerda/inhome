@@ -270,3 +270,51 @@ test('FR-008 CRUD usuários e 409', async () => {
     .send({ name: 'Nope', email: 'nope@crud.test', password: 'Secret1!', role: 'prestador', username: 'nope' });
   assert.strictEqual(gestorCreate.status, 403, JSON.stringify(gestorCreate.body));
 });
+
+// E011 (FR-005) — acceptance stub per plan.md ## Acceptance Test Stubs.
+// T001 já deixou o enum verde (Foundational executa antes dos stubs); T010
+// re-confirma o bloco como US2.
+test('FR-005 auditor in role enum', async () => {
+  const asAdmin = { Authorization: `Bearer ${adminToken}` };
+
+  // criação aceita auditor
+  const auditor = await request(app)
+    .post('/api/users')
+    .set(asAdmin)
+    .send({
+      name: 'Ada',
+      email: 'ada@gamma.test',
+      password: 'Secret1!',
+      role: 'auditor',
+      username: 'ada',
+    });
+  assert.strictEqual(auditor.status, 201, JSON.stringify(auditor.body));
+  assert.strictEqual(auditor.body.user.role, 'auditor');
+
+  // alteração de papel aceita auditor pelo mesmo enum
+  const upd = await request(app)
+    .put(`/api/users/${auditor.body.user.id}`)
+    .set(asAdmin)
+    .send({ role: 'gestor' });
+  assert.strictEqual(upd.status, 200, JSON.stringify(upd.body));
+  assert.strictEqual(upd.body.user.role, 'gestor');
+  const back = await request(app)
+    .put(`/api/users/${auditor.body.user.id}`)
+    .set(asAdmin)
+    .send({ role: 'auditor' });
+  assert.strictEqual(back.status, 200, JSON.stringify(back.body));
+  assert.strictEqual(back.body.user.role, 'auditor');
+
+  // papel desconhecido continua 400
+  const unknown = await request(app)
+    .post('/api/users')
+    .set(asAdmin)
+    .send({
+      name: 'Zed',
+      email: 'zed@gamma.test',
+      password: 'Secret1!',
+      role: 'auditoria',
+      username: 'zed',
+    });
+  assert.strictEqual(unknown.status, 400, JSON.stringify(unknown.body));
+});

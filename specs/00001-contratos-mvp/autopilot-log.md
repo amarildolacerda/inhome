@@ -71,3 +71,4 @@
 
 **Result**: HALTED at Implement+QC — manual attestation pending (`manual-test.md` `Status: PENDING`, 14/14 scenarios)
 **Duration**: 18:49:29 → 19:12:27
+| 2026-10-11T14:07:56Z | QC re-seal | re_run | Full re-run (prior digests stale after attestation + later-epic drift); battery unit 115/115, smoke 118/118, flutter 16/16 + analyze limpo, audit 0, node --check PASS; attestation ATTESTED validada por parseQcEvidence | PASS | 104 manifest rows re-signed; `.qc-passed` written + revalidated | [qc-report.md](qc-report.md), [.qc-passed](.qc-passed), [manual-test.md](manual-test.md) |

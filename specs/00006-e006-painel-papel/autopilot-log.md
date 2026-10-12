@@ -100,3 +100,4 @@
 **Branch**: `dev` @ `26ff3f99008ee2e0b665e6f4376108aa1d0d5049`  
 **Workspace**: `specs/00006-e006-painel-papel/`  
 **Verdict**: BLOCKED (expected terminal state — awaiting human attestation)
+| 2026-10-11T14:24:00Z | QC re-seal | re_run | Full re-run (digest stale + prior manifest unsorted — re-sorted); battery unit 115/115, smoke 118/118, flutter 16/16 + analyze limpo, audit 0, node --check PASS; attestation ATTESTED validada | PASS | 17 manifest rows re-signed (sorted); `.qc-passed` written + revalidated | [qc-report.md](qc-report.md), [.qc-passed](.qc-passed), [manual-test.md](manual-test.md) |

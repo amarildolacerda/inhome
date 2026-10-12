@@ -45,6 +45,12 @@ class User {
   bool get isManagement => role == 'admin' || role == 'gestor';
 }
 
+/// [FR-007]: quem vê a entrada Auditoria — exatamente `auditor`, `admin` e
+/// `gestor`. Gate único consumido pela navegação em main.dart (AD-005, padrão
+/// E006): `prestador`, `system_admin` e papéis desconhecidos ficam de fora.
+bool hasAuditAccess(String role) =>
+    role == 'auditor' || role == 'admin' || role == 'gestor';
+
 /// `active` vem como 0/1 do SQLite; /auth/login (system_admin) não o envia.
 bool _activeFromJson(dynamic value) {
   if (value is bool) return value;

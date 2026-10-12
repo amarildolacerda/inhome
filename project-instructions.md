@@ -67,6 +67,8 @@ All agent output MUST be concise and outcome-oriented. This principle supersedes
 - All implementations MUST pass the Instructions Check gate during planning.
 - Complexity beyond these principles MUST be justified and documented.
 - `AGENTS.md` holds only the universal SDD sections; project-specific rules live here.
+- `TECHNICAL.md` doc update after eath plan writed, mark in progress "in progress", mark version xxx after tests ok
+- `README.md` doc update after eath plan implemented 
 
 **Version**: 2.1.0 | **Last Amended**: 2026-09-27
 

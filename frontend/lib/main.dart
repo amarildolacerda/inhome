@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'services/api_service.dart';
+import 'models/user.dart' show hasAuditAccess;
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/projects_screen.dart';
@@ -7,6 +8,8 @@ import 'screens/tasks_screen.dart';
 import 'screens/domains_screen.dart';
 import 'screens/users_screen.dart';
 import 'screens/finalidades_screen.dart';
+import 'screens/vencimentos_screen.dart';
+import 'screens/audit_screen.dart';
 import 'theme/app_theme.dart';
 
 void main() {
@@ -205,8 +208,29 @@ class _MainShellState extends State<MainShell> {
   /// 403 para system_admin, e /api/users aceita GET para admin+gestor).
   /// Tarefas: admin/gestor entram pelo canal do contrato (Projetos → detalhe);
   /// prestador mantém a fila pessoal 'Minhas Tarefas' (GET /tasks já escopa).
+  ///
+  /// [FR-007] / AD-005: gate único `hasAuditAccess` decide a entrada
+  /// Auditoria (auditor, admin, gestor) — o base não a conhece.
   List<_NavEntry> _entriesForRole(String role) {
+    final base = _baseEntriesForRole(role);
+    if (!hasAuditAccess(role)) return base;
+    return [
+      ...base,
+      const _NavEntry(
+        'Auditoria',
+        Icons.fact_check_outlined,
+        Icons.fact_check,
+        AuditScreen(),
+      ),
+    ];
+  }
+
+  List<_NavEntry> _baseEntriesForRole(String role) {
     switch (role) {
+      case 'auditor':
+        // Papel novo do E011: acesso somente à visão de auditoria — o gate
+        // acima adiciona a única entrada que ele recebe.
+        return const [];
       case 'system_admin':
         return const [
           _NavEntry(
@@ -223,6 +247,12 @@ class _MainShellState extends State<MainShell> {
             Icons.bar_chart_outlined,
             Icons.bar_chart,
             DashboardScreen(),
+          ),
+          _NavEntry(
+            'Vencimentos',
+            Icons.schedule_outlined,
+            Icons.schedule,
+            VencimentosScreen(),
           ),
           _NavEntry(
             'Projetos',
@@ -250,6 +280,12 @@ class _MainShellState extends State<MainShell> {
             Icons.bar_chart_outlined,
             Icons.bar_chart,
             DashboardScreen(),
+          ),
+          _NavEntry(
+            'Vencimentos',
+            Icons.schedule_outlined,
+            Icons.schedule,
+            VencimentosScreen(),
           ),
           _NavEntry(
             'Projetos',

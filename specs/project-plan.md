@@ -13,10 +13,10 @@ dod_source: none
 | **Product** | Gestão de Contratos de Terceiros |
 | **Created** | 2026-09-27 |
 | **Status** | active |
-| **Epics** | 10 — 8 × P1, 2 × P2 |
-| **Categories** | 10 PRODUCT, 0 TECHNICAL, 0 OPERATIONAL |
+| **Epics** | 11 — 9 × P1, 2 × P2 |
+| **Categories** | 11 PRODUCT, 0 TECHNICAL, 0 OPERATIONAL |
 | **Author** | Amarildo de Lacerda |
-| **Waves** | 3 |
+| **Waves** | 4 |
 
 ## Epic Checklist
 
@@ -45,6 +45,12 @@ dod_source: none
 - [ ] E005 [P1] [PRODUCT] [P] {PRD:CAP-004} Painel de próximos vencimentos — janelas 90/60/30/15 [→ Details](plan/E005.md)
 - [ ] E010 [P2] [PRODUCT] [P] {PRD:CAP-009} Avisos por e-mail — envio opt-in por evento [→ Details](plan/E010.md)
 
+### Wave 4 — Auditoria
+
+> Fecha a pendência de acesso de auditoria (TODO item 3): leitura das tarefas executadas e classificação do atendimento sobre a base de E003, sem reescrever o PRD.
+
+- [ ] E011 [P1] [PRODUCT] [P] {PRD:CAP-003} Acesso de auditoria e classificação de tarefas executadas [→ Details](plan/E011.md)
+
 ## Dependency Diagram
 
 ```mermaid
@@ -70,6 +76,7 @@ Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_
 | 1 | E001, E002, E003, E006, E007, E009 | Não | E007 sem `[P]`: `ensureIndexes()` e as consultas de contrato/tarefa em `config/database.js` são superfície compartilhada com E002/E003 |
 | 2 | E004, E008 | Sim | E004 escreve a migração de `alert_events`; E008 é leitura pura sobre `services/report.js` |
 | 3 | E005, E010 | Sim | E005 só consome a API de alertas de E004; E010 só valida gatilhos de envio |
+| 4 | E011 | Sim | Leitura sobre `tasks`/`task_history` já entregues (E003); classificação é coluna aditiva |
 
 ## Parallel Execution Guidance
 
@@ -85,7 +92,7 @@ Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_
 |------------|-------|----------|-------|
 | CAP-001 | Ciclo de domínio, papéis e acesso | P1 | E001 |
 | CAP-002 | Contrato e vigência | P1 | E002 |
-| CAP-003 | Execução de tarefas com evidência | P1 | E003 |
+| CAP-003 | Execução de tarefas com evidência | P1 | E003, E011 |
 | CAP-004 | Alertas de vigência e painel de próximos vencimentos | P1 | E004, E005 |
 | CAP-005 | Painel por papel | P1 | E006 |
 | CAP-006 | Busca e filtros | P1 | E007 |

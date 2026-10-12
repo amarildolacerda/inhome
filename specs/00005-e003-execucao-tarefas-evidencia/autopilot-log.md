@@ -106,3 +106,4 @@
 **Result**: HALTED at Implement+QC — manual verification lacks complete human attestation ([manual-test.md](manual-test.md) `Status: PENDING`)
 **Epic**: E003 — not marked complete (QC BLOCKED; [specs/project-plan.md](../project-plan.md))
 **Duration**: 2026-10-08 21:33:19 → 19:34:27 (resumo do run atual: 18:57:51 → 19:34:27)
+| 2026-10-11T14:18:00Z | QC re-seal | re_run | Full re-run (digest stale após attestation); battery unit 115/115, smoke 118/118, Edge proxy 5/5, flutter 16/16 + analyze limpo, audit 0, node --check PASS; attestation ATTESTED validada | PASS | 21 manifest rows re-signed; `.qc-passed` written + revalidated | [qc-report.md](qc-report.md), [.qc-passed](.qc-passed), [manual-test.md](manual-test.md) |

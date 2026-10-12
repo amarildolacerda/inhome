@@ -42,25 +42,36 @@ void main() {
     final labels = await openShellFor(tester, 'system_admin');
 
     expect(labels, ['Domínios']);
+    expect(find.text('Auditoria'), findsNothing);
     expect(find.text('Usuários'), findsNothing);
     expect(find.text('Finalidades'), findsNothing);
+    expect(find.text('Minhas Tarefas'), findsNothing);
+    expect(find.text('Vencimentos'), findsNothing);
+  });
+
+  testWidgets(
+      'SC-005 admin abre Dashboard, Vencimentos, Projetos, Usuários e Finalidades',
+      (tester) async {
+    final labels = await openShellFor(tester, 'admin');
+
+    expect(labels, [
+      'Dashboard',
+      'Vencimentos',
+      'Projetos',
+      'Usuários',
+      'Finalidades',
+      'Auditoria',
+    ]);
     expect(find.text('Minhas Tarefas'), findsNothing);
   });
 
   testWidgets(
-      'SC-005 admin abre Dashboard, Projetos, Usuários e Finalidades',
-      (tester) async {
-    final labels = await openShellFor(tester, 'admin');
-
-    expect(labels, ['Dashboard', 'Projetos', 'Usuários', 'Finalidades']);
-    expect(find.text('Minhas Tarefas'), findsNothing);
-  });
-
-  testWidgets('SC-005 gestor abre Dashboard, Projetos e Usuários',
+      'SC-005 gestor abre Dashboard, Vencimentos, Projetos e Usuários',
       (tester) async {
     final labels = await openShellFor(tester, 'gestor');
 
-    expect(labels, ['Dashboard', 'Projetos', 'Usuários']);
+    expect(
+        labels, ['Dashboard', 'Vencimentos', 'Projetos', 'Usuários', 'Auditoria']);
     expect(find.text('Finalidades'), findsNothing);
     expect(find.text('Minhas Tarefas'), findsNothing);
   });
@@ -70,7 +81,9 @@ void main() {
     final labels = await openShellFor(tester, 'prestador');
 
     expect(labels, ['Dashboard', 'Projetos', 'Minhas Tarefas']);
+    expect(find.text('Auditoria'), findsNothing);
     expect(find.text('Usuários'), findsNothing);
     expect(find.text('Finalidades'), findsNothing);
+    expect(find.text('Vencimentos'), findsNothing);
   });
 }

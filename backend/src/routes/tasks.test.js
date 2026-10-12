@@ -795,3 +795,145 @@ test('FR-011 prestador só enxerga as próprias tarefas', async () => {
   );
   assert.strictEqual(tasksRouter.canSeeTask({ role: 'gestor', id: 1 }, { assignee_id: movId }), true);
 });
+
+// ---- E010 (00012): avisos por e-mail — rotas de tarefa com SMTP vivo ----
+// Copia mínima do servidor fake de services/email.test.js (padrão do projeto):
+// 220/250 EHLO·MAIL·RCPT, 354 em DATA, 221 em QUIT, porta efêmera.
+const net = require('node:net');
+function startFakeSmtp() {
+  const messages = [];
+  // E010 T008: sessões TCP contadas para provar zero conexão no modo inerte.
+  const state = { sessions: 0 };
+  const server = net.createServer((sock) => {
+    state.sessions += 1;
+    let buf = '';
+    let inData = false;
+    sock.write('220 localhost ESMTP\r\n');
+    sock.on('data', (chunk) => {
+      buf += chunk;
+      if (inData) {
+        const end = buf.indexOf('\r\n.\r\n');
+        if (end !== -1) {
+          messages.push(buf.slice(0, end));
+          buf = buf.slice(end + 5);
+          inData = false;
+          sock.write('250 2.0.0 queued\r\n');
+        }
+        return;
+      }
+      let i;
+      while ((i = buf.indexOf('\r\n')) !== -1) {
+        const line = buf.slice(0, i);
+        buf = buf.slice(i + 2);
+        if (line.startsWith('EHLO')) sock.write('250-localhost\r\n250 SIZE 10000000\r\n');
+        else if (line.startsWith('MAIL')) sock.write('250 2.1.0 Ok\r\n');
+        else if (line.startsWith('RCPT')) sock.write('250 2.1.5 Ok\r\n');
+        else if (line.startsWith('DATA')) {
+          inData = true;
+          sock.write('354 End data with <CR><LF>.<CR><LF>\r\n');
+        } else if (line.startsWith('QUIT')) {
+          sock.write('221 2.0.0 Bye\r\n');
+          sock.end();
+        }
+      }
+    });
+    sock.on('error', () => {});
+  });
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      resolve({ server, messages, state, port: server.address().port });
+    });
+  });
+}
+
+// E010 T004 (SC-001): com SMTP configurado e vivo, atribuição, conclusão e
+// reabertura preservam as respostas 200/201 e entregam seus e-mails — o canal
+// opcional não muda o contrato das rotas.
+test('E010 FR-001: rotas de tarefa preservam 200/201 com SMTP vivo', async () => {
+  const smtp = await startFakeSmtp();
+  process.env.SMTP_HOST = '127.0.0.1';
+  process.env.SMTP_PORT = String(smtp.port);
+  try {
+    const created = await request(app)
+      .post(`/api/contracts/${contractId}/tasks`)
+      .set(as(gestorToken))
+      .send({ title: 'E010 SMTP vivo', assignee_id: movId });
+    assert.strictEqual(created.status, 201, JSON.stringify(created.body));
+
+    for (const status of ['Em Progresso', 'Revisão']) {
+      const move = await request(app)
+        .patch(`/api/tasks/${created.body.task.id}/status`)
+        .set(as(movToken))
+        .send({ status });
+      assert.strictEqual(move.status, 200, JSON.stringify(move.body));
+    }
+
+    const done = await request(app)
+      .post(`/api/tasks/${created.body.task.id}/complete`)
+      .set(as(movToken))
+      .send({ text: 'Fluxo completo com SMTP vivo' });
+    assert.strictEqual(done.status, 200, JSON.stringify(done.body));
+
+    const reopened = await request(app)
+      .post(`/api/tasks/${created.body.task.id}/reopen`)
+      .set(as(gestorToken))
+      .send({ motivo: 'ajuste pos inspecao' });
+    assert.strictEqual(reopened.status, 200, JSON.stringify(reopened.body));
+
+    assert.ok(
+      smtp.messages.length >= 3,
+      `assignment+completion+reopening entregues (${smtp.messages.length})`
+    );
+    const body = smtp.messages.join('\n--\n');
+    assert.ok(body.includes('Evento: assignment'), 'mensagem de atribuição capturada');
+    assert.ok(body.includes('Evento: completion'), 'mensagem de conclusão capturada');
+    assert.ok(body.includes('Evento: reopening'), 'mensagem de reabertura capturada');
+  } finally {
+    delete process.env.SMTP_HOST;
+    delete process.env.SMTP_PORT;
+    smtp.server.close();
+  }
+});
+
+// E010 T008 (FR-004/SC-004): modo inerte — servidor fake ao vivo, nenhum
+// SMTP_* no ambiente. Os quatro eventos respondem 200/201, nenhum erro sobe
+// e nenhuma conexão TCP é aberta (sessions === 0).
+test('E010 FR-004: rotas de tarefa respondem 200/201 sem SMTP_* (zero conexões)', async () => {
+  const smtp = await startFakeSmtp();
+  delete process.env.SMTP_HOST;
+  delete process.env.SMTP_PORT;
+  try {
+    const created = await request(app)
+      .post(`/api/contracts/${contractId}/tasks`)
+      .set(as(gestorToken))
+      .send({ title: 'E010 inerte rotas', assignee_id: movId });
+    assert.strictEqual(created.status, 201, JSON.stringify(created.body));
+    const taskId = created.body.task.id;
+
+    for (const status of ['Em Progresso', 'Revisão']) {
+      const move = await request(app)
+        .patch(`/api/tasks/${taskId}/status`)
+        .set(as(movToken))
+        .send({ status });
+      assert.strictEqual(move.status, 200, JSON.stringify(move.body));
+    }
+    const done = await request(app)
+      .post(`/api/tasks/${taskId}/complete`)
+      .set(as(movToken))
+      .send({ text: 'concluida sem smtp' });
+    assert.strictEqual(done.status, 200, JSON.stringify(done.body));
+    const reopened = await request(app)
+      .post(`/api/tasks/${taskId}/reopen`)
+      .set(as(gestorToken))
+      .send({ motivo: 'reaberta sem smtp' });
+    assert.strictEqual(reopened.status, 200, JSON.stringify(reopened.body));
+
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    assert.strictEqual(smtp.messages.length, 0, 'nenhuma mensagem entregue');
+    assert.strictEqual(smtp.state.sessions, 0, 'SC-004: nenhuma conexao aberta sem SMTP_*');
+  } finally {
+    delete process.env.SMTP_HOST;
+    delete process.env.SMTP_PORT;
+    smtp.server.close();
+  }
+});

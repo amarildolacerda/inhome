@@ -6,7 +6,7 @@ const User = require('../models/User');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const { getDomainDb } = require('../config/database');
 
-const ROLES = ['admin', 'gestor', 'prestador'];
+const ROLES = ['admin', 'gestor', 'prestador', 'auditor'];
 
 function httpError(status, message) {
   const err = new Error(message);

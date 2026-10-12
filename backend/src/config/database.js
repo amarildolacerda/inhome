@@ -114,6 +114,7 @@ const PLATFORM_SCHEMA = [
     name TEXT NOT NULL,
     slug TEXT NOT NULL UNIQUE,
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','suspended')),
+    alert_windows TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
@@ -127,18 +128,24 @@ const PLATFORM_SCHEMA = [
   )`,
 ];
 
-const DOMAIN_SCHEMA = [
-  `CREATE TABLE IF NOT EXISTS users (
+// E011 (FR-005): single source for the users DDL — used by fresh domain
+// creation (DOMAIN_SCHEMA) and by the legacy role-CHECK rebuild in
+// migrateSchema: SQLite cannot ALTER a CHECK constraint, so domains created
+// before the auditor role rebuild the table in place, same rows and ids.
+const USERS_DDL = `CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE,
     username TEXT UNIQUE,
     password_hash TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('admin','gestor','prestador')),
+    role TEXT NOT NULL CHECK (role IN ('admin','gestor','prestador','auditor')),
     active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`,
+  )`;
+
+const DOMAIN_SCHEMA = [
+  USERS_DDL,
   `CREATE TABLE IF NOT EXISTS purposes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
@@ -326,6 +333,8 @@ const DOMAIN_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_tasks_suggestion_item ON tasks(suggestion_item_id)',
   'CREATE INDEX IF NOT EXISTS idx_revision_conflicts_suggestion ON revision_conflicts(suggestion_id)',
   'CREATE INDEX IF NOT EXISTS idx_revision_conflicts_task ON revision_conflicts(task_id)',
+  // --- 00011 E005: hot sort da página do painel (AD-005) ---
+  'CREATE INDEX IF NOT EXISTS idx_contracts_forecast ON contracts(forecast_date)',
   'CREATE INDEX IF NOT EXISTS idx_entity_history_entity ON entity_history(entity_type, entity_id)',
 ];
 
@@ -352,7 +361,58 @@ function tableExists(wrapper, name) {
 // EXISTS would land an empty `purposes` beside a populated `finalidades` and
 // the rename guard would never fire.
 function migrateSchema(wrapper) {
+  // 00009 (FR-005): additive lazy migration on the platform side — per-domain
+  // alert windows as nullable TEXT (JSON array); NULL means the built-in
+  // [90,60,30,15] default, so fresh domains need zero setup. Same guard
+  // pattern as `username` on users: PRAGMA table_info + single ALTER.
+  if (wrapper.kind === 'platform') {
+    if (tableExists(wrapper, 'domains')) {
+      const domainColumns = wrapper.all('PRAGMA table_info(domains)').map((column) => column.name);
+      if (!domainColumns.includes('alert_windows')) {
+        wrapper.run('ALTER TABLE domains ADD COLUMN alert_windows TEXT');
+      }
+    }
+    return;
+  }
+
   if (wrapper.kind !== 'domain') return;
+
+  // 00009 (FR-001): additive lazy creation of alert_events (Q5 pattern from
+  // the purposes/contract_providers renames): runs on every open of a domain
+  // database BEFORE applySchema, guarded so it fires exactly once per file.
+  // UNIQUE(contract_id, window_days) is the dedup backbone of E004: the row
+  // is written BEFORE any email/room side effect (FR-003).
+  if (!tableExists(wrapper, 'alert_events')) {
+    wrapper.run(
+      `CREATE TABLE alert_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        contract_id INTEGER NOT NULL,
+        window_days INTEGER NOT NULL,
+        email_status TEXT NOT NULL CHECK (email_status IN ('sent','failed','skipped')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(contract_id, window_days)
+      )`
+    );
+  }
+
+  // E011 (FR-002/FR-003): classificação corrente de tarefa executada —
+  // mesmo padrão do alert_events acima: CREATE TABLE IF NOT EXISTS guardado
+  // por tableExists em migrateSchema, antes de applySchema. Dispara uma vez
+  // por arquivo; bancos antigos abrem sem linhas (visão vazia, 200) e bancos
+  // novos recebem a tabela na abertura de criação.
+  if (!tableExists(wrapper, 'task_classifications')) {
+    wrapper.run(
+      `CREATE TABLE task_classifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id INTEGER NOT NULL UNIQUE REFERENCES tasks(id),
+        state TEXT NOT NULL CHECK (state IN ('atendido plenamente','atendido com resalva','deficiente (a corrigir)')),
+        note TEXT,
+        classified_by INTEGER NOT NULL REFERENCES users(id),
+        classified_at TEXT NOT NULL DEFAULT (datetime('now')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`
+    );
+  }
 
   // English is the table-naming standard: rename the two legacy Portuguese
   // tables in place, preserving every row. ALTER TABLE ... RENAME TO rewrites
@@ -381,6 +441,29 @@ function migrateSchema(wrapper) {
     const columns = wrapper.all('PRAGMA table_info(users)').map((column) => column.name);
     if (!columns.includes('username')) {
       wrapper.run('ALTER TABLE users ADD COLUMN username TEXT');
+    }
+
+    // E011 (FR-005): widen the role CHECK to accept `auditor`. SQLite cannot
+    // ALTER a CHECK constraint, so the table is rebuilt in place: copy rows
+    // (ids preserved) into a table with the current DDL, drop the old one,
+    // rename the copy. The copy → drop → rename order never rewrites the
+    // REFERENCES clauses other tables hold on `users`, with foreign_keys on
+    // or off. Runs after the username ALTER above; the guard fires only on
+    // schemas frozen before E011 (checked on sqlite_master, so fresh files
+    // created by applySchema skip it entirely).
+    const usersSql = wrapper.get(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'"
+    )?.sql;
+    if (usersSql && usersSql.includes("'prestador'") && !usersSql.includes("'auditor'")) {
+      wrapper.run(
+        USERS_DDL.replace('CREATE TABLE IF NOT EXISTS users', 'CREATE TABLE users_e011')
+      );
+      wrapper.run(
+        `INSERT INTO users_e011(id, name, email, username, password_hash, role, active, created_at, updated_at)
+         SELECT id, name, email, username, password_hash, role, active, created_at, updated_at FROM users`
+      );
+      wrapper.run('DROP TABLE users');
+      wrapper.run('ALTER TABLE users_e011 RENAME TO users');
     }
   }
 

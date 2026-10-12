@@ -1,0 +1,231 @@
+openapi: 3.0.3
+info:
+  title: "InHome — Acesso de auditoria e classificação (E011)"
+  version: 0.1.0
+  description: |
+    Superfície de auditoria da épica E011 (spec FR-001..FR-007).
+
+    Escopo de domínio (FR-001, FR-006): toda rota aplica `authenticateToken`,
+    `requireRole('auditor','admin','gestor')` e o guarda de escopo; um
+    `domainId` explícito diferente do domínio do token responde 403 antes de
+    qualquer consulta. `prestador` e `system_admin` recebem 403; sem token →
+    401; token inválido ou domínio suspenso → 403.
+
+    Visão de executadas (FR-001, FR-004): a lista devolve apenas tarefas com
+    status 'Revisão' ou 'Concluída' do domínio do token; tarefa inexistente ou
+    de outro domínio responde 404 sem revelar existência.
+
+    Classificação (FR-002, FR-003): um registro corrente por tarefa
+    (UNIQUE(task_id)) substituído integralmente na reclassificação, sempre com
+    autor e data atuais; versões anteriores não são preservadas. Estado fora
+    dos três literais ou nota acima de 500 caracteres → 400 sem escrita;
+    escrita em tarefa fora de 'Revisão'/'Concluída' → 400. Concorrência é
+    last-write-wins (200), sem trava otimista.
+
+    Erros: corpo `{ "error": "..." }` em todos os códigos de erro.
+servers:
+  - url: /
+    description: "Mesmo origin (nginx :80) ou backend local na porta 3001"
+security:
+  - bearerAuth: []
+tags:
+  - name: Audits
+    description: "Visão de auditoria e classificação (E011)"
+paths:
+  /api/audits/tasks:
+    get:
+      tags: [Audits]
+      summary: "Lista tarefas executadas do domínio com classificação"
+      operationId: listAuditTasks
+      responses:
+        "200":
+          description: "Tarefas em Revisão/Concluída do domínio do token"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuditTaskItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/audits/tasks/{id}:
+    get:
+      tags: [Audits]
+      summary: "Detalhe da tarefa executada com histórico, anexos e classificação"
+      operationId: getAuditTask
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: "Detalhe com history, attachments e classification"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditTaskDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/audits/tasks/{id}/classification:
+    put:
+      tags: [Audits]
+      summary: "Grava ou substitui a classificação da tarefa"
+      description: |
+        Idempotente por tarefa: a primeira gravação insere e as seguintes
+        substituem o registro corrente. Só aceita tarefa em 'Revisão' ou
+        'Concluída' do domínio do token.
+      operationId: putClassification
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClassificationInput"
+      responses:
+        "200":
+          description: "Classificação corrente gravada"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Classification"
+        "400":
+          description: "Estado inválido, nota acima de 500 caracteres ou tarefa fora de Revisão/Concluída"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NotFound"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    TaskId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    Unauthorized:
+      description: "Sem token"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: "Papel sem permissão, domínio divergente ou domínio suspenso"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: "Tarefa inexistente ou de outro domínio"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    Classification:
+      type: object
+      required: [state, note, classified_by, classified_at]
+      properties:
+        state:
+          type: string
+          enum: [atendido plenamente, atendido com resalva, deficiente (a corrigir)]
+        note:
+          type: string
+          maxLength: 500
+          nullable: true
+        classified_by:
+          type: integer
+        classified_at:
+          type: string
+    ClassificationInput:
+      type: object
+      required: [state]
+      properties:
+        state:
+          type: string
+          enum: [atendido plenamente, atendido com resalva, deficiente (a corrigir)]
+        note:
+          type: string
+          maxLength: 500
+          nullable: true
+    AuditTaskItem:
+      type: object
+      required: [id, title, status, contract_id, classification]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        status:
+          type: string
+          enum: ["A Fazer", "Em Progresso", "Revisão", "Concluída"]
+        contract_id:
+          type: integer
+        assignee_name:
+          type: string
+          nullable: true
+        due_date:
+          type: string
+          nullable: true
+        classification:
+          oneOf:
+            - $ref: "#/components/schemas/Classification"
+            - type: "null"
+    AuditTaskDetail:
+      allOf:
+        - $ref: "#/components/schemas/AuditTaskItem"
+        - type: object
+          required: [description, completed_text, history, attachments]
+          properties:
+            description:
+              type: string
+              nullable: true
+            completed_text:
+              type: string
+              nullable: true
+            history:
+              type: array
+              items:
+                type: object
+                required: [action, user_id, created_at]
+                properties:
+                  action:
+                    type: string
+                  note:
+                    type: string
+                    nullable: true
+                  user_id:
+                    type: integer
+                    nullable: true
+                  created_at:
+                    type: string
+            attachments:
+              type: array
+              items:
+                type: object
+                required: [path]
+                properties:
+                  path:
+                    type: string
+                  uploaded_by:
+                    type: integer
+                    nullable: true

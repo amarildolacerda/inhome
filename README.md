@@ -27,6 +27,7 @@ Organize contratos de terceiros, acompanhe o trabalho contratado e mantenha a ex
 - **Busca e filtros** por contrato, status, prioridade, prestador, finalidade e prazo
 - **Painel (dashboard)** com o andamento do domínio; cada prestador vê só o que é seu
 - **Relatório em PDF** por contrato: o que foi feito, quem executou, datas e fotos
+- **Vencimentos próximos**: tela agrupa os contratos pelas janelas de alerta (90/60/30/15, configuráveis por domínio) e destaca quem já foi alertado
 
 ### Trabalho em equipe no mesmo ritmo
 - Atualizações aparecem na tela dos outros na hora, sem precisar recarregar
@@ -39,7 +40,7 @@ Organize contratos de terceiros, acompanhe o trabalho contratado e mantenha a ex
 3. O gestor cria o contrato, vincula prestadores e distribui as tarefas
 4. O prestador executa e conclui com texto e fotos
 5. O gestor acompanha pelo painel, reabre se preciso e gera o relatório do contrato
-
+6. O auditor pode consultar e comentar a execução da tarefa classificando como satisfatorio, deficiente, .... (pensar) 
 ## Quem pode o quê
 
 | Ação | system_admin | admin | gestor | prestador |
@@ -52,6 +53,7 @@ Organize contratos de terceiros, acompanhe o trabalho contratado e mantenha a ex
 | Reabrir tarefa com motivo | ❌ | ✅ | ✅ | ❌ |
 | Relatório PDF | ❌ | ✅ | ✅ | ❌ |
 | Dashboard | ❌ | completo | completo | só as suas tarefas |
+| Vencimentos (painel + janelas) | ❌ | ✅ | ✅ | ❌ |
 
 Cada cliente (domínio) tem os dados separados: o que acontece em um domínio não aparece em outro. Suspender um domínio bloqueia o acesso, mas **nunca apaga** os dados.
 

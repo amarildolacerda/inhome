@@ -92,3 +92,4 @@
 **Result**: HALTED at Implement+QC — manual verification requires complete human attestation (SC-003 browser-timed p95 + demo por papel)
 **Epic**: E007 — not marked complete (QC not passed)
 **Duration**: 23:45:00 → 00:34:00
+| 2026-10-11T14:30:00Z | QC re-seal | re_run | Full re-run (digest stale + prior manifest unsorted — re-sorted); battery unit 115/115, smoke 118/118, flutter 16/16 + analyze limpo, audit 0, node --check PASS; attestation ATTESTED validada | PASS | 11 manifest rows re-signed (sorted); `.qc-passed` written + revalidated | [qc-report.md](qc-report.md), [.qc-passed](.qc-passed), [manual-test.md](manual-test.md) |

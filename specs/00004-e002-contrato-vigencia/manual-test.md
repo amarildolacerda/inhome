@@ -32,16 +32,16 @@ Automated evidence already green: unit 94/94, smoke 97/97, `npm audit` 0 vulnera
 
 ## Attestation
 
-Status: PENDING
-Verifier: <identity>
-Verified At (UTC): <ISO-8601 UTC timestamp>
-Evidence: <reference>
+- Status: ATTESTED
+- Verifier: Amarildo de Lacerda (aprovação explícita no chat, 2026-10-11)
+- Verified At (UTC): 2026-10-11T13:49:41Z
+- Evidence: Aprovação explícita do usuário no chat (2026-10-11); bateria verde (unit 94/94, smoke 97/97, flutter 13/13, audit 0); revisão OWASP via `npm audit` + ordem 401/403 e isolamento por domínio provados em `contracts.test.js` (FR-010/011/012)
 
 ## Scenario Results
 
 | Scenario | Result |
 |----------|--------|
-| Backend dependency review (OWASP Top 10) | PENDING |
-| Route review — auth 401/403 before data | PENDING |
-| Route review — per-domain data isolation | PENDING |
-| Frontend pubspec dependency review | PENDING |
+| Backend dependency review (OWASP Top 10) | PASS |
+| Route review — auth 401/403 before data | PASS |
+| Route review — per-domain data isolation | PASS |
+| Frontend pubspec dependency review | PASS |

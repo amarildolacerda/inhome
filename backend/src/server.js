@@ -83,6 +83,8 @@ app.use('/api/tasks', require('./routes/comments')); // FR-015: /:id/comments
 app.use('/api/tasks', require('./routes/attachments')); // FR-015: /:id/attachments
 app.use('/api/search', require('./routes/search')); // FR-016: combined filters
 app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/alerts', require('./routes/alerts')); // 00009 E004 FR-006: POST /sweep (admin)
+app.use('/api/audits', require('./routes/audits')); // 00013 E011 FR-001..004: visão de auditoria
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -156,6 +158,12 @@ async function start(port = Number(process.env.PORT) || DEFAULT_PORT) {
   const sweep = () => runDueSweep().catch(() => { });
   sweep();
   setInterval(sweep, 60 * 60 * 1000).unref();
+  // 00009 E004 FR-002: contract-expiry sweep — boot + hourly, off the request
+  // path; always runs (unlike runDueSweep) and swallows errors per pass.
+  const { runExpirySweep } = require('./services/alerts');
+  const expirySweep = () => runExpirySweep().catch(() => { });
+  expirySweep();
+  setInterval(expirySweep, 60 * 60 * 1000).unref();
   return new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(port, () => resolve(server));
