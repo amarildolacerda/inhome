@@ -91,9 +91,9 @@
 | Path | SHA-256 |
 |------|---------|
 | backend/src/middleware/auth.js | 34f61d0cd063ce68d69d2559299fe740f8175ee8fb166a0247f3f9156f46a561 |
-| backend/src/routes/dashboard.js | d970452dbbaee48fc42aa9eb42b210b4fa6053ac2e1d51d98f0454ca1be5bacb |
-| backend/src/routes/dashboard.test.js | b655fe514b627a785155d4bb72ab574ac28ca9af5e741279f856dea032b3df8b |
-| frontend/lib/main.dart | f4c6481f669d33f0119ebc98a3572a1cf68046ce0ee9c667cf42dbbc8663a263 |
+| backend/src/routes/dashboard.js | b55e171d0758828762518efd492627dee36b4ba8f895ef2cc2a3bd817c7989f8 |
+| backend/src/routes/dashboard.test.js | c42fa0efc8ffd1258d0c59875e9b980a2a74c6ae2e3014073116025ab4c9175a |
+| frontend/lib/main.dart | 99c4e08866c7ae89614178711d2bfe29c845fc9b44e13198b944e17b0a1babb1 |
 | frontend/lib/screens/dashboard_screen.dart | 536782455544479e096dc600188f3aafae248294e32cc7557ce9673e8e32ac76 |
 | frontend/lib/screens/projects_screen.dart | 5d5c18113324992ccef5ed2f5cd39c0e997152ddd12487b4e79a203290831ef6 |
 | frontend/lib/screens/tasks_screen.dart | 5a7f3004f1a83779f457b020ce6083664e57bebdcd330ce3a8c11edc0c784a14 |

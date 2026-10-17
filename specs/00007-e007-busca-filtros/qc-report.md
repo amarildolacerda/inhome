@@ -92,7 +92,7 @@
 |------|---------|
 | backend/src/config/database.js | dd8eb160af618f6ee17247a92f8cd3db4041825599c1dd7e3ff235a8e99e20e3 |
 | backend/src/routes/search.js | 8ee8dc248ddfdec0c611702e0931f55cc98c8b54b2cfa2e888e40dbbcd7b7f09 |
-| backend/src/routes/search.test.js | e10118c6e026e630ba2c2611c53dd2de98bd647c1cb7f4c305872e405a0016f9 |
+| backend/src/routes/search.test.js | 7e8f5e6e40b1389af316f00f876ebe39553f687048d783ffb50a4e0ee747abb1 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00007-e007-busca-filtros/checklists/CHL001-security.md | 353b822ddcbdc6dd47526cb587c6aa1d2503c3a6104afb4c114e97ec0b9113f8 |
 | specs/00007-e007-busca-filtros/checklists/CHL002-api-quality.md | bd9173147c69ae01f39eb257c434deb1a2ea5e8079d1cfaebcd243b0823851df |

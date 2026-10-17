@@ -99,9 +99,9 @@
 ## QC Evidence Manifest
 | Path | SHA-256 |
 |------|---------|
-| backend/src/routes/contracts.js | aef99e4e897d83be1e72eda31abf322cc4bba65b74e3d7dd6b2c1b22f721bbb5 |
+| backend/src/routes/contracts.js | 8402af134728216e79f89d0e293c5afb07d42425d686f623ce4356db895538d2 |
 | backend/src/services/report.js | 524e561728a086fd66b1019ace16340ccbf7ae7d3611bcb89f80c653dd82003b |
-| backend/src/services/report.test.js | cdcdc434d840108a63b862800171ee4c60fac9a00a8ca1d60a990642b22f4da9 |
+| backend/src/services/report.test.js | acc4768c40918bdd541646c1c5484ea3c48ae9e0446598c660aac1c95b5ad316 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00010-e008-relatorio-pdf-csv/checklists/CHL001-security.md | 8e2c4b7b4cdb8703224be54ad53439420286af7bab1f1cfcd1bd39a1eac4295f |
 | specs/00010-e008-relatorio-pdf-csv/checklists/CHL002-resilience.md | 0e7b9c5343e56a52d8489beedd72ce0fd0c180444138ecd1aec30278dd1bf656 |

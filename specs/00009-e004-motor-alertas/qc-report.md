@@ -98,9 +98,9 @@
 | backend/src/config/database.js | dd8eb160af618f6ee17247a92f8cd3db4041825599c1dd7e3ff235a8e99e20e3 |
 | backend/src/config/database.test.js | 849a804f0f4168fa33d412272bbebcf9a4a9e1d400493b3ec15abf517f07ead0 |
 | backend/src/routes/alerts.js | 0bd126ebced5da06e3ea1d8e902b6f5edc3aa0a8ab30b1b7fd1faa0120ed1d8d |
-| backend/src/routes/alerts.test.js | 9040d13eb927ecc5832720e53c4808b468ad33fd2a9184edac72ddb9bf55ba5a |
-| backend/src/server.js | aef98350b0e901b95fa62e4681e26c695e7d234c9f29e561875e436a512b360e |
-| backend/src/services/alerts.js | 3cbef1caadc34c4d887caab2be296278526e4e6597dc2778a5d840e0fdc05a81 |
+| backend/src/routes/alerts.test.js | 7cbb94324076fc409e0a34248b8db8fce82a05f042fb16da0f62a06c52a4fde6 |
+| backend/src/server.js | c3d963494f21ba84ec433f513f2230d36d245b4e4b5833003b58248d0a55d6ce |
+| backend/src/services/alerts.js | 29fcbcf52a5b68c480613898fe095ef266d674dcde667738bb202422e2000127 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00009-e004-motor-alertas/checklists/CHL001-data-integrity.md | 1cea5f3928012164cbc293a5462cb713bb6d241bc464210cd41fca51bf336857 |
 | specs/00009-e004-motor-alertas/checklists/CHL002-security.md | dff0ab73c5dec73ac4d94b4c9aad512037ad69ac7f3fb0e7c206c1313a351c9f |

@@ -114,11 +114,11 @@
 |------|---------|
 | backend/src/config/database.js | dd8eb160af618f6ee17247a92f8cd3db4041825599c1dd7e3ff235a8e99e20e3 |
 | backend/src/routes/alerts.js | 0bd126ebced5da06e3ea1d8e902b6f5edc3aa0a8ab30b1b7fd1faa0120ed1d8d |
-| backend/src/routes/alerts.test.js | 9040d13eb927ecc5832720e53c4808b468ad33fd2a9184edac72ddb9bf55ba5a |
-| backend/src/services/alerts.js | 3cbef1caadc34c4d887caab2be296278526e4e6597dc2778a5d840e0fdc05a81 |
-| frontend/lib/main.dart | f4c6481f669d33f0119ebc98a3572a1cf68046ce0ee9c667cf42dbbc8663a263 |
+| backend/src/routes/alerts.test.js | 7cbb94324076fc409e0a34248b8db8fce82a05f042fb16da0f62a06c52a4fde6 |
+| backend/src/services/alerts.js | 29fcbcf52a5b68c480613898fe095ef266d674dcde667738bb202422e2000127 |
+| frontend/lib/main.dart | 99c4e08866c7ae89614178711d2bfe29c845fc9b44e13198b944e17b0a1babb1 |
 | frontend/lib/screens/vencimentos_screen.dart | 3c5bb4e88da901d945c6a4ecff6092183083214bb6f9b63d9362268ed1db2d8e |
-| frontend/lib/services/api_service.dart | 7fb65869ec8eb2746da21bd9faa8f2989719cfd838b30ab4605c8939a7d900c7 |
+| frontend/lib/services/api_service.dart | 931db7ede934f1106ca308204718d34343db3a0a4c87bd130720f816e00cf11f |
 | frontend/test/roles_nav_test.dart | 2c36a128d29be3411426d919aa0754c37aa6b3ab4cde0a23b61b10178d1e6576 |
 | frontend/test/vencimentos_screen_test.dart | d66485b65e2a5a340a0728d33d45b8d0840d3be71909e040ff6071f3ad25bef6 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
