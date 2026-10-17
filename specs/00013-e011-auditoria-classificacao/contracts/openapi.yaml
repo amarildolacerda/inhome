@@ -32,7 +32,7 @@ tags:
   - name: Audits
     description: "Visão de auditoria e classificação (E011)"
 paths:
-  /api/audits/tasks:
+  /api/v2/audits/tasks:
     get:
       tags: [Audits]
       summary: "Lista tarefas executadas do domínio com classificação"
@@ -54,7 +54,7 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-  /api/audits/tasks/{id}:
+  /api/v2/audits/tasks/{id}:
     get:
       tags: [Audits]
       summary: "Detalhe da tarefa executada com histórico, anexos e classificação"
@@ -70,7 +70,7 @@ paths:
                 $ref: "#/components/schemas/AuditTaskDetail"
         "404":
           $ref: "#/components/responses/NotFound"
-  /api/audits/tasks/{id}/classification:
+  /api/v2/audits/tasks/{id}/classification:
     put:
       tags: [Audits]
       summary: "Grava ou substitui a classificação da tarefa"

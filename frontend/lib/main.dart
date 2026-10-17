@@ -204,8 +204,8 @@ class _MainShellState extends State<MainShell> {
   }
 
   /// [FR-022] matriz de papéis: cada papel só vê telas cujas rotas o backend
-  /// aceita para ele (system_admin só /api/domains*; rotas de negócio respondem
-  /// 403 para system_admin, e /api/users aceita GET para admin+gestor).
+  /// aceita para ele (system_admin só /api/v2/domains*; rotas de negócio respondem
+  /// 403 para system_admin, e /api/v2/users aceita GET para admin+gestor).
   /// Tarefas: admin/gestor entram pelo canal do contrato (Projetos → detalhe);
   /// prestador mantém a fila pessoal 'Minhas Tarefas' (GET /tasks já escopa).
   ///

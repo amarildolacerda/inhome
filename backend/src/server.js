@@ -49,7 +49,7 @@ function emitDomainEvent(event, domainId, payload = {}) {
 }
 require('./services/events').setEmitter(emitDomainEvent);
 
-// FR-021: estado da geração para o polling de GET /api/contracts/:id/analysis
+// FR-021: estado da geração para o polling de GET /api/v2/contracts/:id/analysis
 // (recurso consultado pelo frontend sem recarregar; null = sem análise ainda).
 function getAnalysisStatus(domainId, contractId) {
   if (!Number.isInteger(contractId) || contractId <= 0) return null;
@@ -63,30 +63,10 @@ function getAnalysisStatus(domainId, contractId) {
 app.use('/uploads', express.static(require('./middleware/upload').UPLOAD_DIR));
 
 // Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/domains', require('./routes/domains'));
-app.use('/api/users', require('./routes/users'));
-app.use('/api/finalidades', require('./routes/finalidades'));
-app.use('/api/contracts', require('./routes/contracts')); // AD-003: projects remodeled to contratos
-app.use('/api/contracts', require('./routes/definitions')); // 00003 FR-001/FR-017: definições versionadas
-app.use('/api/contracts', require('./routes/workflow')); // 00003 FR-010: opt-in + workflow ativo
-app.use('/api/contracts', require('./routes/review')); // 00003 US7: revisão na vigência
 const suggestionsRouter = require('./routes/suggestions'); // 00003: análise + sugestões
-app.use('/api/contracts', suggestionsRouter.nested); // POST /api/contracts/:id/analysis
-app.use('/api/suggestions', suggestionsRouter);
-app.use('/api/opencode', require('./routes/opencodeConfig')); // 00003 NEW-CONFIG: timeout/flags
 const tasksRouter = require('./routes/tasks');
-app.use('/api/contracts', tasksRouter.nested); // POST /api/contracts/:contractId/tasks
-app.use('/api/tasks', tasksRouter);
-app.use('/api/tasks', require('./routes/executionPlan')); // 00003 FR-014/FR-015: /:id/execution-plan
-app.use('/api/tasks', require('./routes/comments')); // FR-015: /:id/comments
-app.use('/api/tasks', require('./routes/attachments')); // FR-015: /:id/attachments
-app.use('/api/search', require('./routes/search')); // FR-016: combined filters
-app.use('/api/dashboard', require('./routes/dashboard'));
-app.use('/api/alerts', require('./routes/alerts')); // 00009 E004 FR-006: POST /sweep (admin)
-app.use('/api/audits', require('./routes/audits')); // 00013 E011 FR-001..004: visão de auditoria
 
-// fase 5: alias v1 → v2. Mesmos routers sob /api/v2; v1 fica congelado.
+// v1 removido em 2026-10-17 — superfície única /api/v2
 // Exceção de nome: finalidades monta em /api/v2/purposes (segmento EN).
 app.use('/api/v2/auth', require('./routes/auth'));
 app.use('/api/v2/domains', require('./routes/domains'));
@@ -110,10 +90,6 @@ app.use('/api/v2/alerts', require('./routes/alerts'));
 app.use('/api/v2/audits', require('./routes/audits'));
 
 // Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-// fase 5: alias v1 → v2
 app.get('/api/v2/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });

@@ -32,7 +32,7 @@ function as(token) {
 
 async function login(email, password, domId) {
   const res = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email, password, domainId: domId });
   assert.strictEqual(res.status, 200, `${email}: ${JSON.stringify(res.body)}`);
   return res.body.token;
@@ -45,9 +45,9 @@ function futureDate(days) {
 test.before(async () => {
   await initTestDb();
 
-  const sys = await request(app).post('/api/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  const sys = await request(app).post('/api/v2/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   const enabled = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Teta Email',
@@ -64,7 +64,7 @@ test.before(async () => {
     ['Mila', 'mila@teta.test', 'prestador'],
   ]) {
     const res = await request(app)
-      .post('/api/users')
+      .post('/api/v2/users')
       .set(as(adminToken))
       .send({ name, email, password: 'Secret1!', role, username: email.split('@')[0] });
     assert.strictEqual(res.status, 201);
@@ -76,14 +76,14 @@ test.before(async () => {
   prestadorId = db.get("SELECT id FROM users WHERE email = 'mila@teta.test'").id;
 
   const contract = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'Obra Email', start_date: futureDate(-5), forecast_date: futureDate(60) });
   assert.strictEqual(contract.status, 201);
   contractId = contract.body.contract.id;
 
   const linked = await request(app)
-    .post(`/api/contracts/${contractId}/prestadores`)
+    .post(`/api/v2/contracts/${contractId}/providers`)
     .set(as(gestorToken))
     .send({ user_id: prestadorId });
   assert.ok([200, 201].includes(linked.status));
@@ -139,14 +139,14 @@ function startFakeSmtp() {
 
 async function createTaskToRevisao(title, opts = {}) {
   const created = await request(app)
-    .post(`/api/contracts/${contractId}/tasks`)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
     .set(as(gestorToken))
     .send({ title, assignee_id: prestadorId, ...opts });
   assert.strictEqual(created.status, 201, JSON.stringify(created.body));
   const taskId = created.body.task.id;
   for (const status of ['Em Progresso', 'Revisão']) {
     const move = await request(app)
-      .patch(`/api/tasks/${taskId}/status`)
+      .patch(`/api/v2/tasks/${taskId}/status`)
       .set(as(prestadorToken))
       .send({ status });
     assert.strictEqual(move.status, 200, JSON.stringify(move.body));
@@ -170,12 +170,12 @@ test('FR-017 SMTP gate', async () => {
   // the four API flows work with the gate closed — no errors surface
   const gatedTask = await createTaskToRevisao('Tarefa com gate fechado');
   const gatedComplete = await request(app)
-    .post(`/api/tasks/${gatedTask}/complete`)
+    .post(`/api/v2/tasks/${gatedTask}/complete`)
     .set(as(prestadorToken))
     .send({ text: 'Concluida sem SMTP' });
   assert.strictEqual(gatedComplete.status, 200, JSON.stringify(gatedComplete.body));
   const gatedReopen = await request(app)
-    .post(`/api/tasks/${gatedTask}/reopen`)
+    .post(`/api/v2/tasks/${gatedTask}/reopen`)
     .set(as(gestorToken))
     .send({ motivo: 'reabrir com gate fechado' });
   assert.strictEqual(gatedReopen.status, 200, JSON.stringify(gatedReopen.body));
@@ -197,21 +197,21 @@ test('FR-017 SMTP gate', async () => {
       "SELECT id FROM tasks WHERE title = 'Tarefa com SMTP aberto'"
     );
     const done = await request(app)
-      .post(`/api/tasks/${task.id}/complete`)
+      .post(`/api/v2/tasks/${task.id}/complete`)
       .set(as(prestadorToken))
       .send({ text: 'Concluida com SMTP' });
     assert.strictEqual(done.status, 200, JSON.stringify(done.body));
 
     // trigger 3: reopening
     const reopened = await request(app)
-      .post(`/api/tasks/${task.id}/reopen`)
+      .post(`/api/v2/tasks/${task.id}/reopen`)
       .set(as(gestorToken))
       .send({ motivo: 'inspecao pediu refaco' });
     assert.strictEqual(reopened.status, 200, JSON.stringify(reopened.body));
 
     // trigger 4: due — a task due today, then the sweep
     const dueCreated = await request(app)
-      .post(`/api/contracts/${contractId}/tasks`)
+      .post(`/api/v2/contracts/${contractId}/tasks`)
       .set(as(gestorToken))
       .send({ title: 'Tarefa vence hoje', assignee_id: prestadorId, due_date: futureDate(0) });
     assert.strictEqual(dueCreated.status, 201, JSON.stringify(dueCreated.body));
@@ -268,7 +268,7 @@ test('E010 FR-001: atribuição, conclusão e reabertura respondem 200/201 e ent
     assert.ok(smtp.messages[0].includes('To: <mila@teta.test>'), 'atribuição vai ao atribuído');
 
     const done = await request(app)
-      .post(`/api/tasks/${taskId}/complete`)
+      .post(`/api/v2/tasks/${taskId}/complete`)
       .set(as(prestadorToken))
       .send({ text: 'Concluida no e2e E010' });
     assert.strictEqual(done.status, 200, JSON.stringify(done.body));
@@ -279,7 +279,7 @@ test('E010 FR-001: atribuição, conclusão e reabertura respondem 200/201 e ent
     );
 
     const reopened = await request(app)
-      .post(`/api/tasks/${taskId}/reopen`)
+      .post(`/api/v2/tasks/${taskId}/reopen`)
       .set(as(gestorToken))
       .send({ motivo: 'ajuste pos inspecao E010' });
     assert.strictEqual(reopened.status, 200, JSON.stringify(reopened.body));
@@ -309,7 +309,7 @@ test('E010 FR-004: quatro eventos sem SMTP_* não conectam no servidor fake', as
   assert.strictEqual(smtpConfigured(), false, 'gate fechado');
   try {
     const created = await request(app)
-      .post(`/api/contracts/${contractId}/tasks`)
+      .post(`/api/v2/contracts/${contractId}/tasks`)
       .set(as(gestorToken))
       .send({ title: 'E010 modo inerte', assignee_id: prestadorId });
     assert.strictEqual(created.status, 201, JSON.stringify(created.body));
@@ -317,24 +317,24 @@ test('E010 FR-004: quatro eventos sem SMTP_* não conectam no servidor fake', as
 
     for (const status of ['Em Progresso', 'Revisão']) {
       const move = await request(app)
-        .patch(`/api/tasks/${taskId}/status`)
+        .patch(`/api/v2/tasks/${taskId}/status`)
         .set(as(prestadorToken))
         .send({ status });
       assert.strictEqual(move.status, 200, JSON.stringify(move.body));
     }
     const done = await request(app)
-      .post(`/api/tasks/${taskId}/complete`)
+      .post(`/api/v2/tasks/${taskId}/complete`)
       .set(as(prestadorToken))
       .send({ text: 'inerte' });
     assert.strictEqual(done.status, 200, JSON.stringify(done.body));
     const reopened = await request(app)
-      .post(`/api/tasks/${taskId}/reopen`)
+      .post(`/api/v2/tasks/${taskId}/reopen`)
       .set(as(gestorToken))
       .send({ motivo: 'reaberta inerte' });
     assert.strictEqual(reopened.status, 200, JSON.stringify(reopened.body));
 
     // O quarto gatilho (vencimento) também passa pelo notify inerte.
-    const alert = await request(app).post('/api/alerts/sweep').set(as(adminToken)).send({});
+    const alert = await request(app).post('/api/v2/alerts/sweep').set(as(adminToken)).send({});
     assert.strictEqual(alert.status, 200, JSON.stringify(alert.body));
 
     // Pequena espera para qualquer conexão atrasada chegar ao servidor.
@@ -379,7 +379,7 @@ test('E010 FR-005: host morto — notify sent:false sem lançar e rotas 200/201 
 
     // Resposta HTTP preservada nos quatro eventos mesmo com host morto.
     const created = await request(app)
-      .post(`/api/contracts/${contractId}/tasks`)
+      .post(`/api/v2/contracts/${contractId}/tasks`)
       .set(as(gestorToken))
       .send({ title: 'E010 host morto rotas', assignee_id: prestadorId });
     assert.strictEqual(created.status, 201, JSON.stringify(created.body));
@@ -387,24 +387,24 @@ test('E010 FR-005: host morto — notify sent:false sem lançar e rotas 200/201 
 
     for (const status of ['Em Progresso', 'Revisão']) {
       const move = await request(app)
-        .patch(`/api/tasks/${taskId}/status`)
+        .patch(`/api/v2/tasks/${taskId}/status`)
         .set(as(prestadorToken))
         .send({ status });
       assert.strictEqual(move.status, 200, JSON.stringify(move.body));
     }
     const done = await request(app)
-      .post(`/api/tasks/${taskId}/complete`)
+      .post(`/api/v2/tasks/${taskId}/complete`)
       .set(as(prestadorToken))
       .send({ text: 'concluida com host morto' });
     assert.strictEqual(done.status, 200, JSON.stringify(done.body));
     const reopened = await request(app)
-      .post(`/api/tasks/${taskId}/reopen`)
+      .post(`/api/v2/tasks/${taskId}/reopen`)
       .set(as(gestorToken))
       .send({ motivo: 'reaberta com host morto' });
     assert.strictEqual(reopened.status, 200, JSON.stringify(reopened.body));
 
     // E o quarto gatilho via API: varredura responde 200 mesmo sem entregar.
-    const sweep = await request(app).post('/api/alerts/sweep').set(as(adminToken)).send({});
+    const sweep = await request(app).post('/api/v2/alerts/sweep').set(as(adminToken)).send({});
     assert.strictEqual(sweep.status, 200, JSON.stringify(sweep.body));
   } finally {
     delete process.env.SMTP_HOST;
@@ -432,32 +432,32 @@ test('E010 FR-006: notify() captura rejeição interna nos quatro gatilhos (nunc
 
     // Gatilhos 1-3 (atribuição, conclusão, reabertura): resposta preservada.
     const created = await request(app)
-      .post(`/api/contracts/${contractId}/tasks`)
+      .post(`/api/v2/contracts/${contractId}/tasks`)
       .set(as(gestorToken))
       .send({ title: 'E010 rejeicao interna', assignee_id: prestadorId });
     assert.strictEqual(created.status, 201, JSON.stringify(created.body));
     const taskId = created.body.task.id;
     for (const status of ['Em Progresso', 'Revisão']) {
       const move = await request(app)
-        .patch(`/api/tasks/${taskId}/status`)
+        .patch(`/api/v2/tasks/${taskId}/status`)
         .set(as(prestadorToken))
         .send({ status });
       assert.strictEqual(move.status, 200, JSON.stringify(move.body));
     }
 
     const done = await request(app)
-      .post(`/api/tasks/${taskId}/complete`)
+      .post(`/api/v2/tasks/${taskId}/complete`)
       .set(as(prestadorToken))
       .send({ text: 'concluida sob rejeicao interna' });
     assert.strictEqual(done.status, 200, JSON.stringify(done.body));
     const reopened = await request(app)
-      .post(`/api/tasks/${taskId}/reopen`)
+      .post(`/api/v2/tasks/${taskId}/reopen`)
       .set(as(gestorToken))
       .send({ motivo: 'reaberta sob rejeicao interna' });
     assert.strictEqual(reopened.status, 200, JSON.stringify(reopened.body));
 
     // Gatilho 4 (vencimento): a varredura completa e responde com coerência.
-    const sweep = await request(app).post('/api/alerts/sweep').set(as(adminToken)).send({});
+    const sweep = await request(app).post('/api/v2/alerts/sweep').set(as(adminToken)).send({});
     assert.strictEqual(sweep.status, 200, JSON.stringify(sweep.body));
     assert.ok(
       sweep.body.swept >= sweep.body.emailed + sweep.body.failed,

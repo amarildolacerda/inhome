@@ -25,7 +25,7 @@ function readWindows(rawValue) {
   }
 }
 
-// E005 (FR-006): strict validator for PUT /api/alerts/windows.
+// E005 (FR-006): strict validator for PUT /api/v2/alerts/windows.
 //   - explicit null -> { reset: true }  (caller writes NULL = default)
 //   - missing key, non-array, empty, or any element that is not a positive
 //     integer -> null (caller answers 400; no row is touched)

@@ -88,7 +88,7 @@ function as(token) {
 
 async function login(email, password, domId) {
   const res = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email, password, domainId: domId });
   assert.strictEqual(res.status, 200, `${email}: ${JSON.stringify(res.body)}`);
   return res.body.token;
@@ -98,7 +98,7 @@ async function createTask(title, assigneeId = null) {
   const body = { title };
   if (assigneeId) body.assignee_id = assigneeId;
   const res = await request(app)
-    .post(`/api/contracts/${contractId}/tasks`)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
     .set(as(gestorToken))
     .send(body);
   assert.strictEqual(res.status, 201, JSON.stringify(res.body));
@@ -110,7 +110,7 @@ async function waitForReview(rid, status, token, timeoutMs = 8000) {
   let last = null;
   while (Date.now() < deadline) {
     const res = await request(app)
-      .get(`/api/contracts/${contractId}/review/${rid}`)
+      .get(`/api/v2/contracts/${contractId}/review/${rid}`)
       .set(as(token || gestorToken));
     if (res.status === 200) {
       last = res.body.review;
@@ -126,7 +126,7 @@ async function waitForAnalysis(status, timeoutMs = 8000) {
   let last = null;
   while (Date.now() < deadline) {
     const res = await request(app)
-      .get(`/api/contracts/${contractId}/analysis`)
+      .get(`/api/v2/contracts/${contractId}/analysis`)
       .set(as(gestorToken));
     if (res.status === 200) {
       last = res.body.analysis;
@@ -141,12 +141,12 @@ test.before(async () => {
   await initTestDb();
 
   const sys = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(sys.status, 200);
 
   const enabled = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Reta Revisão',
@@ -164,7 +164,7 @@ test.before(async () => {
     ['Pia', 'pia@reta.test', 'prestador'],
   ]) {
     const res = await request(app)
-      .post('/api/users')
+      .post('/api/v2/users')
       .set(as(adminToken))
       .send({ name, email, password: 'Secret1!', role, username: email.split('@')[0] });
     assert.strictEqual(res.status, 201, JSON.stringify(res.body));
@@ -175,28 +175,28 @@ test.before(async () => {
   const prestadorId = db.get(`SELECT id FROM users WHERE email = 'pia@reta.test'`).id;
 
   const contract = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'Obra Revisão', start_date: '2026-01-01', forecast_date: '2026-12-31' });
   assert.strictEqual(contract.status, 201, JSON.stringify(contract.body));
   contractId = contract.body.contract.id;
 
   const noDefs = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'Obra Sem Definições', start_date: '2026-01-01', forecast_date: '2026-12-31' });
   assert.strictEqual(noDefs.status, 201);
   contractNoDefs = noDefs.body.contract.id;
 
   const defs = await request(app)
-    .put(`/api/contracts/${contractId}/definitions`)
+    .put(`/api/v2/contracts/${contractId}/definitions`)
     .set(as(gestorToken))
     .send(DEFINITIONS);
   assert.strictEqual(defs.status, 200, JSON.stringify(defs.body));
   latestDefId = defs.body.definitions.id;
 
   const linked = await request(app)
-    .post(`/api/contracts/${contractId}/prestadores`)
+    .post(`/api/v2/contracts/${contractId}/providers`)
     .set(as(gestorToken))
     .send({ user_id: prestadorId });
   assert.strictEqual(linked.status, 201, JSON.stringify(linked.body));
@@ -221,7 +221,7 @@ test.before(async () => {
     },
   ]);
   const approved = await request(app)
-    .post(`/api/suggestions/${seeded.id}/approve`)
+    .post(`/api/v2/suggestions/${seeded.id}/approve`)
     .set(as(gestorToken));
   assert.strictEqual(approved.status, 201, JSON.stringify(approved.body));
   wt1Id = approved.body.tasks[0].id;
@@ -231,7 +231,7 @@ test.before(async () => {
   tEdit = await createTask('Revisar medição');
   tProg = await createTask('Avançar estrutura', prestadorId);
   const moveProg = await request(app)
-    .patch(`/api/tasks/${tProg}/status`)
+    .patch(`/api/v2/tasks/${tProg}/status`)
     .set(as(prestadorToken))
     .send({ status: 'Em Progresso' });
   assert.strictEqual(moveProg.status, 200, JSON.stringify(moveProg.body));
@@ -239,13 +239,13 @@ test.before(async () => {
   tDone = await createTask('Instalar telhado', prestadorId);
   for (const status of ['Em Progresso', 'Revisão']) {
     const move = await request(app)
-      .patch(`/api/tasks/${tDone}/status`)
+      .patch(`/api/v2/tasks/${tDone}/status`)
       .set(as(prestadorToken))
       .send({ status });
     assert.strictEqual(move.status, 200, JSON.stringify(move.body));
   }
   const done = await request(app)
-    .post(`/api/tasks/${tDone}/complete`)
+    .post(`/api/v2/tasks/${tDone}/complete`)
     .set(as(prestadorToken))
     .send({ text: 'Telhado instalado e fotografado' });
   assert.strictEqual(done.status, 200, JSON.stringify(done.body));
@@ -253,18 +253,18 @@ test.before(async () => {
   tReopened = await createTask('Pintar muro', prestadorId);
   for (const status of ['Em Progresso', 'Revisão']) {
     const move = await request(app)
-      .patch(`/api/tasks/${tReopened}/status`)
+      .patch(`/api/v2/tasks/${tReopened}/status`)
       .set(as(prestadorToken))
       .send({ status });
     assert.strictEqual(move.status, 200, JSON.stringify(move.body));
   }
   const doneReopen = await request(app)
-    .post(`/api/tasks/${tReopened}/complete`)
+    .post(`/api/v2/tasks/${tReopened}/complete`)
     .set(as(prestadorToken))
     .send({ text: 'Muro pintado' });
   assert.strictEqual(doneReopen.status, 200);
   const reopened = await request(app)
-    .post(`/api/tasks/${tReopened}/reopen`)
+    .post(`/api/v2/tasks/${tReopened}/reopen`)
     .set(as(gestorToken))
     .send({ motivo: 'Infiltração na parede' });
   assert.strictEqual(reopened.status, 200, JSON.stringify(reopened.body));
@@ -313,7 +313,7 @@ test.after(() => {
 test('FR-022 revisão carrega contexto e aguarda aprovação', async () => {
   // sem definições → 400 com o que falta (pré-condição de FR-022)
   const noDefs = await request(app)
-    .post(`/api/contracts/${contractNoDefs}/review`)
+    .post(`/api/v2/contracts/${contractNoDefs}/review`)
     .set(as(gestorToken));
   assert.strictEqual(noDefs.status, 400, JSON.stringify(noDefs.body));
   assert.strictEqual(noDefs.body.error, 'Missing required definitions');
@@ -321,7 +321,7 @@ test('FR-022 revisão carrega contexto e aguarda aprovação', async () => {
 
   // campos de cliente não são aceitos (ReviewInput sem campos)
   const withBody = await request(app)
-    .post(`/api/contracts/${contractId}/review`)
+    .post(`/api/v2/contracts/${contractId}/review`)
     .set(as(gestorToken))
     .send({ instrucoes: 'texto livre' });
   assert.strictEqual(withBody.status, 400, JSON.stringify(withBody.body));
@@ -329,13 +329,13 @@ test('FR-022 revisão carrega contexto e aguarda aprovação', async () => {
 
   // gatilho → 202 + Location (polling no recurso da revisão)
   const started = await request(app)
-    .post(`/api/contracts/${contractId}/review`)
+    .post(`/api/v2/contracts/${contractId}/review`)
     .set(as(gestorToken));
   assert.strictEqual(started.status, 202, JSON.stringify(started.body));
   const rid = started.body.review.id;
   assert.strictEqual(
     started.headers.location,
-    `/api/contracts/${contractId}/review/${rid}`
+    `/api/v2/contracts/${contractId}/review/${rid}`
   );
   assert.strictEqual(started.body.review.contract_id, contractId);
   assert.strictEqual(started.body.review.created_by, gestorId);
@@ -385,7 +385,7 @@ test('FR-022 revisão carrega contexto e aguarda aprovação', async () => {
 
   // listagem mais recente primeiro, só revisões
   const list = await request(app)
-    .get(`/api/contracts/${contractId}/review`)
+    .get(`/api/v2/contracts/${contractId}/review`)
     .set(as(gestorToken));
   assert.strictEqual(list.status, 200, JSON.stringify(list.body));
   assert.ok(list.body.reviews.length >= 1);
@@ -394,30 +394,30 @@ test('FR-022 revisão carrega contexto e aguarda aprovação', async () => {
 
   // consultas sem recurso → 404; domínio divergente → 404
   const ghost = await request(app)
-    .get(`/api/contracts/${contractId}/review/999999`)
+    .get(`/api/v2/contracts/${contractId}/review/999999`)
     .set(as(gestorToken));
   assert.strictEqual(ghost.status, 404);
   assert.strictEqual(ghost.body.error, 'Review not found');
   const ghostContract = await request(app)
-    .post('/api/contracts/999999/review')
+    .post('/api/v2/contracts/999999/review')
     .set(as(gestorToken));
   assert.strictEqual(ghostContract.status, 404);
   assert.strictEqual(ghostContract.body.error, 'Contract not found');
 
   // autoridade (FR-019, x-roles: gestor)
   assert.strictEqual(
-    (await request(app).post(`/api/contracts/${contractId}/review`)).status,
+    (await request(app).post(`/api/v2/contracts/${contractId}/review`)).status,
     401,
     'sem token → 401'
   );
   assert.strictEqual(
-    (await request(app).post(`/api/contracts/${contractId}/review`).set(as(adminToken)))
+    (await request(app).post(`/api/v2/contracts/${contractId}/review`).set(as(adminToken)))
       .status,
     403,
     'admin não inicia revisão'
   );
   assert.strictEqual(
-    (await request(app).get(`/api/contracts/${contractId}/review`).set(as(prestadorToken)))
+    (await request(app).get(`/api/v2/contracts/${contractId}/review`).set(as(prestadorToken)))
       .status,
     403,
     'prestador não vê revisões'
@@ -456,7 +456,7 @@ test('FR-023 aplicação só em A Fazer com conflitos', async () => {
   addProposal(null, 'Criada pela revisão', 'Nova checagem de fachada');
 
   const before = await request(app)
-    .get(`/api/contracts/${contractId}/review/${rid}`)
+    .get(`/api/v2/contracts/${contractId}/review/${rid}`)
     .set(as(gestorToken));
   assert.strictEqual(before.status, 200, JSON.stringify(before.body));
   assert.deepStrictEqual(
@@ -474,7 +474,7 @@ test('FR-023 aplicação só em A Fazer com conflitos', async () => {
   const beforeEdit = snapshot(tEdit);
 
   const applied = await request(app)
-    .post(`/api/contracts/${contractId}/review/${rid}/apply`)
+    .post(`/api/v2/contracts/${contractId}/review/${rid}/apply`)
     .set(as(gestorToken));
   assert.strictEqual(applied.status, 200, JSON.stringify(applied.body));
   assert.deepStrictEqual(applied.body.applied, { edited: 1, created: 1 });
@@ -533,7 +533,7 @@ test('FR-023 aplicação só em A Fazer com conflitos', async () => {
 
   // revisão aprovada; conflitos persistem no recurso
   const after = await request(app)
-    .get(`/api/contracts/${contractId}/review/${rid}`)
+    .get(`/api/v2/contracts/${contractId}/review/${rid}`)
     .set(as(gestorToken));
   assert.strictEqual(after.body.review.status, 'aprovada');
   assert.strictEqual(after.body.review.conflicts.length, 3);
@@ -548,7 +548,7 @@ test('FR-023 aplicação só em A Fazer com conflitos', async () => {
 
   // segunda aplicação → 409
   const again = await request(app)
-    .post(`/api/contracts/${contractId}/review/${rid}/apply`)
+    .post(`/api/v2/contracts/${contractId}/review/${rid}/apply`)
     .set(as(gestorToken));
   assert.strictEqual(again.status, 409);
   assert.match(again.body.error, /sugerido/);
@@ -567,7 +567,7 @@ test('FR-023 aplicação só em A Fazer com conflitos', async () => {
   );
   const emptyRid = db.get('SELECT MAX(id) AS id FROM task_suggestions').id;
   const empty = await request(app)
-    .post(`/api/contracts/${contractId}/review/${emptyRid}/apply`)
+    .post(`/api/v2/contracts/${contractId}/review/${emptyRid}/apply`)
     .set(as(gestorToken));
   assert.strictEqual(empty.status, 400);
   assert.strictEqual(empty.body.error, 'Review has no proposals');
@@ -576,7 +576,7 @@ test('FR-023 aplicação só em A Fazer com conflitos', async () => {
   // autoridade (x-roles: gestor)
   for (const token of [adminToken, prestadorToken]) {
     const denied = await request(app)
-      .post(`/api/contracts/${contractId}/review/${rid}/apply`)
+      .post(`/api/v2/contracts/${contractId}/review/${rid}/apply`)
       .set(as(token));
     assert.strictEqual(denied.status, 403);
   }
@@ -592,7 +592,7 @@ test('FR-024 gatilho manual sem reanálise', async () => {
 
   // gatilho manual → proposta; nada de análise nova (sem reanálise)
   const started = await request(app)
-    .post(`/api/contracts/${contractId}/review`)
+    .post(`/api/v2/contracts/${contractId}/review`)
     .set(as(gestorToken));
   assert.strictEqual(started.status, 202, JSON.stringify(started.body));
   const rid1 = started.body.review.id;
@@ -618,17 +618,17 @@ test('FR-024 gatilho manual sem reanálise', async () => {
 
   // integração desabilitada → 400
   const disable = await request(app)
-    .put('/api/opencode/config')
+    .put('/api/v2/opencode/config')
     .set(as(gestorToken))
     .send({ enabled: false });
   assert.strictEqual(disable.status, 200);
   const disabled = await request(app)
-    .post(`/api/contracts/${contractId}/review`)
+    .post(`/api/v2/contracts/${contractId}/review`)
     .set(as(gestorToken));
   assert.strictEqual(disabled.status, 400);
   assert.strictEqual(disabled.body.error, 'OpenCode integration disabled');
   const enable = await request(app)
-    .put('/api/opencode/config')
+    .put('/api/v2/opencode/config')
     .set(as(gestorToken))
     .send({ enabled: true });
   assert.strictEqual(enable.status, 200);
@@ -636,12 +636,12 @@ test('FR-024 gatilho manual sem reanálise', async () => {
   // revisão em andamento → 409
   process.env.FAKE_OPENCODE_DELAY_MS = '700';
   const running = await request(app)
-    .post(`/api/contracts/${contractId}/review`)
+    .post(`/api/v2/contracts/${contractId}/review`)
     .set(as(gestorToken));
   assert.strictEqual(running.status, 202, JSON.stringify(running.body));
   const rid2 = running.body.review.id;
   const duplicate = await request(app)
-    .post(`/api/contracts/${contractId}/review`)
+    .post(`/api/v2/contracts/${contractId}/review`)
     .set(as(gestorToken));
   assert.strictEqual(duplicate.status, 409);
   assert.strictEqual(duplicate.body.error, 'Review already in progress');
@@ -652,11 +652,11 @@ test('FR-024 gatilho manual sem reanálise', async () => {
   process.env.FAKE_OPENCODE_OUTPUT = ANALYSIS_OUTPUT;
   process.env.FAKE_OPENCODE_DELAY_MS = '600';
   const analysis = await request(app)
-    .post(`/api/contracts/${contractId}/analysis`)
+    .post(`/api/v2/contracts/${contractId}/analysis`)
     .set(as(gestorToken));
   assert.strictEqual(analysis.status, 202, JSON.stringify(analysis.body));
   const queued = await request(app)
-    .post(`/api/contracts/${contractId}/review`)
+    .post(`/api/v2/contracts/${contractId}/review`)
     .set(as(gestorToken));
   assert.strictEqual(queued.status, 202, JSON.stringify(queued.body));
   assert.strictEqual(
@@ -676,7 +676,7 @@ test('FR-024 gatilho manual sem reanálise', async () => {
   // falha → retry manual → sugestão; retry fora de falha → 409
   process.env.FAKE_OPENCODE_EXIT = '1';
   const failing = await request(app)
-    .post(`/api/contracts/${contractId}/review`)
+    .post(`/api/v2/contracts/${contractId}/review`)
     .set(as(gestorToken));
   assert.strictEqual(failing.status, 202, JSON.stringify(failing.body));
   const rid3 = failing.body.review.id;
@@ -685,16 +685,16 @@ test('FR-024 gatilho manual sem reanálise', async () => {
   delete process.env.FAKE_OPENCODE_EXIT;
 
   const retried = await request(app)
-    .post(`/api/contracts/${contractId}/review/${rid3}/retry`)
+    .post(`/api/v2/contracts/${contractId}/review/${rid3}/retry`)
     .set(as(gestorToken));
   assert.strictEqual(retried.status, 202, JSON.stringify(retried.body));
-  assert.strictEqual(retried.headers.location, `/api/contracts/${contractId}/review/${rid3}`);
+  assert.strictEqual(retried.headers.location, `/api/v2/contracts/${contractId}/review/${rid3}`);
   const recovered = await waitForReview(rid3, 'sugerido');
   assert.strictEqual(recovered.error, null, 'sucesso limpa a falha');
   assert.strictEqual(recovered.proposals.length, 2);
 
   const badRetry = await request(app)
-    .post(`/api/contracts/${contractId}/review/${rid3}/retry`)
+    .post(`/api/v2/contracts/${contractId}/review/${rid3}/retry`)
     .set(as(gestorToken));
   assert.strictEqual(badRetry.status, 409);
   assert.match(badRetry.body.error, /failure/i);

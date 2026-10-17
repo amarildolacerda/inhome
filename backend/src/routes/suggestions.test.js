@@ -75,7 +75,7 @@ function futureDate(days) {
 
 async function login(email, password, domId) {
   const res = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email, password, domainId: domId });
   assert.strictEqual(res.status, 200, `${email}: ${JSON.stringify(res.body)}`);
   return res.body.token;
@@ -88,7 +88,7 @@ async function waitFor(status, timeoutMs = 8000) {
   let last = null;
   while (Date.now() < deadline) {
     const res = await request(app)
-      .get(`/api/contracts/${contractId}/analysis`)
+      .get(`/api/v2/contracts/${contractId}/analysis`)
       .set(as(gestorToken));
     if (res.status === 200) {
       last = res.body.analysis;
@@ -118,12 +118,12 @@ test.before(async () => {
   await initTestDb();
 
   const sys = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(sys.status, 200);
 
   const enabled = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Theta Sugestões',
@@ -141,7 +141,7 @@ test.before(async () => {
     ['Saulo', 'saulo@theta.test', 'prestador'],
   ]) {
     const res = await request(app)
-      .post('/api/users')
+      .post('/api/v2/users')
       .set(as(adminToken))
       .send({ name, email, password: 'Secret1!', role, username: email.split('@')[0] });
     assert.strictEqual(res.status, 201, JSON.stringify(res.body));
@@ -150,7 +150,7 @@ test.before(async () => {
   prestadorToken = await login('saulo@theta.test', 'Secret1!', domainId);
 
   const contract = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'Obra Sugestões', start_date: futureDate(-3), forecast_date: futureDate(45) });
   assert.strictEqual(contract.status, 201, JSON.stringify(contract.body));
@@ -160,7 +160,7 @@ test.before(async () => {
 test('FR-003 bloqueia análise', async () => {
   // sem definições salvas: 400 com a lista completa do que falta (FR-003)
   const blocked = await request(app)
-    .post(`/api/contracts/${contractId}/analysis`)
+    .post(`/api/v2/contracts/${contractId}/analysis`)
     .set(as(gestorToken))
     .send({});
   assert.strictEqual(blocked.status, 400, JSON.stringify(blocked.body));
@@ -172,27 +172,27 @@ test('FR-003 bloqueia análise', async () => {
 
   // o contrato segue sem definições — nada foi gravado pela tentativa
   const stillMissing = await request(app)
-    .get(`/api/contracts/${contractId}/definitions`)
+    .get(`/api/v2/contracts/${contractId}/definitions`)
     .set(as(gestorToken));
   assert.strictEqual(stillMissing.status, 404);
 
   // só gestor dispara geração (FR-019: admin edita definições, não gera)
   const byAdmin = await request(app)
-    .post(`/api/contracts/${contractId}/analysis`)
+    .post(`/api/v2/contracts/${contractId}/analysis`)
     .set(as(adminToken))
     .send({});
   assert.strictEqual(byAdmin.status, 403);
   const byPrestador = await request(app)
-    .post(`/api/contracts/${contractId}/analysis`)
+    .post(`/api/v2/contracts/${contractId}/analysis`)
     .set(as(prestadorToken))
     .send({});
   assert.strictEqual(byPrestador.status, 403);
-  const noToken = await request(app).post(`/api/contracts/${contractId}/analysis`).send({});
+  const noToken = await request(app).post(`/api/v2/contracts/${contractId}/analysis`).send({});
   assert.strictEqual(noToken.status, 401);
 
   // contrato inexistente (ou de outro domínio) → 404 antes da checagem
   const ghost = await request(app)
-    .post('/api/contracts/999999/analysis')
+    .post('/api/v2/contracts/999999/analysis')
     .set(as(gestorToken))
     .send({});
   assert.strictEqual(ghost.status, 404);
@@ -209,14 +209,14 @@ test('FR-003 bloqueia análise', async () => {
 
   // com definições salvas o gate libera (a partir daqui o pipeline assume)
   const saved = await request(app)
-    .put(`/api/contracts/${contractId}/definitions`)
+    .put(`/api/v2/contracts/${contractId}/definitions`)
     .set(as(gestorToken))
     .send(DEFINITIONS);
   assert.strictEqual(saved.status, 200, JSON.stringify(saved.body));
   assert.deepStrictEqual(suggestionsRouter.assertDefinitionsComplete(db, contractId), []);
 
   const allowed = await request(app)
-    .post(`/api/contracts/${contractId}/analysis`)
+    .post(`/api/v2/contracts/${contractId}/analysis`)
     .set(as(gestorToken))
     .send({});
   assert.notStrictEqual(
@@ -234,7 +234,7 @@ test('FR-007 edita/remove', async () => {
 
   // detail carries the item ids that base every edit (FR-007)
   const detail = await request(app)
-    .get(`/api/suggestions/${sid}`)
+    .get(`/api/v2/suggestions/${sid}`)
     .set(as(gestorToken));
   assert.strictEqual(detail.status, 200, JSON.stringify(detail.body));
   assert.strictEqual(detail.body.suggestion.id, sid);
@@ -243,7 +243,7 @@ test('FR-007 edita/remove', async () => {
 
   // edit title + justification
   const edited = await request(app)
-    .patch(`/api/suggestions/${sid}/items/${first.id}`)
+    .patch(`/api/v2/suggestions/${sid}/items/${first.id}`)
     .set(as(gestorToken))
     .send({
       titulo: 'Conferir medição mensal conferida',
@@ -257,7 +257,7 @@ test('FR-007 edita/remove', async () => {
 
   // removal is item state — there is no DELETE (FR-007)
   const removed = await request(app)
-    .patch(`/api/suggestions/${sid}/items/${second.id}`)
+    .patch(`/api/v2/suggestions/${sid}/items/${second.id}`)
     .set(as(gestorToken))
     .send({ removed: true });
   assert.strictEqual(removed.status, 200, JSON.stringify(removed.body));
@@ -265,7 +265,7 @@ test('FR-007 edita/remove', async () => {
 
   // and the same boolean undoes it (state, not deletion)
   const undone = await request(app)
-    .patch(`/api/suggestions/${sid}/items/${second.id}`)
+    .patch(`/api/v2/suggestions/${sid}/items/${second.id}`)
     .set(as(gestorToken))
     .send({ removed: false });
   assert.strictEqual(undone.status, 200);
@@ -274,7 +274,7 @@ test('FR-007 edita/remove', async () => {
   // 409 while the suggestion is not `sugerido` (state forced for the check)
   db.run('UPDATE task_suggestions SET status = ? WHERE id = ?', [code('task_suggestions.status', 'pendente'), sid]);
   const notEditable = await request(app)
-    .patch(`/api/suggestions/${sid}/items/${first.id}`)
+    .patch(`/api/v2/suggestions/${sid}/items/${first.id}`)
     .set(as(gestorToken))
     .send({ titulo: 'Não deve entrar' });
   assert.strictEqual(notEditable.status, 409, JSON.stringify(notEditable.body));
@@ -282,13 +282,13 @@ test('FR-007 edita/remove', async () => {
 
   // 400: empty body and blank title are validation failures
   const empty = await request(app)
-    .patch(`/api/suggestions/${sid}/items/${first.id}`)
+    .patch(`/api/v2/suggestions/${sid}/items/${first.id}`)
     .set(as(gestorToken))
     .send({});
   assert.strictEqual(empty.status, 400, JSON.stringify(empty.body));
   assert.strictEqual(empty.body.error, 'Validation failed');
   const blank = await request(app)
-    .patch(`/api/suggestions/${sid}/items/${first.id}`)
+    .patch(`/api/v2/suggestions/${sid}/items/${first.id}`)
     .set(as(gestorToken))
     .send({ titulo: '   ' });
   assert.strictEqual(blank.status, 400);
@@ -297,21 +297,21 @@ test('FR-007 edita/remove', async () => {
   // FR-007/FR-019: only gestor edits — admin and prestador are refused
   assert.strictEqual(
     (await request(app)
-      .patch(`/api/suggestions/${sid}/items/${first.id}`)
+      .patch(`/api/v2/suggestions/${sid}/items/${first.id}`)
       .set(as(adminToken))
       .send({ titulo: 'Admin não edita' })).status,
     403
   );
   assert.strictEqual(
     (await request(app)
-      .patch(`/api/suggestions/${sid}/items/${first.id}`)
+      .patch(`/api/v2/suggestions/${sid}/items/${first.id}`)
       .set(as(prestadorToken))
       .send({ titulo: 'Prestador não edita' })).status,
     403
   );
   assert.strictEqual(
     (await request(app)
-      .patch(`/api/suggestions/${sid}/items/${first.id}`)
+      .patch(`/api/v2/suggestions/${sid}/items/${first.id}`)
       .send({ titulo: 'Sem token' })).status,
     401
   );
@@ -319,14 +319,14 @@ test('FR-007 edita/remove', async () => {
   // 404: suggestion or item outside the domain scope
   assert.strictEqual(
     (await request(app)
-      .patch('/api/suggestions/999999/items/1')
+      .patch('/api/v2/suggestions/999999/items/1')
       .set(as(gestorToken))
       .send({ titulo: 'Fantasma' })).status,
     404
   );
   assert.strictEqual(
     (await request(app)
-      .patch(`/api/suggestions/${sid}/items/999999`)
+      .patch(`/api/v2/suggestions/${sid}/items/999999`)
       .set(as(gestorToken))
       .send({ titulo: 'Fantasma' })).status,
     404
@@ -339,7 +339,7 @@ test('FR-008 refino versiona', async () => {
   const sid = state.suggestion_id;
 
   const before = await request(app)
-    .get(`/api/suggestions/${sid}`)
+    .get(`/api/v2/suggestions/${sid}`)
     .set(as(gestorToken));
   assert.strictEqual(before.status, 200, JSON.stringify(before.body));
   assert.strictEqual(before.body.suggestion.items.length, 2);
@@ -349,7 +349,7 @@ test('FR-008 refino versiona', async () => {
   process.env.FAKE_OPENCODE_CAPTURE = captureFile;
 
   const refined = await request(app)
-    .post(`/api/suggestions/${sid}/refine`)
+    .post(`/api/v2/suggestions/${sid}/refine`)
     .set(as(gestorToken))
     .send({ instrucoes: 'Inclua inspeção de rachaduras no relatório' });
   delete process.env.FAKE_OPENCODE_CAPTURE;
@@ -373,7 +373,7 @@ test('FR-008 refino versiona', async () => {
 
   // previous version survives untouched — same items, same edit from FR-007
   const old = await request(app)
-    .get(`/api/suggestions/${sid}`)
+    .get(`/api/v2/suggestions/${sid}`)
     .set(as(gestorToken));
   assert.strictEqual(old.status, 200, 'versão anterior segue consultável');
   assert.strictEqual(old.body.suggestion.items.length, 2);
@@ -385,13 +385,13 @@ test('FR-008 refino versiona', async () => {
 
   // 400: instructions are required and may not be blank
   const missing = await request(app)
-    .post(`/api/suggestions/${sid}/refine`)
+    .post(`/api/v2/suggestions/${sid}/refine`)
     .set(as(gestorToken))
     .send({});
   assert.strictEqual(missing.status, 400, JSON.stringify(missing.body));
   assert.strictEqual(missing.body.error, 'Validation failed');
   const blank = await request(app)
-    .post(`/api/suggestions/${sid}/refine`)
+    .post(`/api/v2/suggestions/${sid}/refine`)
     .set(as(gestorToken))
     .send({ instrucoes: '   ' });
   assert.strictEqual(blank.status, 400);
@@ -399,14 +399,14 @@ test('FR-008 refino versiona', async () => {
   // FR-019: only gestor refines; ghost sid is a 404
   assert.strictEqual(
     (await request(app)
-      .post(`/api/suggestions/${sid}/refine`)
+      .post(`/api/v2/suggestions/${sid}/refine`)
       .set(as(adminToken))
       .send({ instrucoes: 'Admin não refina' })).status,
     403
   );
   assert.strictEqual(
     (await request(app)
-      .post('/api/suggestions/999999/refine')
+      .post('/api/v2/suggestions/999999/refine')
       .set(as(gestorToken))
       .send({ instrucoes: 'Fantasma' })).status,
     404
@@ -418,7 +418,7 @@ test('FR-008 refino versiona', async () => {
       created.id,
     ]);
   const notRefinable = await request(app)
-    .post(`/api/suggestions/${created.id}/refine`)
+    .post(`/api/v2/suggestions/${created.id}/refine`)
     .set(as(gestorToken))
     .send({ instrucoes: 'Não deve refinar' });
   assert.strictEqual(notRefinable.status, 409, JSON.stringify(notRefinable.body));
@@ -429,12 +429,12 @@ test('FR-008 refino versiona', async () => {
 });
 
 // T040 (openapi listSuggestions, contracts/openapi.yaml:309): the contract
-// declares GET /api/contracts/:id/suggestions but no route served it (404).
+// declares GET /api/v2/contracts/:id/suggestions but no route served it (404).
 test('FR-017 lista versões da sugestão', async () => {
   // 200: original + refined version, newest first, with their items so every
   // version's content stays consultable (FR-008/FR-017)
   const list = await request(app)
-    .get(`/api/contracts/${contractId}/suggestions`)
+    .get(`/api/v2/contracts/${contractId}/suggestions`)
     .set(as(gestorToken));
   assert.strictEqual(list.status, 200, JSON.stringify(list.body));
   assert.ok(Array.isArray(list.body.suggestions), 'resposta traz a lista suggestions');
@@ -469,34 +469,34 @@ test('FR-017 lista versões da sugestão', async () => {
 
   // 200 with an empty list before any analysis (CHK005)
   const fresh = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'Sem análise', start_date: futureDate(-1), forecast_date: futureDate(30) });
   assert.strictEqual(fresh.status, 201, JSON.stringify(fresh.body));
   const empty = await request(app)
-    .get(`/api/contracts/${fresh.body.contract.id}/suggestions`)
+    .get(`/api/v2/contracts/${fresh.body.contract.id}/suggestions`)
     .set(as(gestorToken));
   assert.strictEqual(empty.status, 200, JSON.stringify(empty.body));
   assert.deepStrictEqual(empty.body.suggestions, []);
 
   // FR-019: only gestor lists — admin and prestador get 403, no token 401
   assert.strictEqual(
-    (await request(app).get(`/api/contracts/${contractId}/suggestions`).set(as(adminToken))).status,
+    (await request(app).get(`/api/v2/contracts/${contractId}/suggestions`).set(as(adminToken))).status,
     403
   );
   assert.strictEqual(
-    (await request(app).get(`/api/contracts/${contractId}/suggestions`).set(as(prestadorToken)))
+    (await request(app).get(`/api/v2/contracts/${contractId}/suggestions`).set(as(prestadorToken)))
       .status,
     403
   );
   assert.strictEqual(
-    (await request(app).get(`/api/contracts/${contractId}/suggestions`)).status,
+    (await request(app).get(`/api/v2/contracts/${contractId}/suggestions`)).status,
     401
   );
 
   // unknown contract → 404 before any listing
   const ghost = await request(app)
-    .get('/api/contracts/999999/suggestions')
+    .get('/api/v2/contracts/999999/suggestions')
     .set(as(gestorToken));
   assert.strictEqual(ghost.status, 404);
   assert.strictEqual(ghost.body.error, 'Contract not found');
@@ -504,11 +504,11 @@ test('FR-017 lista versões da sugestão', async () => {
   // domain isolation: contract ids are per-domain, so an id that exists only
   // in domain B answers 404 for domain A's gestor (positive control: B reads it)
   const sys = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(sys.status, 200);
   const zeta = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Zeta Sugestões',
@@ -522,13 +522,13 @@ test('FR-017 lista versões da sugestão', async () => {
   // three contracts so domain B owns id 3 — above domain A's max id (2)
   for (let i = 0; i < 3; i += 1) {
     const created = await request(app)
-      .post('/api/contracts')
+      .post('/api/v2/contracts')
       .set(as(zetaAdmin))
       .send({ name: `Zeta ${i}`, start_date: futureDate(-1), forecast_date: futureDate(30) });
     assert.strictEqual(created.status, 201, JSON.stringify(created.body));
   }
   const zetaUser = await request(app)
-    .post('/api/users')
+    .post('/api/v2/users')
     .set(as(zetaAdmin))
     .send({
       name: 'Gisela',
@@ -541,11 +541,11 @@ test('FR-017 lista versões da sugestão', async () => {
   const zetaGestor = await login('gisela@zeta.test', 'Secret1!', zeta.body.domain.id);
 
   const foreign = await request(app)
-    .get('/api/contracts/3/suggestions')
+    .get('/api/v2/contracts/3/suggestions')
     .set(as(gestorToken));
   assert.strictEqual(foreign.status, 404, 'domínio A não enxerga o id 3 do domínio B');
   const owned = await request(app)
-    .get('/api/contracts/3/suggestions')
+    .get('/api/v2/contracts/3/suggestions')
     .set(as(zetaGestor));
   assert.strictEqual(owned.status, 200, JSON.stringify(owned.body));
   assert.deepStrictEqual(owned.body.suggestions, [], 'controle positivo: B lê o próprio id 3');
@@ -560,19 +560,19 @@ test('FR-009 exige ≥1 item', async () => {
 
   // strip every kept item → approval must refuse the empty list (FR-009)
   const detail = await request(app)
-    .get(`/api/suggestions/${sid}`)
+    .get(`/api/v2/suggestions/${sid}`)
     .set(as(gestorToken));
   assert.strictEqual(detail.status, 200, JSON.stringify(detail.body));
   for (const item of detail.body.suggestion.items.filter((entry) => !entry.removed)) {
     const marked = await request(app)
-      .patch(`/api/suggestions/${sid}/items/${item.id}`)
+      .patch(`/api/v2/suggestions/${sid}/items/${item.id}`)
       .set(as(gestorToken))
       .send({ removed: true });
     assert.strictEqual(marked.status, 200, JSON.stringify(marked.body));
   }
 
   const empty = await request(app)
-    .post(`/api/suggestions/${sid}/approve`)
+    .post(`/api/v2/suggestions/${sid}/approve`)
     .set(as(gestorToken));
   assert.strictEqual(empty.status, 400, JSON.stringify(empty.body));
   assert.strictEqual(empty.body.error, 'Approval requires at least one kept item');
@@ -590,13 +590,13 @@ test('FR-009 exige ≥1 item', async () => {
 
   // keep one item → approval materializes the workflow (FR-010/AD-003)
   const restore = await request(app)
-    .patch(`/api/suggestions/${sid}/items/${detail.body.suggestion.items[0].id}`)
+    .patch(`/api/v2/suggestions/${sid}/items/${detail.body.suggestion.items[0].id}`)
     .set(as(gestorToken))
     .send({ removed: false });
   assert.strictEqual(restore.status, 200, JSON.stringify(restore.body));
 
   const approved = await request(app)
-    .post(`/api/suggestions/${sid}/approve`)
+    .post(`/api/v2/suggestions/${sid}/approve`)
     .set(as(gestorToken));
   assert.strictEqual(approved.status, 201, JSON.stringify(approved.body));
   assert.strictEqual(approved.body.workflow.status, 'ativo');
@@ -639,27 +639,27 @@ test('FR-009 exige ≥1 item', async () => {
 
   // 409: an approved suggestion cannot be approved again
   const again = await request(app)
-    .post(`/api/suggestions/${sid}/approve`)
+    .post(`/api/v2/suggestions/${sid}/approve`)
     .set(as(gestorToken));
   assert.strictEqual(again.status, 409, JSON.stringify(again.body));
 
   // FR-007/FR-019: only gestor approves
   assert.strictEqual(
-    (await request(app).post(`/api/suggestions/${sid}/approve`).set(as(adminToken))).status,
+    (await request(app).post(`/api/v2/suggestions/${sid}/approve`).set(as(adminToken))).status,
     403
   );
   assert.strictEqual(
     (await request(app)
-      .post(`/api/suggestions/${sid}/approve`)
+      .post(`/api/v2/suggestions/${sid}/approve`)
       .set(as(prestadorToken))).status,
     403
   );
   assert.strictEqual(
-    (await request(app).post(`/api/suggestions/${sid}/approve`)).status,
+    (await request(app).post(`/api/v2/suggestions/${sid}/approve`)).status,
     401
   );
   assert.strictEqual(
-    (await request(app).post('/api/suggestions/999999/approve').set(as(gestorToken))).status,
+    (await request(app).post('/api/v2/suggestions/999999/approve').set(as(gestorToken))).status,
     404
   );
 
@@ -667,7 +667,7 @@ test('FR-009 exige ≥1 item', async () => {
   const originalSid = db.get('SELECT refined_from FROM task_suggestions WHERE id = ?', [sid])
     .refined_from;
   const replaced = await request(app)
-    .post(`/api/suggestions/${originalSid}/approve`)
+    .post(`/api/v2/suggestions/${originalSid}/approve`)
     .set(as(gestorToken));
   assert.strictEqual(replaced.status, 201, JSON.stringify(replaced.body));
   assert.strictEqual(replaced.body.workflow.status, 'ativo');

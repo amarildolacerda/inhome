@@ -5,7 +5,7 @@
 // the official workflow (FR-010/AD-003).
 
 const express = require('express');
-const router = express.Router(); // mounted at /api/contracts (server.js)
+const router = express.Router(); // mounted at /api/v2/contracts (server.js)
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const { getDomainDb } = require('../config/database');
 const Task = require('../models/Task');
@@ -135,7 +135,7 @@ function activateWorkflow(db, { suggestion, userId }) {
   return { workflow: serializeWorkflow(workflowRow), tasks };
 }
 
-// POST /api/contracts/:id/workflow/tasks/:taskId/opt-in — FR-010: a task
+// POST /api/v2/contracts/:id/workflow/tasks/:taskId/opt-in — FR-010: a task
 // created outside the approved list only joins it through this confirmation
 // (opt_in_by/opt_in_at recorded). Already-linked → 409; task outside the
 // contract → 400; no active workflow yet → 400; gestor only (FR-019).
@@ -176,7 +176,7 @@ function optInManualTask(req, res) {
   }
 }
 
-// GET /api/contracts/:id/workflow — FR-011/FR-013: the active version (or
+// GET /api/v2/contracts/:id/workflow — FR-011/FR-013: the active version (or
 // null when never approved) plus the contract's tasks. admin/gestor see every
 // task with the `in_workflow` flag (base for the FR-010 opt-in); prestador
 // sees ONLY the approved list and gets 404 when not linked to the contract —

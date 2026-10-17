@@ -27,7 +27,7 @@ function as(token) {
 
 async function login(email, password, domId) {
   const res = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email, password, domainId: domId });
   assert.strictEqual(res.status, 200, `${email}: ${JSON.stringify(res.body)}`);
   return res.body.token;
@@ -40,13 +40,13 @@ function futureDate(days) {
 test.before(async () => {
   await initTestDb();
 
-  const sys = await request(app).post('/api/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  const sys = await request(app).post('/api/v2/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(sys.status, 200);
   s.sysToken = sys.body.token;
 
   // domínio Alpha — dados sob teste
   const alpha = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Alpha Auditoria',
@@ -64,7 +64,7 @@ test.before(async () => {
     ['Auditor A', 'auditor@alpha.test', 'auditor'],
   ]) {
     const res = await request(app)
-      .post('/api/users')
+      .post('/api/v2/users')
       .set(as(s.adminToken))
       .send({ name, email, password: 'Secret1!', role, username: email.split('@')[0] });
     assert.strictEqual(res.status, 201, `${email}: ${JSON.stringify(res.body)}`);
@@ -75,7 +75,7 @@ test.before(async () => {
 
   // domínio Beta — isolamento (o segundo domínio nunca pode vazar p/ Alpha)
   const beta = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Beta Auditoria',
@@ -87,7 +87,7 @@ test.before(async () => {
   s.domainB = beta.body.domain.id;
   s.adminBToken = await login('beta@beta.test', 'Secret1!', s.domainB);
   const movB = await request(app)
-    .post('/api/users')
+    .post('/api/v2/users')
     .set(as(s.adminBToken))
     .send({ name: 'Mov B', email: 'mov@beta.test', password: 'Secret1!', role: 'prestador', username: 'movb' });
   assert.strictEqual(movB.status, 201);
@@ -100,7 +100,7 @@ test.before(async () => {
 
   // Alpha: contrato + 4 tarefas (ids fixos 1..4 — ver FR-004, colisão entre domínios)
   const contract = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(s.gestorToken))
     .send({ name: 'Obra Alpha', start_date: futureDate(-5), forecast_date: futureDate(60) });
   assert.strictEqual(contract.status, 201, JSON.stringify(contract.body));
@@ -108,7 +108,7 @@ test.before(async () => {
 
   const movAId = dbA.get("SELECT id FROM users WHERE email = 'mov@alpha.test'").id;
   const linkA = await request(app)
-    .post(`/api/contracts/${s.contractAId}/prestadores`)
+    .post(`/api/v2/contracts/${s.contractAId}/providers`)
     .set(as(s.gestorToken))
     .send({ user_id: movAId });
   assert.strictEqual(linkA.status, 201, JSON.stringify(linkA.body));
@@ -116,7 +116,7 @@ test.before(async () => {
   const created = [];
   for (const title of titles) {
     const res = await request(app)
-      .post(`/api/contracts/${s.contractAId}/tasks`)
+      .post(`/api/v2/contracts/${s.contractAId}/tasks`)
       .set(as(s.gestorToken))
       .send({ title, assignee_id: movAId });
     assert.strictEqual(res.status, 201, `${title}: ${JSON.stringify(res.body)}`);
@@ -131,7 +131,7 @@ test.before(async () => {
   // move até Revisão / Concluída como prestador vinculado (FR-010)
   const move = async (id, status) => {
     const res = await request(app)
-      .patch(`/api/tasks/${id}/status`)
+      .patch(`/api/v2/tasks/${id}/status`)
       .set(as(s.movToken))
       .send({ status });
     assert.strictEqual(res.status, 200, `${id} → ${status}: ${JSON.stringify(res.body)}`);
@@ -141,7 +141,7 @@ test.before(async () => {
   await move(s.concluidaId, 'Em Progresso');
   await move(s.concluidaId, 'Revisão');
   const done = await request(app)
-    .post(`/api/tasks/${s.concluidaId}/complete`)
+    .post(`/api/v2/tasks/${s.concluidaId}/complete`)
     .set(as(s.movToken))
     .send({ text: 'Executada e pronta p/ auditoria' });
   assert.strictEqual(done.status, 200, JSON.stringify(done.body));
@@ -155,25 +155,25 @@ test.before(async () => {
 
   // Beta: 1 tarefa executada com id 1 (nunca endereçável a partir de Alpha)
   const contractB = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(s.adminBToken))
     .send({ name: 'Obra Beta', start_date: futureDate(-5), forecast_date: futureDate(60) });
   assert.strictEqual(contractB.status, 201, JSON.stringify(contractB.body));
   const movBId = dbB.get("SELECT id FROM users WHERE email = 'mov@beta.test'").id;
   const linkB = await request(app)
-    .post(`/api/contracts/${contractB.body.contract.id}/prestadores`)
+    .post(`/api/v2/contracts/${contractB.body.contract.id}/providers`)
     .set(as(s.adminBToken))
     .send({ user_id: movBId });
   assert.strictEqual(linkB.status, 201, JSON.stringify(linkB.body));
   const betaTask = await request(app)
-    .post(`/api/contracts/${contractB.body.contract.id}/tasks`)
+    .post(`/api/v2/contracts/${contractB.body.contract.id}/tasks`)
     .set(as(s.adminBToken))
     .send({ title: 'Executada Beta', assignee_id: movBId });
   assert.strictEqual(betaTask.status, 201, JSON.stringify(betaTask.body));
   s.betaTaskId = betaTask.body.task.id;
   for (const status of ['Em Progresso', 'Revisão']) {
     const res = await request(app)
-      .patch(`/api/tasks/${s.betaTaskId}/status`)
+      .patch(`/api/v2/tasks/${s.betaTaskId}/status`)
       .set(as(s.movBToken))
       .send({ status });
     assert.strictEqual(res.status, 200, JSON.stringify(res.body));
@@ -181,7 +181,7 @@ test.before(async () => {
 });
 
 test('FR-001 executed-only domain list', async () => {
-  const res = await request(app).get('/api/audits/tasks').set(as(s.auditorToken));
+  const res = await request(app).get('/api/v2/audits/tasks').set(as(s.auditorToken));
   assert.strictEqual(res.status, 200, JSON.stringify(res.body));
   const tasks = res.body.tasks;
   assert.ok(Array.isArray(tasks), 'tasks é lista');
@@ -195,7 +195,7 @@ test('FR-001 executed-only domain list', async () => {
 
   // detalhe agrega histórico e anexos (FR-001)
   const detail = await request(app)
-    .get(`/api/audits/tasks/${s.revisaoId}`)
+    .get(`/api/v2/audits/tasks/${s.revisaoId}`)
     .set(as(s.auditorToken));
   assert.strictEqual(detail.status, 200, JSON.stringify(detail.body));
   assert.ok(Array.isArray(detail.body.history), 'history é lista');
@@ -211,20 +211,20 @@ test('FR-002 classification validation', async () => {
     s.dbA.get('SELECT COUNT(*) AS c FROM task_classifications WHERE task_id = ?', [id]).c;
 
   const badState = await request(app)
-    .put(`/api/audits/tasks/${s.revisaoId}/classification`)
+    .put(`/api/v2/audits/tasks/${s.revisaoId}/classification`)
     .set(as(s.auditorToken))
     .send({ state: 'estado-inexistente', note: 'ok' });
   assert.strictEqual(badState.status, 400, JSON.stringify(badState.body));
 
   const longNote = await request(app)
-    .put(`/api/audits/tasks/${s.revisaoId}/classification`)
+    .put(`/api/v2/audits/tasks/${s.revisaoId}/classification`)
     .set(as(s.auditorToken))
     .send({ state: 'atendido plenamente', note: 'x'.repeat(501) });
   assert.strictEqual(longNote.status, 400, JSON.stringify(longNote.body));
   assert.strictEqual(countFor(s.revisaoId), 0, '400 não escreve');
 
   const ok = await request(app)
-    .put(`/api/audits/tasks/${s.revisaoId}/classification`)
+    .put(`/api/v2/audits/tasks/${s.revisaoId}/classification`)
     .set(as(s.auditorToken))
     .send({ state: STATES[1], note: 'entregue com ressalva de prazo' });
   assert.strictEqual(ok.status, 200, JSON.stringify(ok.body));
@@ -243,7 +243,7 @@ test('FR-004 classify only executed tasks', async () => {
 
   // tarefa em A Fazer → 400, sem escrita
   const notExecuted = await request(app)
-    .put(`/api/audits/tasks/${s.fazerId}/classification`)
+    .put(`/api/v2/audits/tasks/${s.fazerId}/classification`)
     .set(as(s.auditorToken))
     .send({ state: STATES[0] });
   assert.strictEqual(notExecuted.status, 400, JSON.stringify(notExecuted.body));
@@ -252,7 +252,7 @@ test('FR-004 classify only executed tasks', async () => {
   // token do domínio Beta não escreve em Alpha: id 2 não existe em Beta
   const before = countA(s.revisaoId);
   const cross = await request(app)
-    .put(`/api/audits/tasks/${s.revisaoId}/classification`)
+    .put(`/api/v2/audits/tasks/${s.revisaoId}/classification`)
     .set(as(s.adminBToken))
     .send({ state: STATES[2] });
   assert.strictEqual(cross.status, 404, JSON.stringify(cross.body));
@@ -260,7 +260,7 @@ test('FR-004 classify only executed tasks', async () => {
 
   // classificar a Concluída é imediato, sem aprovação
   const ok = await request(app)
-    .put(`/api/audits/tasks/${s.concluidaId}/classification`)
+    .put(`/api/v2/audits/tasks/${s.concluidaId}/classification`)
     .set(as(s.auditorToken))
     .send({ state: STATES[2], note: 'retrabalho necessário' });
   assert.strictEqual(ok.status, 200, JSON.stringify(ok.body));
@@ -268,12 +268,12 @@ test('FR-004 classify only executed tasks', async () => {
 
   // reaberta sai da visão; o registro permanece (FR-004)
   const reopen = await request(app)
-    .post(`/api/tasks/${s.concluidaId}/reopen`)
+    .post(`/api/v2/tasks/${s.concluidaId}/reopen`)
     .set(as(s.gestorToken))
     .send({ motivo: 'correção pós auditoria' });
   assert.strictEqual(reopen.status, 200, JSON.stringify(reopen.body));
 
-  const list = await request(app).get('/api/audits/tasks').set(as(s.auditorToken));
+  const list = await request(app).get('/api/v2/audits/tasks').set(as(s.auditorToken));
   assert.strictEqual(list.status, 200, JSON.stringify(list.body));
   const ids = list.body.tasks.map((task) => task.id);
   assert.ok(!ids.includes(s.concluidaId), 'reaberta sai da visão de executadas');
@@ -287,9 +287,9 @@ test('FR-006 role and domain guards', async () => {
 
   // prestador: leitura e classificação invisíveis
   for (const [method, url] of [
-    ['get', '/api/audits/tasks'],
-    ['get', `/api/audits/tasks/${s.revisaoId}`],
-    ['put', `/api/audits/tasks/${s.revisaoId}/classification`],
+    ['get', '/api/v2/audits/tasks'],
+    ['get', `/api/v2/audits/tasks/${s.revisaoId}`],
+    ['put', `/api/v2/audits/tasks/${s.revisaoId}/classification`],
   ]) {
     const res = await request(app)
       [method](url)
@@ -299,18 +299,18 @@ test('FR-006 role and domain guards', async () => {
   }
 
   // system_admin (papel de plataforma) fora do enum de papéis do domínio
-  const bySystem = await request(app).get('/api/audits/tasks').set(as(s.sysToken));
+  const bySystem = await request(app).get('/api/v2/audits/tasks').set(as(s.sysToken));
   assert.strictEqual(bySystem.status, 403, JSON.stringify(bySystem.body));
 
   // sessão sem papel algum → 403 (deny-by-default)
   const noRole = signJwt({ id: 1, domainId: s.domainA });
-  const byNoRole = await request(app).get('/api/audits/tasks').set(as(noRole));
+  const byNoRole = await request(app).get('/api/v2/audits/tasks').set(as(noRole));
   assert.strictEqual(byNoRole.status, 403, JSON.stringify(byNoRole.body));
 
   // isolamento de domínio de E001 antes de qualquer consulta: ?domainId
   // divergente recusa com 403 (scopeDomain)
   const cross = await request(app)
-    .get(`/api/audits/tasks?domainId=${s.domainB}`)
+    .get(`/api/v2/audits/tasks?domainId=${s.domainB}`)
     .set(as(s.auditorToken));
   assert.strictEqual(cross.status, 403, JSON.stringify(cross.body));
 });

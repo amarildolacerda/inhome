@@ -88,7 +88,7 @@ function assigneeEmail(db, userId) {
   return row ? row.email : null;
 }
 
-// POST /api/contracts/:contractId/tasks — gestor/admin creates; assignee must
+// POST /api/v2/contracts/:contractId/tasks — gestor/admin creates; assignee must
 // be a contract-linked prestador (FR-010, SC-004). Trigger 1/4: assignment.
 async function createTask(req, res) {
   try {
@@ -141,7 +141,7 @@ async function createTask(req, res) {
   }
 }
 
-// GET /api/tasks — role-scoped list (FR-013). FR-011 (00003): every row also
+// GET /api/v2/tasks — role-scoped list (FR-013). FR-011 (00003): every row also
 // carries `in_workflow` — true only when the task belongs to the contract's
 // ACTIVE workflow version (materialized or opted in via FR-010).
 function listTasks(req, res) {
@@ -427,7 +427,7 @@ const TASK_SCHEMA = {
   due_date: { type: 'date' },
 };
 
-// Nested mount at /api/contracts — param lives in the route path so Express
+// Nested mount at /api/v2/contracts — param lives in the route path so Express
 // 4 exposes it (app.use mount-path params do not reach a sub-router).
 const nested = express.Router();
 nested.post(

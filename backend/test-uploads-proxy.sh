@@ -19,9 +19,9 @@ check() { # label expected actual
   fi
 }
 
-HEALTH="$(curl -s -m 5 -o /dev/null -w '%{http_code}' "$EDGE/api/health" 2>/dev/null)"
+HEALTH="$(curl -s -m 5 -o /dev/null -w '%{http_code}' "$EDGE/api/v2/health" 2>/dev/null)"
 if [ "$HEALTH" != "200" ]; then
-  echo "FAIL  Edge/backend indisponível (GET $EDGE/api/health -> ${HEALTH:-erro})"
+  echo "FAIL  Edge/backend indisponível (GET $EDGE/api/v2/health -> ${HEALTH:-erro})"
   exit 1
 fi
 

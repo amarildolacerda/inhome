@@ -1,6 +1,6 @@
 'use strict';
 
-// 00003 US7: revisão na vigência (openapi /api/contracts/{id}/review*).
+// 00003 US7: revisão na vigência (openapi /api/v2/contracts/{id}/review*).
 // The review is a versioned suggestion (kind='revisao'): the gestor's manual
 // trigger loads the contract's definitions and current tasks (FR-022), one
 // OpenCode job proposes edits/creates — never a re-analysis (FR-024) — and a
@@ -328,10 +328,10 @@ function startQueuedReviews(domainId, contractId) {
 }
 
 function reviewLocation(contractId, reviewId) {
-  return `/api/contracts/${contractId}/review/${reviewId}`;
+  return `/api/v2/contracts/${contractId}/review/${reviewId}`;
 }
 
-// POST /api/contracts/:id/review — FR-024 manual trigger, gestor only.
+// POST /api/v2/contracts/:id/review — FR-024 manual trigger, gestor only.
 // Queued (pendente, not dispatched) when an analysis is running; 409 when a
 // review is already in progress.
 async function startManualReview(req, res) {
@@ -377,7 +377,7 @@ async function startManualReview(req, res) {
   }
 }
 
-// GET /api/contracts/:id/review — newest first (openapi listReviews).
+// GET /api/v2/contracts/:id/review — newest first (openapi listReviews).
 function listReviews(req, res) {
   try {
     const db = getDomainDb(req.user.domainId);
@@ -394,7 +394,7 @@ function listReviews(req, res) {
   }
 }
 
-// GET /api/contracts/:id/review/:rid — polling resource (FR-022 context,
+// GET /api/v2/contracts/:id/review/:rid — polling resource (FR-022 context,
 // proposals, conflicts).
 function getReview(req, res) {
   try {
@@ -407,7 +407,7 @@ function getReview(req, res) {
   }
 }
 
-// POST /api/contracts/:id/review/:rid/retry — manual retry only: falha →
+// POST /api/v2/contracts/:id/review/:rid/retry — manual retry only: falha →
 // pendente re-runs the same row (FR-018 policy applied to reviews).
 async function retryReview(req, res) {
   try {
@@ -434,7 +434,7 @@ async function retryReview(req, res) {
   }
 }
 
-// POST /api/contracts/:id/review/:rid/apply — FR-023: approval and
+// POST /api/v2/contracts/:id/review/:rid/apply — FR-023: approval and
 // application in one step (openapi applyReview). Only tasks in `A Fazer`
 // change — the single eligibility rule (data-model §Validation rules);
 // any other current status becomes a revision_conflicts row and the task

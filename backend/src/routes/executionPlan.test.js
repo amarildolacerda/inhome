@@ -63,20 +63,20 @@ function futureDate(days) {
 
 async function login(email, password, domId) {
   const res = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email, password, domainId: domId });
   assert.strictEqual(res.status, 200, `${email}: ${JSON.stringify(res.body)}`);
   return res.body.token;
 }
 
-// Poll GET /api/tasks/:id/execution-plan until the expected status (FR-021
+// Poll GET /api/v2/tasks/:id/execution-plan until the expected status (FR-021
 // polling pattern applied to the plan resource).
 async function waitForPlan(taskId, status, token, timeoutMs = 8000) {
   const deadline = Date.now() + timeoutMs;
   let last = null;
   while (Date.now() < deadline) {
     const res = await request(app)
-      .get(`/api/tasks/${taskId}/execution-plan`)
+      .get(`/api/v2/tasks/${taskId}/execution-plan`)
       .set(as(token || gestorToken));
     if (res.status === 200) {
       last = res.body.plan;
@@ -91,12 +91,12 @@ test.before(async () => {
   await initTestDb();
 
   const sys = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(sys.status, 200);
 
   const enabled = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Lambda Plano',
@@ -114,7 +114,7 @@ test.before(async () => {
     ['Nara', 'nara@lambda.test', 'prestador'],
   ]) {
     const res = await request(app)
-      .post('/api/users')
+      .post('/api/v2/users')
       .set(as(adminToken))
       .send({ name, email, password: 'Secret1!', role, username: email.split('@')[0] });
     assert.strictEqual(res.status, 201, JSON.stringify(res.body));
@@ -123,14 +123,14 @@ test.before(async () => {
   prestadorToken = await login('nara@lambda.test', 'Secret1!', domainId);
 
   const contract = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'Obra Plano', start_date: futureDate(-2), forecast_date: futureDate(45) });
   assert.strictEqual(contract.status, 201, JSON.stringify(contract.body));
   contractId = contract.body.contract.id;
 
   const definitions = await request(app)
-    .put(`/api/contracts/${contractId}/definitions`)
+    .put(`/api/v2/contracts/${contractId}/definitions`)
     .set(as(gestorToken))
     .send({
       finalidade: 'Executar a reforma',
@@ -143,7 +143,7 @@ test.before(async () => {
   assert.strictEqual(definitions.status, 200, JSON.stringify(definitions.body));
 
   const linked = await request(app)
-    .post(`/api/contracts/${contractId}/prestadores`)
+    .post(`/api/v2/contracts/${contractId}/providers`)
     .set(as(gestorToken))
     .send({ user_id: db.get(`SELECT id FROM users WHERE email = 'nara@lambda.test'`).id });
   assert.strictEqual(linked.status, 201, JSON.stringify(linked.body));
@@ -171,21 +171,21 @@ test.before(async () => {
   suggestionId = seeded.id;
 
   const approved = await request(app)
-    .post(`/api/suggestions/${suggestionId}/approve`)
+    .post(`/api/v2/suggestions/${suggestionId}/approve`)
     .set(as(gestorToken));
   assert.strictEqual(approved.status, 201, JSON.stringify(approved.body));
   planTaskIds = approved.body.tasks.map((task) => task.id);
 
   // FR-015: first task goes to the linked prestador (plan visibility rules)
   const assigned = await request(app)
-    .put(`/api/tasks/${planTaskIds[0]}`)
+    .put(`/api/v2/tasks/${planTaskIds[0]}`)
     .set(as(gestorToken))
     .send({ assignee_id: db.get(`SELECT id FROM users WHERE email = 'nara@lambda.test'`).id });
   assert.strictEqual(assigned.status, 200, JSON.stringify(assigned.body));
 
   // manual task (no suggestion lineage) for the null/failure paths
   const manual = await request(app)
-    .post(`/api/contracts/${contractId}/tasks`)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'Tarefa manual sem sugestão', description: 'Criada pelo gestor' });
   assert.strictEqual(manual.status, 201, JSON.stringify(manual.body));
@@ -218,7 +218,7 @@ test('FR-015 plano não bloqueia', async () => {
   }
 
   const queued = await request(app)
-    .get(`/api/tasks/${planTaskIds[1]}/execution-plan`)
+    .get(`/api/v2/tasks/${planTaskIds[1]}/execution-plan`)
     .set(as(gestorToken));
   assert.strictEqual(queued.status, 200);
   assert.strictEqual(queued.body.plan.status, 'pendente');
@@ -230,25 +230,25 @@ test('FR-015 plano não bloqueia', async () => {
   );
 
   const activatedTask = await request(app)
-    .get(`/api/tasks/${planTaskIds[1]}`)
+    .get(`/api/v2/tasks/${planTaskIds[1]}`)
     .set(as(gestorToken));
   assert.strictEqual(activatedTask.body.task.status, 'A Fazer', 'ativação não avança status');
 
   // task without a plan yet → plan: null (openapi getExecutionPlan)
   const withoutPlan = await request(app)
-    .get(`/api/tasks/${manualTaskId}/execution-plan`)
+    .get(`/api/v2/tasks/${manualTaskId}/execution-plan`)
     .set(as(gestorToken));
   assert.strictEqual(withoutPlan.status, 200);
   assert.strictEqual(withoutPlan.body.plan, null);
 
   // --- visibility and authority (FR-019, openapi x-roles) ---
   assert.strictEqual(
-    (await request(app).get(`/api/tasks/${planTaskIds[1]}/execution-plan`)).status,
+    (await request(app).get(`/api/v2/tasks/${planTaskIds[1]}/execution-plan`)).status,
     401,
     'sem token → 401'
   );
   assert.strictEqual(
-    (await request(app).get(`/api/tasks/${planTaskIds[1]}/execution-plan`).set(as(adminToken)))
+    (await request(app).get(`/api/v2/tasks/${planTaskIds[1]}/execution-plan`).set(as(adminToken)))
       .status,
     403,
     'admin fora do x-roles do GET → 403'
@@ -256,7 +256,7 @@ test('FR-015 plano não bloqueia', async () => {
   assert.strictEqual(
     (
       await request(app)
-        .get(`/api/tasks/${planTaskIds[0]}/execution-plan`)
+        .get(`/api/v2/tasks/${planTaskIds[0]}/execution-plan`)
         .set(as(prestadorToken))
     ).status,
     200,
@@ -265,7 +265,7 @@ test('FR-015 plano não bloqueia', async () => {
   assert.strictEqual(
     (
       await request(app)
-        .get(`/api/tasks/${planTaskIds[1]}/execution-plan`)
+        .get(`/api/v2/tasks/${planTaskIds[1]}/execution-plan`)
         .set(as(prestadorToken))
     ).status,
     404,
@@ -273,14 +273,14 @@ test('FR-015 plano não bloqueia', async () => {
   );
   for (const token of [adminToken, prestadorToken]) {
     const post = await request(app)
-      .post(`/api/tasks/${manualTaskId}/execution-plan`)
+      .post(`/api/v2/tasks/${manualTaskId}/execution-plan`)
       .set(as(token));
     assert.strictEqual(post.status, 403, 'só gestor dispara geração (FR-019)');
   }
   assert.strictEqual(
     (
       await request(app)
-        .post('/api/tasks/999999/execution-plan')
+        .post('/api/v2/tasks/999999/execution-plan')
         .set(as(gestorToken))
     ).status,
     404,
@@ -289,12 +289,12 @@ test('FR-015 plano não bloqueia', async () => {
 
   // --- generation: 202 + Location, poll → gerado, task untouched (FR-016) ---
   const accepted = await request(app)
-    .post(`/api/tasks/${planTaskIds[1]}/execution-plan`)
+    .post(`/api/v2/tasks/${planTaskIds[1]}/execution-plan`)
     .set(as(gestorToken));
   assert.strictEqual(accepted.status, 202, JSON.stringify(accepted.body));
   assert.strictEqual(
     accepted.headers.location,
-    `/api/tasks/${planTaskIds[1]}/execution-plan`
+    `/api/v2/tasks/${planTaskIds[1]}/execution-plan`
   );
   assert.strictEqual(accepted.body.plan.status, 'pendente');
   const generated = await waitForPlan(planTaskIds[1], 'gerado');
@@ -303,7 +303,7 @@ test('FR-015 plano não bloqueia', async () => {
   assert.ok(generated.riscos.length > 0, 'riscos gerados');
   assert.strictEqual(generated.erro, null);
   const afterGeneration = await request(app)
-    .get(`/api/tasks/${planTaskIds[1]}`)
+    .get(`/api/v2/tasks/${planTaskIds[1]}`)
     .set(as(gestorToken));
   assert.strictEqual(
     afterGeneration.body.task.status,
@@ -314,15 +314,15 @@ test('FR-015 plano não bloqueia', async () => {
   // --- running job answers 409 on a repeat POST and on regenerate ---
   process.env.FAKE_OPENCODE_DELAY_MS = '1500';
   const running = await request(app)
-    .post(`/api/tasks/${planTaskIds[0]}/execution-plan`)
+    .post(`/api/v2/tasks/${planTaskIds[0]}/execution-plan`)
     .set(as(gestorToken));
   assert.strictEqual(running.status, 202, JSON.stringify(running.body));
   const duplicate = await request(app)
-    .post(`/api/tasks/${planTaskIds[0]}/execution-plan`)
+    .post(`/api/v2/tasks/${planTaskIds[0]}/execution-plan`)
     .set(as(gestorToken));
   assert.strictEqual(duplicate.status, 409, 'geração já em andamento → 409');
   const runningRegenerate = await request(app)
-    .post(`/api/tasks/${planTaskIds[0]}/execution-plan/regenerate`)
+    .post(`/api/v2/tasks/${planTaskIds[0]}/execution-plan/regenerate`)
     .set(as(gestorToken));
   assert.strictEqual(runningRegenerate.status, 409, 'regenerate durante execução → 409');
   await waitForPlan(planTaskIds[0], 'gerado');
@@ -330,28 +330,28 @@ test('FR-015 plano não bloqueia', async () => {
 
   // regenerate on a healthy plan → 409 (only after falha)
   const regenerateHealthy = await request(app)
-    .post(`/api/tasks/${planTaskIds[0]}/execution-plan/regenerate`)
+    .post(`/api/v2/tasks/${planTaskIds[0]}/execution-plan/regenerate`)
     .set(as(gestorToken));
   assert.strictEqual(regenerateHealthy.status, 409);
   assert.match(regenerateHealthy.body.error, /failure/i);
 
   // --- disabled integration → 400, no job dispatched ---
   const disable = await request(app)
-    .put('/api/opencode/config')
+    .put('/api/v2/opencode/config')
     .set(as(gestorToken))
     .send({ enabled: false });
   assert.strictEqual(disable.status, 200, JSON.stringify(disable.body));
   const disabledPost = await request(app)
-    .post(`/api/tasks/${manualTaskId}/execution-plan`)
+    .post(`/api/v2/tasks/${manualTaskId}/execution-plan`)
     .set(as(gestorToken));
   assert.strictEqual(disabledPost.status, 400);
   assert.strictEqual(disabledPost.body.error, 'OpenCode integration disabled');
   const disabledRegenerate = await request(app)
-    .post(`/api/tasks/${planTaskIds[1]}/execution-plan/regenerate`)
+    .post(`/api/v2/tasks/${planTaskIds[1]}/execution-plan/regenerate`)
     .set(as(gestorToken));
   assert.strictEqual(disabledRegenerate.status, 400, 'disabled checado antes do estado');
   const enable = await request(app)
-    .put('/api/opencode/config')
+    .put('/api/v2/opencode/config')
     .set(as(gestorToken))
     .send({ enabled: true });
   assert.strictEqual(enable.status, 200);
@@ -359,7 +359,7 @@ test('FR-015 plano não bloqueia', async () => {
   // --- failure on the manual task → falha → regenerate → gerado ---
   process.env.FAKE_OPENCODE_EXIT = '1';
   const failing = await request(app)
-    .post(`/api/tasks/${manualTaskId}/execution-plan`)
+    .post(`/api/v2/tasks/${manualTaskId}/execution-plan`)
     .set(as(gestorToken));
   assert.strictEqual(failing.status, 202);
   const failed = await waitForPlan(manualTaskId, 'falha');
@@ -367,7 +367,7 @@ test('FR-015 plano não bloqueia', async () => {
   delete process.env.FAKE_OPENCODE_EXIT;
 
   const regenerated = await request(app)
-    .post(`/api/tasks/${manualTaskId}/execution-plan/regenerate`)
+    .post(`/api/v2/tasks/${manualTaskId}/execution-plan/regenerate`)
     .set(as(gestorToken));
   assert.strictEqual(regenerated.status, 202, JSON.stringify(regenerated.body));
   const recovered = await waitForPlan(manualTaskId, 'gerado');

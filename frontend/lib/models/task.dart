@@ -1,4 +1,4 @@
-/// Entrada de task_history (exposta por GET /api/tasks/:id).
+/// Entrada de task_history (exposta por GET /api/v2/tasks/:id).
 class TaskHistoryEntry {
   final int id;
   final int taskId;
@@ -117,7 +117,7 @@ class Task {
     );
   }
 
-  /// Lê GET /api/tasks/:id → {task, history} num só passo.
+  /// Lê GET /api/v2/tasks/:id → {task, history} num só passo.
   factory Task.fromDetail(Map<String, dynamic> response) {
     final rawTask = response['task'];
     final task = rawTask is Map

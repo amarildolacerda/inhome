@@ -15,7 +15,7 @@ function domainSession(domain, user) {
   return { user: publicUser, token, domainId: domain.id };
 }
 
-// POST /api/auth/login — the `email` field carries an identifier: email or
+// POST /api/v2/auth/login — the `email` field carries an identifier: email or
 // username (both columns stored lowercase). Auto profile identification
 // without domainId runs the platform system_admin first (email-only —
 // system_users has no username), then resolves the identifier across the
@@ -97,7 +97,7 @@ router.post('/login', (req, res) => {
   }
 });
 
-// GET /api/auth/me — current session user (platform or domain scope).
+// GET /api/v2/auth/me — current session user (platform or domain scope).
 router.get('/me', authenticateToken, (req, res) => {
   try {
     if (req.user.domainId === null || req.user.domainId === undefined) {

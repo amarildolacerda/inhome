@@ -24,7 +24,7 @@ class ApiException implements Exception {
 
 class ApiService {
   // fase 5 da nomenclatura: o cliente fala com o prefixo v2 (/api/v2/*);
-  // o backend monta os mesmos routers lá e mantém /api/* congelado como v1.
+  // desde 2026-10-17 a superfície da API é unicamente v2 (v1 removida).
   static const String baseUrl = '/api/v2';
 
   /// [FR-020]: singleton Socket.io do domínio. Criado sem auto-connect e com

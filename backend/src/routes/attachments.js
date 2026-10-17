@@ -21,7 +21,7 @@ function decorate(db, row) {
   return { ...row, uploaded_by_name: user ? user.name : null };
 }
 
-// POST /api/tasks/:id/attachments — FR-023: disk bytes, reference only.
+// POST /api/v2/tasks/:id/attachments — FR-023: disk bytes, reference only.
 function uploadAttachment(req, res) {
   try {
     const db = getDomainDb(req.user.domainId);
@@ -52,7 +52,7 @@ function uploadAttachment(req, res) {
   }
 }
 
-// GET /api/tasks/:id/attachments
+// GET /api/v2/tasks/:id/attachments
 function listAttachments(req, res) {
   try {
     const db = getDomainDb(req.user.domainId);

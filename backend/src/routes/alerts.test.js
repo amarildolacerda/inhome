@@ -25,14 +25,14 @@ function as(token) {
 }
 
 async function login(email, password, domId) {
-  const res = await request(app).post('/api/auth/login').send({ email, password, domainId: domId });
+  const res = await request(app).post('/api/v2/auth/login').send({ email, password, domainId: domId });
   assert.strictEqual(res.status, 200, `${email} login failed: ${JSON.stringify(res.body)}`);
   return res.body.token;
 }
 
 async function enableDomain(sysToken, name, adminEmail) {
   const res = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sysToken))
     .send({ name, adminName: 'Admin', adminEmail, adminPassword: 'Secret1!' });
   assert.strictEqual(res.status, 201, JSON.stringify(res.body));
@@ -41,7 +41,7 @@ async function enableDomain(sysToken, name, adminEmail) {
 
 async function createContract(token, finalidadeId, name, forecastDays) {
   const res = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(token))
     .send({
       name,
@@ -67,7 +67,7 @@ let contractA4;
 test.before(async () => {
   await initTestDb();
 
-  const sys = await request(app).post('/api/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  const sys = await request(app).post('/api/v2/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(sys.status, 200);
 
   domainA = await enableDomain(sys.body.token, 'Alertas Alfa', 'admin.alfa@alerts.test');
@@ -75,13 +75,13 @@ test.before(async () => {
 
   adminToken = await login('admin.alfa@alerts.test', 'Secret1!', domainA);
   await request(app)
-    .post('/api/users')
+    .post('/api/v2/users')
     .set(as(adminToken))
     .send({ name: 'Gestora', email: 'gestora@alerts.test', password: 'Secret1!', role: 'gestor', username: 'gestora' });
   gestorToken = await login('gestora@alerts.test', 'Secret1!', domainA);
 
   const finalidade = await request(app)
-    .post('/api/finalidades')
+    .post('/api/v2/purposes')
     .set(as(adminToken))
     .send({ name: 'Obra' });
   assert.strictEqual(finalidade.status, 201);
@@ -92,7 +92,7 @@ test.before(async () => {
   // Contract in domain B (will be suspended) — must never be alerted.
   const adminB = await login('admin.beta@alerts.test', 'Secret1!', domainB);
   const finalidadeB = await request(app)
-    .post('/api/finalidades')
+    .post('/api/v2/purposes')
     .set(as(adminB))
     .send({ name: 'Obra' });
   await createContract(adminB, finalidadeB.body.finalidade.id, 'Contrato B1', 20);
@@ -186,21 +186,21 @@ test('FR-006: notifyFn sem resposta em 5 s grava failed e a varredura continua',
   assert.strictEqual(row.email_status, 'failed');
 });
 
-test('FR-006: POST /api/alerts/sweep exige admin e respeita o escopo do domínio', async () => {
-  const ok = await request(app).post('/api/alerts/sweep').set(as(adminToken)).send({});
+test('FR-006: POST /api/v2/alerts/sweep exige admin e respeita o escopo do domínio', async () => {
+  const ok = await request(app).post('/api/v2/alerts/sweep').set(as(adminToken)).send({});
   assert.strictEqual(ok.status, 200);
   assert.deepStrictEqual(Object.keys(ok.body).sort(), ['emailed', 'emitted', 'failed', 'swept']);
 
-  const forbidden = await request(app).post('/api/alerts/sweep').set(as(gestorToken)).send({});
+  const forbidden = await request(app).post('/api/v2/alerts/sweep').set(as(gestorToken)).send({});
   assert.strictEqual(forbidden.status, 403);
 
   const crossDomain = await request(app)
-    .post('/api/alerts/sweep')
+    .post('/api/v2/alerts/sweep')
     .set(as(adminToken))
     .send({ domainId: domainB });
   assert.strictEqual(crossDomain.status, 403, 'scopeDomain refuses foreign domainId');
 
-  const unauth = await request(app).post('/api/alerts/sweep').send({});
+  const unauth = await request(app).post('/api/v2/alerts/sweep').send({});
   assert.strictEqual(unauth.status, 401);
 });
 
@@ -228,7 +228,7 @@ const P = {};
 
 async function createPanelContract(token, name, forecastDays) {
   const res = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(token))
     .send({
       name,
@@ -248,18 +248,18 @@ async function ensurePanelDomain() {
   adminCToken = await login('admin.gama@alerts.test', 'Secret1!', domainC);
 
   await request(app)
-    .post('/api/users')
+    .post('/api/v2/users')
     .set(as(adminCToken))
     .send({ name: 'Gestor Gama', email: 'gestor.gama@alerts.test', password: 'Secret1!', role: 'gestor', username: 'gestor.gama' });
   gestorCToken = await login('gestor.gama@alerts.test', 'Secret1!', domainC);
 
   await request(app)
-    .post('/api/users')
+    .post('/api/v2/users')
     .set(as(adminCToken))
     .send({ name: 'Prestador Gama', email: 'prestador.gama@alerts.test', password: 'Secret1!', role: 'prestador', username: 'prestador.gama' });
   prestadorCToken = await login('prestador.gama@alerts.test', 'Secret1!', domainC);
 
-  const fim = await request(app).post('/api/finalidades').set(as(adminCToken)).send({ name: 'Painel' });
+  const fim = await request(app).post('/api/v2/purposes').set(as(adminCToken)).send({ name: 'Painel' });
   assert.strictEqual(fim.status, 201);
   fimC = fim.body.finalidade.id;
 
@@ -302,7 +302,7 @@ async function ensurePanelDomain() {
 
 test('E005 FR-001: painel agrupa por janela, ordena por previsão e expõe incompletos', async () => {
   await ensurePanelDomain();
-  const res = await request(app).get('/api/alerts/panel').set(as(gestorCToken));
+  const res = await request(app).get('/api/v2/alerts/panel').set(as(gestorCToken));
   assert.strictEqual(res.status, 200, JSON.stringify(res.body));
   const body = res.body;
 
@@ -347,7 +347,7 @@ test('E005 FR-001: painel agrupa por janela, ordena por previsão e expõe incom
 test('E005 FR-002: alertado vem de alert_events da janela atribuída', async () => {
   await ensurePanelDomain();
   const fetchPanel = async () => {
-    const res = await request(app).get('/api/alerts/panel').set(as(gestorCToken));
+    const res = await request(app).get('/api/v2/alerts/panel').set(as(gestorCToken));
     assert.strictEqual(res.status, 200);
     return Object.fromEntries(res.body.items.map((i) => [i.id, i]));
   };
@@ -375,24 +375,24 @@ test('E005 FR-002: alertado vem de alert_events da janela atribuída', async () 
 test('E005 FR-003: prestador e domínio divergente recebem 403 sem leitura do painel', async () => {
   await ensurePanelDomain();
 
-  const panelP = await request(app).get('/api/alerts/panel').set(as(prestadorCToken));
+  const panelP = await request(app).get('/api/v2/alerts/panel').set(as(prestadorCToken));
   assert.strictEqual(panelP.status, 403, 'prestador não lê o painel');
   assert.strictEqual(panelP.body.items, undefined, 'nenhum item vazado no 403');
   assert.strictEqual(panelP.body.windows, undefined);
 
-  const winP = await request(app).get('/api/alerts/windows').set(as(prestadorCToken));
+  const winP = await request(app).get('/api/v2/alerts/windows').set(as(prestadorCToken));
   assert.strictEqual(winP.status, 403, 'prestador não lê as janelas');
   assert.strictEqual(winP.body.windows, undefined, 'nenhuma janela vazada no 403');
 
-  const putP = await request(app).put('/api/alerts/windows').set(as(prestadorCToken)).send({ windows: [45] });
+  const putP = await request(app).put('/api/v2/alerts/windows').set(as(prestadorCToken)).send({ windows: [45] });
   assert.strictEqual(putP.status, 403, 'prestador não grava as janelas');
 
   // Domínio divergente: token de domainC mirando domainA => 403 nos 3 verbos.
-  const cross = await request(app).get('/api/alerts/panel').set(as(adminCToken)).query({ domainId: domainA });
+  const cross = await request(app).get('/api/v2/alerts/panel').set(as(adminCToken)).query({ domainId: domainA });
   assert.strictEqual(cross.status, 403, 'scopeDomain recusa domainId alheio na leitura');
   assert.strictEqual(cross.body.items, undefined);
   const crossWrite = await request(app)
-    .put('/api/alerts/windows')
+    .put('/api/v2/alerts/windows')
     .set(as(adminCToken))
     .send({ windows: [45], domainId: domainA });
   assert.strictEqual(crossWrite.status, 403, 'scopeDomain recusa domainId alheio na escrita');
@@ -412,17 +412,17 @@ test('E005 FR-003: prestador e domínio divergente recebem 403 sem leitura do pa
 
   // system_admin fica fora da matriz admin|gestor (FR-003).
   const sysToken = await login(SYS_EMAIL, SYS_PASSWORD);
-  const sysRead = await request(app).get('/api/alerts/panel').set(as(sysToken));
+  const sysRead = await request(app).get('/api/v2/alerts/panel').set(as(sysToken));
   assert.strictEqual(sysRead.status, 403);
 
-  const noAuth = await request(app).get('/api/alerts/panel');
+  const noAuth = await request(app).get('/api/v2/alerts/panel');
   assert.strictEqual(noAuth.status, 401, 'sem token => 401');
 });
 
 test('E005 FR-004: paginação limit/offset estável com desempate por id', async () => {
   await ensurePanelDomain();
   const page = async (limit, offset) => {
-    const res = await request(app).get('/api/alerts/panel').query({ limit, offset }).set(as(gestorCToken));
+    const res = await request(app).get('/api/v2/alerts/panel').query({ limit, offset }).set(as(gestorCToken));
     assert.strictEqual(res.status, 200, JSON.stringify(res.body));
     return res.body;
   };
@@ -454,7 +454,7 @@ test('E005 FR-004: paginação limit/offset estável com desempate por id', asyn
     full.items.map((i) => i.id),
     'união das páginas == leitura única: sem lacunas nem repetições'
   );
-  assert.strictEqual(full.limit, 200, 'limit clampado em 200 (contrato GET /api/contracts)');
+  assert.strictEqual(full.limit, 200, 'limit clampado em 200 (contrato GET /api/v2/contracts)');
   assert.strictEqual((await page(0, 0)).limit, 50, 'limit 0 cai no default 50');
   assert.strictEqual((await page(999, -5)).offset, 0, 'offset negativo clampado em 0');
 
@@ -464,37 +464,37 @@ test('E005 FR-004: paginação limit/offset estável com desempate por id', asyn
   assert.strictEqual(past.incomplete, 2);
 });
 
-test('E005 FR-005: GET /api/alerts/windows devolve default sem setup e valor custom após gravação', async () => {
+test('E005 FR-005: GET /api/v2/alerts/windows devolve default sem setup e valor custom após gravação', async () => {
   await ensurePanelDomain();
   const platform = getPlatformDb();
   const stored = () => platform.get('SELECT alert_windows FROM domains WHERE id = ?', [domainC]).alert_windows;
   assert.strictEqual(stored(), null, 'domínio novo não precisa de setup');
 
-  const def = await request(app).get('/api/alerts/windows').set(as(adminCToken));
+  const def = await request(app).get('/api/v2/alerts/windows').set(as(adminCToken));
   assert.strictEqual(def.status, 200);
   assert.deepStrictEqual(def.body.windows, [90, 60, 30, 15]);
-  const asGestor = await request(app).get('/api/alerts/windows').set(as(gestorCToken));
+  const asGestor = await request(app).get('/api/v2/alerts/windows').set(as(gestorCToken));
   assert.deepStrictEqual(asGestor.body.windows, [90, 60, 30, 15], 'gestor também lê');
 
-  const write = await request(app).put('/api/alerts/windows').set(as(adminCToken)).send({ windows: [45, 30] });
+  const write = await request(app).put('/api/v2/alerts/windows').set(as(adminCToken)).send({ windows: [45, 30] });
   assert.strictEqual(write.status, 200);
-  const custom = await request(app).get('/api/alerts/windows').set(as(adminCToken));
+  const custom = await request(app).get('/api/v2/alerts/windows').set(as(adminCToken));
   assert.deepStrictEqual(custom.body.windows, [45, 30], 'custom reflete na releitura');
   assert.strictEqual(stored(), '[45,30]');
 
-  const reset = await request(app).put('/api/alerts/windows').set(as(adminCToken)).send({ windows: null });
+  const reset = await request(app).put('/api/v2/alerts/windows').set(as(adminCToken)).send({ windows: null });
   assert.strictEqual(reset.status, 200);
   assert.deepStrictEqual(reset.body.windows, [90, 60, 30, 15]);
   assert.strictEqual(stored(), null, 'null restaura a coluna para o default');
 });
 
-test('E005 FR-006: PUT /api/alerts/windows valida estrito (400 sem efeito), grava e restaura', async () => {
+test('E005 FR-006: PUT /api/v2/alerts/windows valida estrito (400 sem efeito), grava e restaura', async () => {
   await ensurePanelDomain();
   const platform = getPlatformDb();
   const stored = () => platform.get('SELECT alert_windows FROM domains WHERE id = ?', [domainC]).alert_windows;
 
   const valid = await request(app)
-    .put('/api/alerts/windows')
+    .put('/api/v2/alerts/windows')
     .set(as(adminCToken))
     .send({ windows: [15, 45, 45] });
   assert.strictEqual(valid.status, 200);
@@ -515,7 +515,7 @@ test('E005 FR-006: PUT /api/alerts/windows valida estrito (400 sem efeito), grav
   ];
   for (const payload of invalidPayloads) {
     const res = await request(app)
-      .put('/api/alerts/windows')
+      .put('/api/v2/alerts/windows')
       .set(as(adminCToken))
       .send(payload.omit ? {} : { windows: payload.windows });
     assert.strictEqual(res.status, 400, `${payload.label} deveria responder 400`);
@@ -523,13 +523,13 @@ test('E005 FR-006: PUT /api/alerts/windows valida estrito (400 sem efeito), grav
     assert.strictEqual(stored(), '[45,15]', `${payload.label}: escrita inválida não tem efeito`);
   }
 
-  const reset = await request(app).put('/api/alerts/windows').set(as(adminCToken)).send({ windows: null });
+  const reset = await request(app).put('/api/v2/alerts/windows').set(as(adminCToken)).send({ windows: null });
   assert.strictEqual(reset.status, 200);
   assert.deepStrictEqual(reset.body.windows, [90, 60, 30, 15]);
   assert.strictEqual(stored(), null);
 
   // Gestor configura o próprio domínio (matriz admin|gestor da FR-005/006).
-  const gestorWrite = await request(app).put('/api/alerts/windows').set(as(gestorCToken)).send({ windows: [30] });
+  const gestorWrite = await request(app).put('/api/v2/alerts/windows').set(as(gestorCToken)).send({ windows: [30] });
   assert.strictEqual(gestorWrite.status, 200);
   assert.deepStrictEqual(gestorWrite.body.windows, [30]);
   assert.strictEqual(stored(), '[30]');
@@ -540,7 +540,7 @@ test('E005 FR-007: config nova reflete no painel e na varredura seguinte, sem re
   const platform = getPlatformDb();
   const dbC = getDomainDb(domainC);
 
-  const put = await request(app).put('/api/alerts/windows').set(as(adminCToken)).send({ windows: [45] });
+  const put = await request(app).put('/api/v2/alerts/windows').set(as(adminCToken)).send({ windows: [45] });
   assert.strictEqual(put.status, 200);
   assert.deepStrictEqual(put.body.windows, [45]);
   assert.strictEqual(
@@ -549,7 +549,7 @@ test('E005 FR-007: config nova reflete no painel e na varredura seguinte, sem re
   );
 
   // Releitura no mesmo processo: o agrupamento muda na hora (sem reinício).
-  const beforeSweep = await request(app).get('/api/alerts/panel').set(as(gestorCToken));
+  const beforeSweep = await request(app).get('/api/v2/alerts/panel').set(as(gestorCToken));
   assert.strictEqual(beforeSweep.status, 200);
   assert.deepStrictEqual(beforeSweep.body.windows, [45]);
   const items = Object.fromEntries(beforeSweep.body.items.map((i) => [i.id, i]));
@@ -582,7 +582,7 @@ test('E005 FR-007: config nova reflete no painel e na varredura seguinte, sem re
   assert.deepStrictEqual(newWindows, expectedNew, 'varredura seguinte observa a nova janela');
 
   // Painel pós-varredura: alertado agora deriva da janela 45 gravada.
-  const after = await request(app).get('/api/alerts/panel').set(as(gestorCToken));
+  const after = await request(app).get('/api/v2/alerts/panel').set(as(gestorCToken));
   const afterItems = Object.fromEntries(after.body.items.map((i) => [i.id, i]));
   assert.strictEqual(afterItems[P.p10.id].alertado, true, 'varredura gravou a 45 que o painel atribui');
   assert.strictEqual(afterItems[P.p45.id].alertado, true);
@@ -656,17 +656,17 @@ async function ensureSweepDomain() {
     adminDToken = await login('admin.eps@alerts.test', 'Secret1!', domainD);
 
     await request(app)
-      .post('/api/users')
+      .post('/api/v2/users')
       .set(as(adminDToken))
       .send({ name: 'Gestor Varredura', email: 'gestor.sweep@alerts.test', password: 'Secret1!', role: 'gestor', username: 'gestor.sweep' });
     gestorDToken = await login('gestor.sweep@alerts.test', 'Secret1!', domainD);
   }
   if (!sweepContract) {
-    const fim = await request(app).post('/api/finalidades').set(as(adminDToken)).send({ name: 'Varredura' });
+    const fim = await request(app).post('/api/v2/purposes').set(as(adminDToken)).send({ name: 'Varredura' });
     assert.strictEqual(fim.status, 201);
 
     const created = await request(app)
-      .post('/api/contracts')
+      .post('/api/v2/contracts')
       .set(as(gestorDToken))
       .send({
         name: 'Contrato na janela 30',
@@ -687,7 +687,7 @@ test('E010 FR-002: varredura com notify padrão envia uma vez a creator_email e 
   process.env.SMTP_HOST = '127.0.0.1';
   process.env.SMTP_PORT = String(smtp.port);
   try {
-    const first = await request(app).post('/api/alerts/sweep').set(as(adminDToken)).send({});
+    const first = await request(app).post('/api/v2/alerts/sweep').set(as(adminDToken)).send({});
     assert.strictEqual(first.status, 200, JSON.stringify(first.body));
     assert.deepStrictEqual(first.body, { swept: 1, emitted: 1, emailed: 1, failed: 0 },
       'um contrato na janela, um e-mail enviado');
@@ -706,7 +706,7 @@ test('E010 FR-002: varredura com notify padrão envia uma vez a creator_email e 
     assert.strictEqual(row.email_status, 'sent', 'FR-002: linha gravada como sent');
 
     const countAfterFirst = smtp.messages.length;
-    const second = await request(app).post('/api/alerts/sweep').set(as(adminDToken)).send({});
+    const second = await request(app).post('/api/v2/alerts/sweep').set(as(adminDToken)).send({});
     assert.strictEqual(second.status, 200, JSON.stringify(second.body));
     assert.deepStrictEqual(second.body, { swept: 0, emitted: 0, emailed: 0, failed: 0 },
       'SC-002: UNIQUE dedup — segunda varredura nao emite nem reenvia');
@@ -728,12 +728,12 @@ test('E010 FR-003: painel expõe email_status da janela atribuída sem tocar as 
   const platform = getPlatformDb();
   const dbC = getDomainDb(domainC);
 
-  const reset = await request(app).put('/api/alerts/windows').set(as(adminCToken)).send({ windows: null });
+  const reset = await request(app).put('/api/v2/alerts/windows').set(as(adminCToken)).send({ windows: null });
   assert.strictEqual(reset.status, 200);
   assert.deepStrictEqual(reset.body.windows, [90, 60, 30, 15], 'default restaurado para a leitura');
   dbC.run("INSERT OR IGNORE INTO alert_events(contract_id, window_days, email_status) VALUES (?, 30, 'failed')", [P.p25.id]);
 
-  const res = await request(app).get('/api/alerts/panel').set(as(gestorCToken));
+  const res = await request(app).get('/api/v2/alerts/panel').set(as(gestorCToken));
   assert.strictEqual(res.status, 200, JSON.stringify(res.body));
   const body = res.body;
 
@@ -783,7 +783,7 @@ test('E010 FR-003: painel expõe email_status da janela atribuída sem tocar as 
   }
 
   // Admin lê o mesmo payload (guards admin/gestor são E005; aqui só o consumo).
-  const adminRes = await request(app).get('/api/alerts/panel').set(as(adminCToken));
+  const adminRes = await request(app).get('/api/v2/alerts/panel').set(as(adminCToken));
   assert.strictEqual(adminRes.status, 200);
   const adminById = Object.fromEntries(adminRes.body.items.map((i) => [i.id, i]));
   assert.strictEqual(adminById[P.p10.id].email_status, 'sent');
@@ -808,7 +808,7 @@ test('E010 FR-005: host morto grava failed, painel expõe failed e a varredura c
   try {
     // Segundo contrato, ainda sem alert_events (25 dias => janela 30).
     const created = await request(app)
-      .post('/api/contracts')
+      .post('/api/v2/contracts')
       .set(as(gestorDToken))
       .send({
         name: 'Contrato host morto',
@@ -820,7 +820,7 @@ test('E010 FR-005: host morto grava failed, painel expõe failed e a varredura c
     assert.strictEqual(created.status, 201, JSON.stringify(created.body));
     failContract = created.body.contract;
 
-    const result = await request(app).post('/api/alerts/sweep').set(as(adminDToken)).send({});
+    const result = await request(app).post('/api/v2/alerts/sweep').set(as(adminDToken)).send({});
     assert.strictEqual(result.status, 200, JSON.stringify(result.body));
     // swept ≥ emailed + failed (SC-003): dedup do contrato 1 fora, host morto
     // conta como failed e a varredura não aborta.
@@ -842,7 +842,7 @@ test('E010 FR-005: host morto grava failed, painel expõe failed e a varredura c
     assert.strictEqual(rows1[0].email_status, 'sent', 'linha sent original intacta');
 
     // Painel do domínio: email_status failed na janela 30 do contrato novo.
-    const panel = await request(app).get('/api/alerts/panel').set(as(adminDToken));
+    const panel = await request(app).get('/api/v2/alerts/panel').set(as(adminDToken));
     assert.strictEqual(panel.status, 200, JSON.stringify(panel.body));
     const items = Object.fromEntries(panel.body.items.map((i) => [i.id, i]));
     assert.strictEqual(items[failContract.id].window, 30);

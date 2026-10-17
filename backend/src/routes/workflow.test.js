@@ -48,7 +48,7 @@ function futureDate(days) {
 
 async function login(email, password, domId) {
   const res = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email, password, domainId: domId });
   assert.strictEqual(res.status, 200, `${email}: ${JSON.stringify(res.body)}`);
   return res.body.token;
@@ -58,7 +58,7 @@ async function login(email, password, domId) {
 // covered in suggestions.test.js; US4 starts from an approved suggestion).
 async function approveSeededSuggestion() {
   const approved = await request(app)
-    .post(`/api/suggestions/${suggestionId}/approve`)
+    .post(`/api/v2/suggestions/${suggestionId}/approve`)
     .set(as(gestorToken));
   assert.strictEqual(approved.status, 201, JSON.stringify(approved.body));
   materializedTaskIds = approved.body.tasks.map((task) => task.id);
@@ -69,12 +69,12 @@ test.before(async () => {
   await initTestDb();
 
   const sys = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(sys.status, 200);
 
   const enabled = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Iota Workflow',
@@ -93,7 +93,7 @@ test.before(async () => {
     ['Fora', 'fora@iota.test', 'prestador'],
   ]) {
     const res = await request(app)
-      .post('/api/users')
+      .post('/api/v2/users')
       .set(as(adminToken))
       .send({ name, email, password: 'Secret1!', role, username: email.split('@')[0] });
     assert.strictEqual(res.status, 201, JSON.stringify(res.body));
@@ -103,20 +103,20 @@ test.before(async () => {
   forasteiroToken = await login('fora@iota.test', 'Secret1!', domainId);
 
   const contract = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'Obra Workflow', start_date: futureDate(-3), forecast_date: futureDate(60) });
   assert.strictEqual(contract.status, 201, JSON.stringify(contract.body));
   contractId = contract.body.contract.id;
 
   const definitions = await request(app)
-    .put(`/api/contracts/${contractId}/definitions`)
+    .put(`/api/v2/contracts/${contractId}/definitions`)
     .set(as(gestorToken))
     .send(DEFINITIONS);
   assert.strictEqual(definitions.status, 200, JSON.stringify(definitions.body));
 
   const linked = await request(app)
-    .post(`/api/contracts/${contractId}/prestadores`)
+    .post(`/api/v2/contracts/${contractId}/providers`)
     .set(as(gestorToken))
     .send({ user_id: db.get(`SELECT id FROM users WHERE email = 'pedro@iota.test'`).id });
   assert.strictEqual(linked.status, 201, JSON.stringify(linked.body));
@@ -145,7 +145,7 @@ test.before(async () => {
 
   // manual task created OUTSIDE any list (FR-010 opt-in target)
   const manual = await request(app)
-    .post(`/api/contracts/${contractId}/tasks`)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'Tarefa manual fora da lista' });
   assert.strictEqual(manual.status, 201, JSON.stringify(manual.body));
@@ -178,7 +178,7 @@ test('FR-010 vira workflow', async () => {
   );
   const gestorId = db.get(`SELECT id FROM users WHERE email = 'gilda@iota.test'`).id;
   const opted = await request(app)
-    .post(`/api/contracts/${contractId}/workflow/tasks/${manualTaskId}/opt-in`)
+    .post(`/api/v2/contracts/${contractId}/workflow/tasks/${manualTaskId}/opt-in`)
     .set(as(gestorToken));
   assert.strictEqual(opted.status, 200, JSON.stringify(opted.body));
   assert.strictEqual(opted.body.task.id, manualTaskId);
@@ -190,32 +190,32 @@ test('FR-010 vira workflow', async () => {
 
   // already opted → 409; already materialized → 409
   const repeat = await request(app)
-    .post(`/api/contracts/${contractId}/workflow/tasks/${manualTaskId}/opt-in`)
+    .post(`/api/v2/contracts/${contractId}/workflow/tasks/${manualTaskId}/opt-in`)
     .set(as(gestorToken));
   assert.strictEqual(repeat.status, 409, JSON.stringify(repeat.body));
   const materializedOpt = await request(app)
     .post(
-      `/api/contracts/${contractId}/workflow/tasks/${materializedTaskIds[0]}/opt-in`
+      `/api/v2/contracts/${contractId}/workflow/tasks/${materializedTaskIds[0]}/opt-in`
     )
     .set(as(gestorToken));
   assert.strictEqual(materializedOpt.status, 409, JSON.stringify(materializedOpt.body));
 
   // another contract: task outside the path contract → 400
   const other = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'Obra Sem Workflow', start_date: futureDate(-1), forecast_date: futureDate(30) });
   assert.strictEqual(other.status, 201, JSON.stringify(other.body));
   otherContractId = other.body.contract.id;
   const otherTask = await request(app)
-    .post(`/api/contracts/${otherContractId}/tasks`)
+    .post(`/api/v2/contracts/${otherContractId}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'Tarefa de outra obra' });
   assert.strictEqual(otherTask.status, 201, JSON.stringify(otherTask.body));
 
   const wrongContract = await request(app)
     .post(
-      `/api/contracts/${other.body.contract.id}/workflow/tasks/${manualTaskId}/opt-in`
+      `/api/v2/contracts/${other.body.contract.id}/workflow/tasks/${manualTaskId}/opt-in`
     )
     .set(as(gestorToken));
   assert.strictEqual(wrongContract.status, 400, JSON.stringify(wrongContract.body));
@@ -224,7 +224,7 @@ test('FR-010 vira workflow', async () => {
   // contract never approved → nothing to join (FR-010)
   const noWorkflow = await request(app)
     .post(
-      `/api/contracts/${other.body.contract.id}/workflow/tasks/${otherTask.body.task.id}/opt-in`
+      `/api/v2/contracts/${other.body.contract.id}/workflow/tasks/${otherTask.body.task.id}/opt-in`
     )
     .set(as(gestorToken));
   assert.strictEqual(noWorkflow.status, 400, JSON.stringify(noWorkflow.body));
@@ -233,32 +233,32 @@ test('FR-010 vira workflow', async () => {
   // FR-019/FR-007: only gestor confirms the opt-in
   assert.strictEqual(
     (await request(app)
-      .post(`/api/contracts/${contractId}/workflow/tasks/${otherTask.body.task.id}/opt-in`)
+      .post(`/api/v2/contracts/${contractId}/workflow/tasks/${otherTask.body.task.id}/opt-in`)
       .set(as(adminToken))).status,
     403
   );
   assert.strictEqual(
     (await request(app)
-      .post(`/api/contracts/${contractId}/workflow/tasks/${otherTask.body.task.id}/opt-in`)
+      .post(`/api/v2/contracts/${contractId}/workflow/tasks/${otherTask.body.task.id}/opt-in`)
       .set(as(prestadorToken))).status,
     403
   );
   assert.strictEqual(
     (await request(app)
-      .post(`/api/contracts/${contractId}/workflow/tasks/${otherTask.body.task.id}/opt-in`)).status,
+      .post(`/api/v2/contracts/${contractId}/workflow/tasks/${otherTask.body.task.id}/opt-in`)).status,
     401
   );
 
   // 404: ghost contract and ghost task
   assert.strictEqual(
     (await request(app)
-      .post('/api/contracts/999999/workflow/tasks/1/opt-in')
+      .post('/api/v2/contracts/999999/workflow/tasks/1/opt-in')
       .set(as(gestorToken))).status,
     404
   );
   assert.strictEqual(
     (await request(app)
-      .post(`/api/contracts/${contractId}/workflow/tasks/999999/opt-in`)
+      .post(`/api/v2/contracts/${contractId}/workflow/tasks/999999/opt-in`)
       .set(as(gestorToken))).status,
     404
   );
@@ -269,14 +269,14 @@ test('FR-011 fluxo preservado', async () => {
 
   // a manual task created AFTER the approval stays outside the list flag
   const manual2 = await request(app)
-    .post(`/api/contracts/${contractId}/tasks`)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'Nova manual sem opt-in' });
   assert.strictEqual(manual2.status, 201, JSON.stringify(manual2.body));
 
   // list carries the real task flow plus `in_workflow` (FR-011/FR-010)
   const list = await request(app)
-    .get('/api/tasks')
+    .get('/api/v2/tasks')
     .query({ contract_id: contractId })
     .set(as(gestorToken));
   assert.strictEqual(list.status, 200, JSON.stringify(list.body));
@@ -295,13 +295,13 @@ test('FR-011 fluxo preservado', async () => {
   // status flow over a materialized task: assign → prestador moves it
   const task = materializedTaskIds[0];
   const assigned = await request(app)
-    .put(`/api/tasks/${task}`)
+    .put(`/api/v2/tasks/${task}`)
     .set(as(gestorToken))
     .send({ assignee_id: pedroId });
   assert.strictEqual(assigned.status, 200, JSON.stringify(assigned.body));
 
   const moved = await request(app)
-    .patch(`/api/tasks/${task}/status`)
+    .patch(`/api/v2/tasks/${task}/status`)
     .set(as(prestadorToken))
     .send({ status: 'Em Progresso' });
   assert.strictEqual(moved.status, 200, JSON.stringify(moved.body));
@@ -325,7 +325,7 @@ test('FR-011 fluxo preservado', async () => {
 
   // the existing invalid-flow refusal still applies to materialized tasks
   const skipped = await request(app)
-    .patch(`/api/tasks/${task}/status`)
+    .patch(`/api/v2/tasks/${task}/status`)
     .set(as(prestadorToken))
     .send({ status: 'Concluída' });
   assert.strictEqual(skipped.status, 400, JSON.stringify(skipped.body));
@@ -334,7 +334,7 @@ test('FR-011 fluxo preservado', async () => {
 test('FR-013 só aprovadas', async () => {
   // gestor: active version + every contract task with the in_workflow flag
   const gestorView = await request(app)
-    .get(`/api/contracts/${contractId}/workflow`)
+    .get(`/api/v2/contracts/${contractId}/workflow`)
     .set(as(gestorToken));
   assert.strictEqual(gestorView.status, 200, JSON.stringify(gestorView.body));
   assert.strictEqual(gestorView.body.workflow.status, 'ativo');
@@ -348,14 +348,14 @@ test('FR-013 só aprovadas', async () => {
 
   // admin: same full view (FR-011/FR-013 — nunca sugestões, só tarefas)
   const adminView = await request(app)
-    .get(`/api/contracts/${contractId}/workflow`)
+    .get(`/api/v2/contracts/${contractId}/workflow`)
     .set(as(adminToken));
   assert.strictEqual(adminView.status, 200);
   assert.strictEqual(adminView.body.tasks.length, gestorView.body.tasks.length);
 
   // prestador vinculado: ONLY the approved list — no unlisted task, no suggestions
   const prestadorView = await request(app)
-    .get(`/api/contracts/${contractId}/workflow`)
+    .get(`/api/v2/contracts/${contractId}/workflow`)
     .set(as(prestadorToken));
   assert.strictEqual(prestadorView.status, 200, JSON.stringify(prestadorView.body));
   assert.strictEqual(prestadorView.body.workflow.status, 'ativo');
@@ -371,13 +371,13 @@ test('FR-013 só aprovadas', async () => {
 
   // prestador NÃO vinculado ao contrato → 404 (FR-013)
   const forasteiro = await request(app)
-    .get(`/api/contracts/${contractId}/workflow`)
+    .get(`/api/v2/contracts/${contractId}/workflow`)
     .set(as(forasteiroToken));
   assert.strictEqual(forasteiro.status, 404, JSON.stringify(forasteiro.body));
 
   // contrato nunca aprovado: workflow null, tasks still listed for gestor
   const neverApproved = await request(app)
-    .get(`/api/contracts/${otherContractId}/workflow`)
+    .get(`/api/v2/contracts/${otherContractId}/workflow`)
     .set(as(gestorToken));
   assert.strictEqual(neverApproved.status, 200, JSON.stringify(neverApproved.body));
   assert.strictEqual(neverApproved.body.workflow, null);
@@ -386,11 +386,11 @@ test('FR-013 só aprovadas', async () => {
 
   // 401 sem token; contrato inexistente → 404
   assert.strictEqual(
-    (await request(app).get(`/api/contracts/${contractId}/workflow`)).status,
+    (await request(app).get(`/api/v2/contracts/${contractId}/workflow`)).status,
     401
   );
   assert.strictEqual(
-    (await request(app).get('/api/contracts/999999/workflow').set(as(gestorToken))).status,
+    (await request(app).get('/api/v2/contracts/999999/workflow').set(as(gestorToken))).status,
     404
   );
 });

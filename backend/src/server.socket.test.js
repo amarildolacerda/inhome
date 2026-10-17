@@ -133,7 +133,7 @@ function missedEvent(socket, event, waitMs = 400) {
 
 async function enable(name, adminEmail) {
   const res = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set('Authorization', `Bearer ${sysToken}`)
     .send({
       name,
@@ -170,13 +170,13 @@ function collectAnalysisStates(socket, contractId, until, timeoutMs = 8000) {
   });
 }
 
-// FR-021: poll GET /api/contracts/:id/analysis until the expected status.
+// FR-021: poll GET /api/v2/contracts/:id/analysis until the expected status.
 async function pollAnalysis(status, timeoutMs = 8000) {
   const deadline = Date.now() + timeoutMs;
   let last = null;
   while (Date.now() < deadline) {
     const res = await request(app)
-      .get(`/api/contracts/${contractId}/analysis`)
+      .get(`/api/v2/contracts/${contractId}/analysis`)
       .set('Authorization', `Bearer ${gestorToken}`);
     if (res.status === 200) {
       last = res.body.analysis;
@@ -193,7 +193,7 @@ test.before(async () => {
   baseUrl = `http://127.0.0.1:${server.address().port}`;
 
   const sys = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(sys.status, 200, JSON.stringify(sys.body));
   sysToken = sys.body.token;
@@ -204,11 +204,11 @@ test.before(async () => {
   // fixtures for the 00003 analysis flow (FR-021): gestor + contrato +
   // definições salvas no domínio A.
   const adminA = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: 'socket-a@socket.test', password: 'Secret1!', domainId: domainA.id });
   assert.strictEqual(adminA.status, 200, JSON.stringify(adminA.body));
   const created = await request(app)
-    .post('/api/users')
+    .post('/api/v2/users')
     .set('Authorization', `Bearer ${adminA.body.token}`)
     .send({
       name: 'Gestor Sala A',
@@ -219,13 +219,13 @@ test.before(async () => {
     });
   assert.strictEqual(created.status, 201, JSON.stringify(created.body));
   const gestorLogin = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: 'gestor-a@socket.test', password: 'Secret1!', domainId: domainA.id });
   assert.strictEqual(gestorLogin.status, 200, JSON.stringify(gestorLogin.body));
   gestorToken = gestorLogin.body.token;
 
   const contract = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set('Authorization', `Bearer ${gestorToken}`)
     .send({
       name: 'Contrato Sala A',
@@ -236,7 +236,7 @@ test.before(async () => {
   contractId = contract.body.contract.id;
 
   const definitions = await request(app)
-    .put(`/api/contracts/${contractId}/definitions`)
+    .put(`/api/v2/contracts/${contractId}/definitions`)
     .set('Authorization', `Bearer ${gestorToken}`)
     .send({
       finalidade: 'Acompanhar a obra da sala A',
@@ -277,7 +277,7 @@ test('token inválido ou de outro segredo é recusado (F-01)', async () => {
 
 test('sessão de domínio suspenso não conecta', async () => {
   const suspended = await request(app)
-    .post(`/api/domains/${domainA.id}/suspend`)
+    .post(`/api/v2/domains/${domainA.id}/suspend`)
     .set('Authorization', `Bearer ${sysToken}`);
   assert.strictEqual(suspended.status, 200, JSON.stringify(suspended.body));
 
@@ -286,7 +286,7 @@ test('sessão de domínio suspenso não conecta', async () => {
   assert.strictEqual(message, 'domain suspended');
 
   const reactivated = await request(app)
-    .post(`/api/domains/${domainA.id}/reactivate`)
+    .post(`/api/v2/domains/${domainA.id}/reactivate`)
     .set('Authorization', `Bearer ${sysToken}`);
   assert.strictEqual(reactivated.status, 200, JSON.stringify(reactivated.body));
 });
@@ -340,7 +340,7 @@ test('FR-001 mutação HTTP publica task:updated na sala do domínio', async () 
 
   const received = awaitEvent(clientA, 'task:updated');
   const res = await request(app)
-    .post(`/api/contracts/${contractId}/tasks`)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
     .set('Authorization', `Bearer ${gestorToken}`)
     .send({ title: 'E009 task http e2e' });
   assert.strictEqual(res.status, 201, JSON.stringify(res.body));
@@ -366,7 +366,7 @@ test('FR-002 outro domínio não recebe o evento da mutação HTTP', async () =>
   const leaked = missedEvent(clientB, 'task:updated', 600);
   const received = awaitEvent(clientA, 'task:updated');
   const res = await request(app)
-    .post(`/api/contracts/${contractId}/tasks`)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
     .set('Authorization', `Bearer ${gestorToken}`)
     .send({ title: 'E009 isolation task' });
   assert.strictEqual(res.status, 201, JSON.stringify(res.body));
@@ -385,7 +385,7 @@ test('FR-003 falha de emissão não altera a resposta HTTP', async () => {
   });
   try {
     const res = await request(app)
-      .post(`/api/contracts/${contractId}/tasks`)
+      .post(`/api/v2/contracts/${contractId}/tasks`)
       .set('Authorization', `Bearer ${gestorToken}`)
       .send({ title: 'E009 emitter failure' });
     assert.strictEqual(res.status, 201, JSON.stringify(res.body));
@@ -418,7 +418,7 @@ test('FR-004 emitter ausente retorna false sem replay', async () => {
 
     // a mutação HTTP com emitter ausente ainda responde 2xx
     const res = await request(app)
-      .post(`/api/contracts/${contractId}/tasks`)
+      .post(`/api/v2/contracts/${contractId}/tasks`)
       .set('Authorization', `Bearer ${gestorToken}`)
       .send({ title: 'E009 no emitter' });
     assert.strictEqual(res.status, 201, JSON.stringify(res.body));
@@ -452,7 +452,7 @@ test('FR-021 estado + retry', async () => {
   setFake({ FAKE_OPENCODE_OUTPUT: GOOD_OUTPUT });
   const collector = collectAnalysisStates(socket, contractId, 'sugerido');
   const posted = await request(app)
-    .post(`/api/contracts/${contractId}/analysis`)
+    .post(`/api/v2/contracts/${contractId}/analysis`)
     .set('Authorization', `Bearer ${gestorToken}`)
     .send({});
   assert.strictEqual(posted.status, 202, JSON.stringify(posted.body));
@@ -479,7 +479,7 @@ test('FR-021 estado + retry', async () => {
   setFake({ FAKE_OPENCODE_EXIT: '1' });
   const failing = collectAnalysisStates(socket, contractId, 'falha');
   const crashed = await request(app)
-    .post(`/api/contracts/${contractId}/analysis`)
+    .post(`/api/v2/contracts/${contractId}/analysis`)
     .set('Authorization', `Bearer ${gestorToken}`)
     .send({});
   assert.strictEqual(crashed.status, 202, JSON.stringify(crashed.body));
@@ -494,7 +494,7 @@ test('FR-021 estado + retry', async () => {
   setFake({ FAKE_OPENCODE_OUTPUT: GOOD_OUTPUT });
   const retrying = collectAnalysisStates(socket, contractId, 'sugerido');
   const retried = await request(app)
-    .post(`/api/contracts/${contractId}/analysis/retry`)
+    .post(`/api/v2/contracts/${contractId}/analysis/retry`)
     .set('Authorization', `Bearer ${gestorToken}`)
     .send();
   assert.strictEqual(retried.status, 202, JSON.stringify(retried.body));
@@ -503,7 +503,7 @@ test('FR-021 estado + retry', async () => {
   assert.strictEqual(recovered.items.length, 2);
 
   const tooLate = await request(app)
-    .post(`/api/contracts/${contractId}/analysis/retry`)
+    .post(`/api/v2/contracts/${contractId}/analysis/retry`)
     .set('Authorization', `Bearer ${gestorToken}`)
     .send();
   assert.strictEqual(tooLate.status, 409);
@@ -559,7 +559,7 @@ test('FR-012 evento domínio', async () => {
   // fixture from FR-021: latest suggestion is `sugerido` — approve it
   const state = await pollAnalysis('sugerido');
   const approved = await request(app)
-    .post(`/api/suggestions/${state.suggestion_id}/approve`)
+    .post(`/api/v2/suggestions/${state.suggestion_id}/approve`)
     .set('Authorization', `Bearer ${gestorToken}`);
   assert.strictEqual(approved.status, 201, JSON.stringify(approved.body));
 

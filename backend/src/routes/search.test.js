@@ -32,7 +32,7 @@ function as(token) {
 
 async function login(email, password, domId) {
   const res = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email, password, domainId: domId });
   assert.strictEqual(res.status, 200, `${email}: ${JSON.stringify(res.body)}`);
   return res.body.token;
@@ -45,9 +45,9 @@ function futureDate(days) {
 test.before(async () => {
   await initTestDb();
 
-  const sys = await request(app).post('/api/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  const sys = await request(app).post('/api/v2/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   const enabled = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Teta Busca',
@@ -65,7 +65,7 @@ test.before(async () => {
     ['Otavio', 'otavio@teta.test', 'prestador'],
   ]) {
     const res = await request(app)
-      .post('/api/users')
+      .post('/api/v2/users')
       .set(as(adminToken))
       .send({ name, email, password: 'Secret1!', role, username: email.split('@')[0] });
     assert.strictEqual(res.status, 201);
@@ -80,13 +80,13 @@ test.before(async () => {
 
   // finalidade dictionary entries
   const fReforma = await request(app)
-    .post('/api/finalidades')
+    .post('/api/v2/purposes')
     .set(as(adminToken))
     .send({ name: 'Reforma Estrutural' });
   assert.strictEqual(fReforma.status, 201);
   reformaId = fReforma.body.finalidade.id;
   const fLimpeza = await request(app)
-    .post('/api/finalidades')
+    .post('/api/v2/purposes')
     .set(as(adminToken))
     .send({ name: 'Limpeza Geral' });
   assert.strictEqual(fLimpeza.status, 201);
@@ -94,7 +94,7 @@ test.before(async () => {
 
   // contracts with distinct name/status/finalidade/prestador
   const c1 = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({
       name: 'Almoxarifado Norte Reforma',
@@ -106,7 +106,7 @@ test.before(async () => {
   c1Id = c1.body.contract.id;
 
   const c2 = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({
       name: 'Galpao Sul Limpeza',
@@ -119,7 +119,7 @@ test.before(async () => {
 
   // encerrar c2 → status encerrado
   const closed = await request(app)
-    .post(`/api/contracts/${c2Id}/encerrar`)
+    .post(`/api/v2/contracts/${c2Id}/close`)
     .set(as(gestorToken))
     .send({ note: 'encerrado para o teste de filtro' });
   assert.strictEqual(closed.status, 200, JSON.stringify(closed.body));
@@ -131,7 +131,7 @@ test.before(async () => {
     [c2Id, p2Id],
   ]) {
     const linked = await request(app)
-      .post(`/api/contracts/${cid}/prestadores`)
+      .post(`/api/v2/contracts/${cid}/providers`)
       .set(as(gestorToken))
       .send({ user_id: uid });
     assert.ok([200, 201].includes(linked.status), JSON.stringify(linked.body));
@@ -139,20 +139,20 @@ test.before(async () => {
 
   // tasks with distinct priority/prestador/due dates
   const t1 = await request(app)
-    .post(`/api/contracts/${c1Id}/tasks`)
+    .post(`/api/v2/contracts/${c1Id}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'Instalacao eletrica', priority: 'high', assignee_id: p1Id, due_date: futureDate(10) });
   assert.strictEqual(t1.status, 201, JSON.stringify(t1.body));
   t1Id = t1.body.task.id;
 
   const t2 = await request(app)
-    .post(`/api/contracts/${c1Id}/tasks`)
+    .post(`/api/v2/contracts/${c1Id}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'Reaperto de parafusos', priority: 'low', assignee_id: p2Id, due_date: futureDate(90) });
   assert.strictEqual(t2.status, 201, JSON.stringify(t2.body));
 
   const t3 = await request(app)
-    .post(`/api/contracts/${c2Id}/tasks`)
+    .post(`/api/v2/contracts/${c2Id}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'Pintura galpao', priority: 'high', assignee_id: p2Id, due_date: futureDate(40) });
   assert.strictEqual(t3.status, 201, JSON.stringify(t3.body));
@@ -162,36 +162,36 @@ test('FR-016 filters', async () => {
   const ids = (body, key) => body[key].map((row) => row.id);
 
   // contrato: name/object substring
-  const byName = await request(app).get('/api/search/contracts?q=Almoxarifado').set(as(gestorToken));
+  const byName = await request(app).get('/api/v2/search/contracts?q=Almoxarifado').set(as(gestorToken));
   assert.strictEqual(byName.status, 200, JSON.stringify(byName.body));
   assert.deepStrictEqual(ids(byName.body, 'contracts'), [c1Id]);
 
   // status
   const byStatus = await request(app)
-    .get('/api/search/contracts?status=encerrado')
+    .get('/api/v2/search/contracts?status=encerrado')
     .set(as(gestorToken));
   assert.deepStrictEqual(ids(byStatus.body, 'contracts'), [c2Id]);
 
   const byVigente = await request(app)
-    .get('/api/search/contracts?status=vigente')
+    .get('/api/v2/search/contracts?status=vigente')
     .set(as(gestorToken));
   assert.deepStrictEqual(ids(byVigente.body, 'contracts'), [c1Id]);
 
   // finalidade
   const byFinalidade = await request(app)
-    .get(`/api/search/contracts?purpose_id=${reformaId}`)
+    .get(`/api/v2/search/contracts?purpose_id=${reformaId}`)
     .set(as(gestorToken));
   assert.deepStrictEqual(ids(byFinalidade.body, 'contracts'), [c1Id]);
 
   // prestador (contract link)
   const byPrestadorC = await request(app)
-    .get(`/api/search/contracts?prestador_id=${p1Id}`)
+    .get(`/api/v2/search/contracts?prestador_id=${p1Id}`)
     .set(as(gestorToken));
   assert.deepStrictEqual(ids(byPrestadorC.body, 'contracts'), [c1Id]);
 
   // prioridade (tasks)
   const byPriority = await request(app)
-    .get('/api/search/tasks?priority=high')
+    .get('/api/v2/search/tasks?priority=high')
     .set(as(gestorToken));
   const priorityIds = ids(byPriority.body, 'tasks').sort();
   assert.strictEqual(byPriority.body.total, 2, 'two high-priority tasks');
@@ -199,18 +199,18 @@ test('FR-016 filters', async () => {
 
   // prestador (task assignee)
   const byPrestadorT = await request(app)
-    .get(`/api/search/tasks?prestador_id=${p1Id}`)
+    .get(`/api/v2/search/tasks?prestador_id=${p1Id}`)
     .set(as(gestorToken));
   assert.deepStrictEqual(ids(byPrestadorT.body, 'tasks'), [t1Id]);
 
   // prazo: due date window
   const soon = await request(app)
-    .get(`/api/search/tasks?due_before=${futureDate(15)}`)
+    .get(`/api/v2/search/tasks?due_before=${futureDate(15)}`)
     .set(as(gestorToken));
   assert.deepStrictEqual(ids(soon.body, 'tasks'), [t1Id], 'only the task due within 15 days');
 
   const later = await request(app)
-    .get(`/api/search/tasks?due_after=${futureDate(30)}`)
+    .get(`/api/v2/search/tasks?due_after=${futureDate(30)}`)
     .set(as(gestorToken));
   const laterIds = ids(later.body, 'tasks');
   assert.strictEqual(later.body.total, 2, 'tasks due after 30 days');
@@ -218,32 +218,32 @@ test('FR-016 filters', async () => {
 
   // combined filters
   const combined = await request(app)
-    .get('/api/search/tasks?q=Instalacao&priority=high')
+    .get('/api/v2/search/tasks?q=Instalacao&priority=high')
     .set(as(gestorToken));
   assert.deepStrictEqual(ids(combined.body, 'tasks'), [t1Id]);
 
   const combinedC = await request(app)
-    .get(`/api/search/contracts?status=vigente&purpose_id=${reformaId}&prestador_id=${p1Id}`)
+    .get(`/api/v2/search/contracts?status=vigente&purpose_id=${reformaId}&prestador_id=${p1Id}`)
     .set(as(gestorToken));
   assert.deepStrictEqual(ids(combinedC.body, 'contracts'), [c1Id]);
 
   // status filter on tasks (flow value)
   const concluida = await request(app)
-    .get('/api/search/tasks?status=Concluída')
+    .get('/api/v2/search/tasks?status=Concluída')
     .set(as(gestorToken));
   assert.strictEqual(concluida.body.total, 0, 'no concluded tasks yet');
 
   // prestador scoping: p1 sees only own tasks / linked contracts
-  const p1Tasks = await request(app).get('/api/search/tasks?q=').set(as(p1Token));
+  const p1Tasks = await request(app).get('/api/v2/search/tasks?q=').set(as(p1Token));
   assert.strictEqual(p1Tasks.status, 200);
   assert.ok(p1Tasks.body.tasks.every((t) => t.assignee_id === p1Id), 'prestador: só as suas');
 
-  const p1Contracts = await request(app).get('/api/search/contracts?q=Galpao').set(as(p1Token));
+  const p1Contracts = await request(app).get('/api/v2/search/contracts?q=Galpao').set(as(p1Token));
   assert.strictEqual(p1Contracts.status, 200);
   assert.strictEqual(p1Contracts.body.total, 0, 'p1 not linked to Galpao Sul');
 
   // unknown page params and empty result are fine
-  const empty = await request(app).get('/api/search/contracts?q=inexistente').set(as(gestorToken));
+  const empty = await request(app).get('/api/v2/search/contracts?q=inexistente').set(as(gestorToken));
   assert.strictEqual(empty.status, 200);
   assert.strictEqual(empty.body.total, 0);
 });
@@ -255,7 +255,7 @@ test('FR-001 seis filtros isolados e combinados', async () => {
 
   // contrato (contract_id on tasks) — t1,t2 belong to c1; t3 to c2
   const byContract = await request(app)
-    .get(`/api/search/tasks?contract_id=${c1Id}`)
+    .get(`/api/v2/search/tasks?contract_id=${c1Id}`)
     .set(as(gestorToken));
   assert.strictEqual(byContract.status, 200, JSON.stringify(byContract.body));
   const contractIds = ids(byContract.body, 'tasks').sort((a, b) => a - b);
@@ -264,45 +264,45 @@ test('FR-001 seis filtros isolados e combinados', async () => {
   assert.deepStrictEqual(contractIds, [t1, t2].sort((a, b) => a - b), 'contract_id filters tasks of that contract');
 
   // status (contracts)
-  const byStatus = await request(app).get('/api/search/contracts?status=vigente').set(as(gestorToken));
+  const byStatus = await request(app).get('/api/v2/search/contracts?status=vigente').set(as(gestorToken));
   assert.strictEqual(byStatus.body.total, 1);
   assert.strictEqual(byStatus.body.contracts[0].id, c1Id);
 
   // prioridade (tasks)
-  const byPriority = await request(app).get('/api/search/tasks?priority=high').set(as(gestorToken));
+  const byPriority = await request(app).get('/api/v2/search/tasks?priority=high').set(as(gestorToken));
   assert.strictEqual(byPriority.body.total, 2, 'two high-priority tasks');
 
   // prestador (tasks)
-  const byPrestador = await request(app).get(`/api/search/tasks?prestador_id=${p2Id}`).set(as(gestorToken));
+  const byPrestador = await request(app).get(`/api/v2/search/tasks?prestador_id=${p2Id}`).set(as(gestorToken));
   assert.strictEqual(byPrestador.body.total, 2, 'p2 owns t2 and t3');
 
   // finalidade (contracts)
-  const byFinalidade = await request(app).get(`/api/search/contracts?purpose_id=${limpezaId}`).set(as(gestorToken));
+  const byFinalidade = await request(app).get(`/api/v2/search/contracts?purpose_id=${limpezaId}`).set(as(gestorToken));
   assert.strictEqual(byFinalidade.body.total, 1);
   assert.strictEqual(byFinalidade.body.contracts[0].id, c2Id);
 
   // prazo (tasks, both bounds combined)
   const byPrazo = await request(app)
-    .get(`/api/search/tasks?due_after=${futureDate(5)}&due_before=${futureDate(20)}`)
+    .get(`/api/v2/search/tasks?due_after=${futureDate(5)}&due_before=${futureDate(20)}`)
     .set(as(gestorToken));
   assert.deepStrictEqual(ids(byPrazo.body, 'tasks'), [t1], 'only t1 due within 5..20 days');
 
   // combined: status + finalidade + prestador on contracts
   const combined = await request(app)
-    .get(`/api/search/contracts?status=encerrado&purpose_id=${limpezaId}&prestador_id=${p2Id}`)
+    .get(`/api/v2/search/contracts?status=encerrado&purpose_id=${limpezaId}&prestador_id=${p2Id}`)
     .set(as(gestorToken));
   assert.deepStrictEqual(ids(combined.body, 'contracts'), [c2Id], 'c2 satisfies all three');
 });
 
 test('FR-002 resultado vazio sem erro e paginação consistente', async () => {
   // empty result: no error, total 0, arrays empty
-  const empty = await request(app).get('/api/search/tasks?q=zzz-inexistente').set(as(gestorToken));
+  const empty = await request(app).get('/api/v2/search/tasks?q=zzz-inexistente').set(as(gestorToken));
   assert.strictEqual(empty.status, 200, JSON.stringify(empty.body));
   assert.strictEqual(empty.body.total, 0);
   assert.deepStrictEqual(empty.body.tasks, []);
 
   // pagination consistency: total is the full count, rows limited by limit
-  const page = await request(app).get('/api/search/tasks?limit=1&offset=0').set(as(gestorToken));
+  const page = await request(app).get('/api/v2/search/tasks?limit=1&offset=0').set(as(gestorToken));
   assert.strictEqual(page.status, 200);
   assert.strictEqual(page.body.total, 3, 'three tasks seeded');
   assert.strictEqual(page.body.tasks.length, 1, 'limit=1 returns one row');
@@ -310,7 +310,7 @@ test('FR-002 resultado vazio sem erro e paginação consistente', async () => {
   assert.strictEqual(page.body.offset, 0);
 
   // page beyond total: empty rows, total still correct, no error
-  const beyond = await request(app).get('/api/search/tasks?limit=50&offset=100').set(as(gestorToken));
+  const beyond = await request(app).get('/api/v2/search/tasks?limit=50&offset=100').set(as(gestorToken));
   assert.strictEqual(beyond.status, 200, JSON.stringify(beyond.body));
   assert.deepStrictEqual(beyond.body.tasks, [], 'no rows beyond total');
   assert.strictEqual(beyond.body.total, 3, 'total unchanged');
@@ -348,7 +348,7 @@ test('FR-003 p95 abaixo de 2 s com ensureIndexes ativo', async () => {
   for (let i = 0; i < N; i += 1) {
     const start = process.hrtime.bigint();
     const res = await request(app)
-      .get(`/api/search/tasks?status=${i % 2 ? 'Em Progresso' : 'A Fazer'}&priority=${i % 3 ? 'low' : 'high'}&prestador_id=${i % 2 ? p1Id : p2Id}&limit=50`)
+      .get(`/api/v2/search/tasks?status=${i % 2 ? 'Em Progresso' : 'A Fazer'}&priority=${i % 3 ? 'low' : 'high'}&prestador_id=${i % 2 ? p1Id : p2Id}&limit=50`)
       .set(as(gestorToken));
     const end = process.hrtime.bigint();
     assert.strictEqual(res.status, 200, JSON.stringify(res.body));
@@ -361,32 +361,32 @@ test('FR-003 p95 abaixo de 2 s com ensureIndexes ativo', async () => {
 
 test('FR-004 escopo de domínio e papel na busca', async () => {
   // prestador sees only own tasks (explicit)
-  const p1Tasks = await request(app).get('/api/search/tasks?q=').set(as(p1Token));
+  const p1Tasks = await request(app).get('/api/v2/search/tasks?q=').set(as(p1Token));
   assert.strictEqual(p1Tasks.status, 200);
   assert.ok(p1Tasks.body.tasks.every((t) => t.assignee_id === p1Id), 'prestador: only own tasks');
 
   // admin/gestor see the whole domain
-  const gestorTasks = await request(app).get('/api/search/tasks?q=').set(as(gestorToken));
+  const gestorTasks = await request(app).get('/api/v2/search/tasks?q=').set(as(gestorToken));
   const domainCount = getDomainDb(domainId).get('SELECT COUNT(*) AS c FROM tasks').c;
   assert.strictEqual(gestorTasks.body.total, domainCount, 'gestor sees all domain tasks');
 
   // domainId param is ignored — results stay in token domain, no leak
-  const sys = await request(app).post('/api/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  const sys = await request(app).post('/api/v2/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   const iota = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({ name: 'Iota Busca', adminName: 'Ivo', adminEmail: 'ivo@iota.test', adminPassword: 'Secret1!' });
   assert.strictEqual(iota.status, 201, JSON.stringify(iota.body));
   const foreign = iota.body.domain.id;
   assert.notStrictEqual(Number(foreign), Number(domainId));
 
-  const withForeign = await request(app).get(`/api/search/tasks?domainId=${foreign}`).set(as(gestorToken));
+  const withForeign = await request(app).get(`/api/v2/search/tasks?domainId=${foreign}`).set(as(gestorToken));
   assert.strictEqual(withForeign.status, 200, 'search ignores domainId param (token isolation)');
   assert.strictEqual(withForeign.body.total, domainCount, 'still only own-domain tasks');
 
   // foreign-domain session cannot see this domain's tasks
   const foreignAdmin = await login('ivo@iota.test', 'Secret1!', foreign);
-  const foreignSearch = await request(app).get('/api/search/tasks?q=').set(as(foreignAdmin));
+  const foreignSearch = await request(app).get('/api/v2/search/tasks?q=').set(as(foreignAdmin));
   assert.strictEqual(foreignSearch.status, 200);
   assert.strictEqual(foreignSearch.body.total, 0, 'foreign domain sees none of our tasks');
 });

@@ -56,7 +56,7 @@ tags:
   - name: Config
     description: "Configuração da integração OpenCode (timeout, allowlist)"
 paths:
-  /api/contracts/{id}/definitions:
+  /api/v2/contracts/{id}/definitions:
     get:
       tags: [Definitions, FR-001, FR-019]
       summary: "Obter definições atuais do contrato"
@@ -130,7 +130,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/contracts/{id}/definitions/history:
+  /api/v2/contracts/{id}/definitions/history:
     get:
       tags: [Definitions, FR-002, FR-017, FR-019]
       summary: "Histórico de versões de definições"
@@ -164,7 +164,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/contracts/{id}/analysis:
+  /api/v2/contracts/{id}/analysis:
     post:
       tags: [Analysis, FR-003, FR-004, FR-018, FR-020, FR-021, FR-019]
       summary: "Disparar análise da lista no OpenCode (assíncrono)"
@@ -256,7 +256,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/contracts/{id}/analysis/retry:
+  /api/v2/contracts/{id}/analysis/retry:
     post:
       tags: [Analysis, FR-006, FR-018, FR-021, FR-019]
       summary: "Retry manual da análise após falha"
@@ -297,7 +297,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/contracts/{id}/suggestions:
+  /api/v2/contracts/{id}/suggestions:
     get:
       tags: [Suggestions, FR-008, FR-017, FR-019]
       summary: "Listar versões de sugestão do contrato"
@@ -332,13 +332,13 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/suggestions/{sid}:
+  /api/v2/suggestions/{sid}:
     get:
       tags: [Suggestions, FR-005, FR-007, FR-019]
       summary: "Detalhe da sugestão com itens"
       description: |
         Detalhe da sugestão e dos itens (com `id`, base para edição em FR-007). O
-        caminho é top-level conforme o plano (`/api/suggestions/:sid`); o contrato do
+        caminho é top-level conforme o plano (`/api/v2/suggestions/:sid`); o contrato do
         item é resolvido pelo domínio do token, nunca por parâmetro de domínio.
         Escopo de domínio: `req.user.domainId`; sugestão de outro domínio responde 404;
         só gestor (FR-019).
@@ -366,7 +366,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/suggestions/{sid}/items/{itemId}:
+  /api/v2/suggestions/{sid}/items/{itemId}:
     patch:
       tags: [Suggestions, FR-007, FR-019]
       summary: "Editar ou remover um item da sugestão"
@@ -412,7 +412,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/suggestions/{sid}/refine:
+  /api/v2/suggestions/{sid}/refine:
     post:
       tags: [Suggestions, FR-008, FR-019]
       summary: "Refinar sugestão (cria nova versão)"
@@ -457,7 +457,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/suggestions/{sid}/approve:
+  /api/v2/suggestions/{sid}/approve:
     post:
       tags: [Suggestions, FR-007, FR-009, FR-010, FR-012, FR-019]
       summary: "Aprovar sugestão e ativar o workflow"
@@ -501,7 +501,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/contracts/{id}/workflow:
+  /api/v2/contracts/{id}/workflow:
     get:
       tags: [Workflow, FR-010, FR-011, FR-013, FR-019]
       summary: "Workflow ativo do contrato"
@@ -533,7 +533,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/contracts/{id}/workflow/tasks/{taskId}/opt-in:
+  /api/v2/contracts/{id}/workflow/tasks/{taskId}/opt-in:
     post:
       tags: [Workflow, FR-010, FR-019]
       summary: "Opt-in do gestor para tarefa criada fora da lista"
@@ -542,7 +542,7 @@ paths:
         gestor (FR-010): o endpoint marca a tarefa como `in_workflow: true`. A tarefa
         precisa pertencer ao contrato do caminho — contrato divergente responde 400.
         Já optada responde 409. Só gestor (FR-019); admin e prestador recebem 403.
-        Não emite eventos (mesmo comportamento da edição de campos em `PUT /api/tasks/:id`).
+        Não emite eventos (mesmo comportamento da edição de campos em `PUT /api/v2/tasks/:id`).
         Escopo de domínio: `req.user.domainId`; tarefa de outro domínio responde 404.
       operationId: optInManualTask
       x-fr: [FR-010, FR-019]
@@ -573,7 +573,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/contracts/{id}/review:
+  /api/v2/contracts/{id}/review:
     post:
       tags: [Review, FR-022, FR-024, FR-019]
       summary: "Iniciar revisão na vigência (assíncrono)"
@@ -657,7 +657,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/contracts/{id}/review/{rid}:
+  /api/v2/contracts/{id}/review/{rid}:
     get:
       tags: [Review, FR-022, FR-023, FR-019]
       summary: "Estado da revisão, propostas e conflitos"
@@ -694,7 +694,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/contracts/{id}/review/{rid}/apply:
+  /api/v2/contracts/{id}/review/{rid}/apply:
     post:
       tags: [Review, FR-023, FR-019]
       summary: "Aprovar e aplicar a revisão"
@@ -705,7 +705,7 @@ paths:
         (plan — Error Handling Strategy), com `conflicts` listando os não aplicados e
         `applied` contando edições e criações. Sem propostas responde 400; estado
         diferente de `sugerido` responde 409. Tarefas criadas emitem `task:updated`
-        (action `created`) na sala do domínio, como em `POST /api/contracts/:id/tasks`.
+        (action `created`) na sala do domínio, como em `POST /api/v2/contracts/:id/tasks`.
         Escopo de domínio: `req.user.domainId`; só gestor aplica (FR-019).
       operationId: applyReview
       x-fr: [FR-019, FR-023]
@@ -732,7 +732,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/contracts/{id}/review/{rid}/retry:
+  /api/v2/contracts/{id}/review/{rid}/retry:
     post:
       tags: [Review, FR-022, FR-024, FR-019]
       summary: "Retry manual da revisão após falha"
@@ -773,7 +773,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/tasks/{id}/execution-plan:
+  /api/v2/tasks/{id}/execution-plan:
     get:
       tags: [ExecutionPlan, FR-014, FR-015, FR-016, FR-019]
       summary: "Plano de execução da tarefa"
@@ -783,7 +783,7 @@ paths:
         prestador (FR-015). O plano não altera status, conclusão, fotos nem histórico
         (FR-016); sem plano ainda devolve `plan: null`. `prestador` acessa apenas as
         próprias tarefas vinculadas — tarefa alheia responde 404 (convenção de
-        `GET /api/tasks/:id`).
+        `GET /api/v2/tasks/:id`).
         Escopo de domínio: `req.user.domainId`; tarefa de outro domínio responde 404.
       operationId: getExecutionPlan
       x-fr: [FR-014, FR-015, FR-016, FR-019]
@@ -851,7 +851,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/tasks/{id}/execution-plan/regenerate:
+  /api/v2/tasks/{id}/execution-plan/regenerate:
     post:
       tags: [ExecutionPlan, FR-015, FR-019]
       summary: "Regenerar plano após falha"
@@ -891,7 +891,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/Internal'
-  /api/opencode/config:
+  /api/v2/opencode/config:
     get:
       tags: [Config, FR-018, FR-020, FR-019]
       summary: "Ler configuração da integração OpenCode"
@@ -965,7 +965,7 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: |
-        JWT emitido por `POST /api/auth/login` com payload `{ id, email, role, domainId }`.
+        JWT emitido por `POST /api/v2/auth/login` com payload `{ id, email, role, domainId }`.
         Header `Authorization: Bearer <token>`. Token ausente responde 401; token
         inválido/expirado, domínio suspenso ou papel fora de `x-roles` responde 403.
         O domínio do recurso vem sempre do `domainId` do token (`req.user.domainId`) —
@@ -1607,17 +1607,17 @@ x-socket-events:
     room: "domain_<domainId>"
     fr: [FR-012]
     emittedBy:
-      - "POST /api/suggestions/{sid}/approve"
+      - "POST /api/v2/suggestions/{sid}/approve"
     schema: '#/components/schemas/WorkflowEvent'
   - name: analysis_state
     transport: socket.io
     room: "domain_<domainId>"
     fr: [FR-021]
     emittedBy:
-      - "POST /api/contracts/{id}/analysis"
-      - "POST /api/contracts/{id}/analysis/retry"
+      - "POST /api/v2/contracts/{id}/analysis"
+      - "POST /api/v2/contracts/{id}/analysis/retry"
       - "job de análise (transições pendente → analisando → sugerido | falha)"
-    note: "Revisões não têm evento próprio — estado acompanhado por polling em GET /api/contracts/{id}/review/{rid}"
+    note: "Revisões não têm evento próprio — estado acompanhado por polling em GET /api/v2/contracts/{id}/review/{rid}"
     schema: '#/components/schemas/AnalysisStateEvent'
   - name: task:updated
     transport: socket.io
@@ -1625,6 +1625,6 @@ x-socket-events:
     status: existente
     fr: [FR-023]
     emittedBy:
-      - "POST /api/contracts/{id}/review/{rid}/apply (somente tarefas criadas, action created)"
-    note: "Evento já usado por POST /api/contracts/:id/tasks e transições de status; opt-in e edições de campos não emitem, como PUT /api/tasks/:id"
+      - "POST /api/v2/contracts/{id}/review/{rid}/apply (somente tarefas criadas, action created)"
+    note: "Evento já usado por POST /api/v2/contracts/:id/tasks e transições de status; opt-in e edições de campos não emitem, como PUT /api/v2/tasks/:id"
     schema: '#/components/schemas/TaskUpdatedEvent'

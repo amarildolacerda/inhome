@@ -23,7 +23,7 @@ let prestadorId;
 
 async function login(email, password, domId) {
   const res = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email, password, domainId: domId });
   assert.strictEqual(res.status, 200, `${email} login failed: ${JSON.stringify(res.body)}`);
   return res.body.token;
@@ -36,11 +36,11 @@ function as(token) {
 test.before(async () => {
   await initTestDb();
 
-  const sys = await request(app).post('/api/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  const sys = await request(app).post('/api/v2/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(sys.status, 200);
 
   const enabled = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Epsilon Contratos',
@@ -54,15 +54,15 @@ test.before(async () => {
   adminToken = await login('eva@epsilon.test', 'Secret1!', domainId);
 
   await request(app)
-    .post('/api/users')
+    .post('/api/v2/users')
     .set(as(adminToken))
     .send({ name: 'Gilda', email: 'gilda@epsilon.test', password: 'Secret1!', role: 'gestor', username: 'gilda' });
   await request(app)
-    .post('/api/users')
+    .post('/api/v2/users')
     .set(as(adminToken))
     .send({ name: 'Paulo', email: 'paulo@epsilon.test', password: 'Secret1!', role: 'prestador', username: 'paulo' });
   await request(app)
-    .post('/api/users')
+    .post('/api/v2/users')
     .set(as(adminToken))
     .send({ name: ' Paula', email: 'paula@epsilon.test', password: 'Secret1!', role: 'prestador', username: 'paula' });
 
@@ -71,7 +71,7 @@ test.before(async () => {
   otherPrestadorToken = await login('paula@epsilon.test', 'Secret1!', domainId);
 
   const finalidade = await request(app)
-    .post('/api/finalidades')
+    .post('/api/v2/purposes')
     .set(as(adminToken))
     .send({ name: 'Obra' });
   assert.strictEqual(finalidade.status, 201);
@@ -94,7 +94,7 @@ function pastDate(days) {
 test('FR-006 create', async () => {
   // gestor creates a contract with finalidade + dates
   const created = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({
       name: 'Reforma Almoxarifado',
@@ -112,26 +112,26 @@ test('FR-006 create', async () => {
 
   // GET returns the same contract
   const fetched = await request(app)
-    .get(`/api/contracts/${contract.id}`)
+    .get(`/api/v2/contracts/${contract.id}`)
     .set(as(gestorToken));
   assert.strictEqual(fetched.status, 200);
   assert.strictEqual(fetched.body.contract.name, 'Reforma Almoxarifado');
 
   // validation failures
   const noName = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ start_date: futureDate(0), forecast_date: futureDate(10) });
   assert.strictEqual(noName.status, 400);
 
   const badDates = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'X', start_date: 'not-a-date', forecast_date: futureDate(10) });
   assert.strictEqual(badDates.status, 400);
 
   const badFinalidade = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({
       name: 'Y',
@@ -143,7 +143,7 @@ test('FR-006 create', async () => {
 
   // role matrix: prestador cannot create (FR-022)
   const forbidden = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(prestadorToken))
     .send({ name: 'Z', start_date: futureDate(0), forecast_date: futureDate(10) });
   assert.strictEqual(forbidden.status, 403);
@@ -151,13 +151,13 @@ test('FR-006 create', async () => {
 
 test('FR-007 unlink block', async () => {
   const db = getDomainDb(domainId);
-  const list = await request(app).get('/api/contracts').set(as(gestorToken));
+  const list = await request(app).get('/api/v2/contracts').set(as(gestorToken));
   const contract = list.body.contracts.find((c) => c.name === 'Reforma Almoxarifado');
   assert.ok(contract, 'contract from FR-006 exists');
 
   // link a prestador
   const linked = await request(app)
-    .post(`/api/contracts/${contract.id}/prestadores`)
+    .post(`/api/v2/contracts/${contract.id}/providers`)
     .set(as(gestorToken))
     .send({ user_id: prestadorId });
   assert.strictEqual(linked.status, 201, JSON.stringify(linked.body));
@@ -165,7 +165,7 @@ test('FR-007 unlink block', async () => {
 
   // duplicate link refused
   const dup = await request(app)
-    .post(`/api/contracts/${contract.id}/prestadores`)
+    .post(`/api/v2/contracts/${contract.id}/providers`)
     .set(as(gestorToken))
     .send({ user_id: prestadorId });
   assert.strictEqual(dup.status, 409);
@@ -173,7 +173,7 @@ test('FR-007 unlink block', async () => {
   // non-prestador target refused
   const gestorId = db.get("SELECT id FROM users WHERE email = 'gilda@epsilon.test'").id;
   const wrongRole = await request(app)
-    .post(`/api/contracts/${contract.id}/prestadores`)
+    .post(`/api/v2/contracts/${contract.id}/providers`)
     .set(as(gestorToken))
     .send({ user_id: gestorId });
   assert.strictEqual(wrongRole.status, 400);
@@ -185,7 +185,7 @@ test('FR-007 unlink block', async () => {
     [contract.id, code('tasks.status', 'A Fazer'), prestadorId]
   );
   const blocked = await request(app)
-    .delete(`/api/contracts/${contract.id}/prestadores/${prestadorId}`)
+    .delete(`/api/v2/contracts/${contract.id}/providers/${prestadorId}`)
     .set(as(gestorToken));
   assert.strictEqual(blocked.status, 400);
   assert.match(blocked.body.error, /open tasks/i);
@@ -198,14 +198,14 @@ test('FR-007 unlink block', async () => {
     prestadorId,
   ]);
   const unlinked = await request(app)
-    .delete(`/api/contracts/${contract.id}/prestadores/${prestadorId}`)
+    .delete(`/api/v2/contracts/${contract.id}/providers/${prestadorId}`)
     .set(as(gestorToken));
   assert.strictEqual(unlinked.status, 200);
   assert.strictEqual(unlinked.body.contract.prestadores.length, 0);
 
   // relink for later tests
   await request(app)
-    .post(`/api/contracts/${contract.id}/prestadores`)
+    .post(`/api/v2/contracts/${contract.id}/providers`)
     .set(as(gestorToken))
     .send({ user_id: prestadorId });
 });
@@ -213,7 +213,7 @@ test('FR-007 unlink block', async () => {
 test('FR-008 overdue/extend', async () => {
   // a contract whose forecast already passed reads as atrasado (signal only)
   const overdue = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({
       name: 'Vencido LTDA',
@@ -230,7 +230,7 @@ test('FR-008 overdue/extend', async () => {
 
   // gestor prorroga → vigente again (SC-003)
   const extended = await request(app)
-    .post(`/api/contracts/${overdueId}/prorrogar`)
+    .post(`/api/v2/contracts/${overdueId}/extend`)
     .set(as(gestorToken))
     .send({ forecast_date: futureDate(60) });
   assert.strictEqual(extended.status, 200);
@@ -238,14 +238,14 @@ test('FR-008 overdue/extend', async () => {
 
   // invalid prorrogação date refused
   const bad = await request(app)
-    .post(`/api/contracts/${overdueId}/prorrogar`)
+    .post(`/api/v2/contracts/${overdueId}/extend`)
     .set(as(gestorToken))
     .send({ forecast_date: 'nope' });
   assert.strictEqual(bad.status, 400);
 
   // encerramento → final status
   const closed = await request(app)
-    .post(`/api/contracts/${overdueId}/encerrar`)
+    .post(`/api/v2/contracts/${overdueId}/close`)
     .set(as(gestorToken))
     .send({});
   assert.strictEqual(closed.status, 200);
@@ -253,12 +253,12 @@ test('FR-008 overdue/extend', async () => {
 
   // already encerrado cannot be re-closed or extended
   const again = await request(app)
-    .post(`/api/contracts/${overdueId}/encerrar`)
+    .post(`/api/v2/contracts/${overdueId}/close`)
     .set(as(gestorToken))
     .send({});
   assert.strictEqual(again.status, 400);
   const extendClosed = await request(app)
-    .post(`/api/contracts/${overdueId}/prorrogar`)
+    .post(`/api/v2/contracts/${overdueId}/extend`)
     .set(as(gestorToken))
     .send({ forecast_date: futureDate(30) });
   assert.strictEqual(extendClosed.status, 400);
@@ -266,19 +266,19 @@ test('FR-008 overdue/extend', async () => {
 
 test('FR-009 admin delete', async () => {
   const db = getDomainDb(domainId);
-  const list = await request(app).get('/api/contracts').set(as(adminToken));
+  const list = await request(app).get('/api/v2/contracts').set(as(adminToken));
   const contract = list.body.contracts.find((c) => c.name === 'Reforma Almoxarifado');
   assert.ok(contract);
 
   // gestor cannot delete (admin only)
   const gestorDelete = await request(app)
-    .delete(`/api/contracts/${contract.id}`)
+    .delete(`/api/v2/contracts/${contract.id}`)
     .set(as(gestorToken));
   assert.strictEqual(gestorDelete.status, 403);
 
   // admin deletes; tasks and links go with it
   const adminDelete = await request(app)
-    .delete(`/api/contracts/${contract.id}`)
+    .delete(`/api/v2/contracts/${contract.id}`)
     .set(as(adminToken));
   assert.strictEqual(adminDelete.status, 200);
   assert.strictEqual(db.get('SELECT COUNT(*) AS c FROM contracts WHERE id = ?', [contract.id]).c, 0);
@@ -290,7 +290,7 @@ test('FR-009 admin delete', async () => {
 
   // missing contract → 404
   const missing = await request(app)
-    .delete(`/api/contracts/${contract.id}`)
+    .delete(`/api/v2/contracts/${contract.id}`)
     .set(as(adminToken));
   assert.strictEqual(missing.status, 404);
 });
@@ -324,7 +324,7 @@ test('FR-026 1000 rows', async () => {
   // paged listContracts under load (SC-009: <2s localhost)
   const started = Date.now();
   const res = await request(app)
-    .get('/api/contracts?status=vigente&limit=50')
+    .get('/api/v2/contracts?status=vigente&limit=50')
     .set(as(gestorToken));
   const elapsed = Date.now() - started;
   assert.strictEqual(res.status, 200, JSON.stringify(res.body));
@@ -335,7 +335,7 @@ test('FR-026 1000 rows', async () => {
 
   // offset paging: second page does not overlap the first
   const page2 = await request(app)
-    .get('/api/contracts?status=vigente&limit=50&offset=50')
+    .get('/api/v2/contracts?status=vigente&limit=50&offset=50')
     .set(as(gestorToken));
   assert.strictEqual(page2.status, 200);
   const firstIds = new Set(res.body.contracts.map((c) => c.id));
@@ -348,7 +348,7 @@ test('FR-026 1000 rows', async () => {
   // filtered search over the same volume (SC-009 filtros <2s)
   const t2 = Date.now();
   const search = await request(app)
-    .get('/api/search/contracts?status=vigente&q=Perf%20Lote')
+    .get('/api/v2/search/contracts?status=vigente&q=Perf%20Lote')
     .set(as(gestorToken));
   const searchElapsed = Date.now() - t2;
   assert.strictEqual(search.status, 200, JSON.stringify(search.body));
@@ -358,7 +358,7 @@ test('FR-026 1000 rows', async () => {
 
 // E001 (spec 00002) — RED stub; T012 turns it GREEN.
 test('FR-006 matriz dos quatro papéis', async () => {
-  const sys = await request(app).post('/api/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  const sys = await request(app).post('/api/v2/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(sys.status, 200, JSON.stringify(sys.body));
   const sysToken = sys.body.token;
 
@@ -372,56 +372,56 @@ test('FR-006 matriz dos quatro papéis', async () => {
     request(app).post(url).set(as(token)).send(body || {});
 
   // criar contratos: admin ✅ gestor ✅ prestador ❌ system_admin ❌
-  const byAdmin = await post('/api/contracts', adminToken, contractBody('Matriz Admin'));
+  const byAdmin = await post('/api/v2/contracts', adminToken, contractBody('Matriz Admin'));
   assert.strictEqual(byAdmin.status, 201, JSON.stringify(byAdmin.body));
   const contractId = byAdmin.body.contract.id;
-  const byGestor = await post('/api/contracts', gestorToken, contractBody('Matriz Gestor'));
+  const byGestor = await post('/api/v2/contracts', gestorToken, contractBody('Matriz Gestor'));
   assert.strictEqual(byGestor.status, 201, JSON.stringify(byGestor.body));
-  const byPrestador = await post('/api/contracts', prestadorToken, contractBody('Matriz Prestador'));
+  const byPrestador = await post('/api/v2/contracts', prestadorToken, contractBody('Matriz Prestador'));
   assert.strictEqual(byPrestador.status, 403, JSON.stringify(byPrestador.body));
-  const bySys = await post('/api/contracts', sysToken, contractBody('Matriz Sysadmin'));
+  const bySys = await post('/api/v2/contracts', sysToken, contractBody('Matriz Sysadmin'));
   assert.strictEqual(bySys.status, 403, JSON.stringify(bySys.body));
   assert.strictEqual(bySys.body.contract, undefined, 'no contract payload for system_admin');
 
   // listagem de contratos: os três papéis do domínio leem, system_admin não
   for (const [token, label] of [[adminToken, 'admin'], [gestorToken, 'gestor'], [prestadorToken, 'prestador']]) {
-    const list = await request(app).get('/api/contracts').set(as(token));
+    const list = await request(app).get('/api/v2/contracts').set(as(token));
     assert.strictEqual(list.status, 200, `${label} list contracts: ${list.status}`);
   }
-  const sysList = await request(app).get('/api/contracts').set(as(sysToken));
+  const sysList = await request(app).get('/api/v2/contracts').set(as(sysToken));
   assert.strictEqual(sysList.status, 403, `system_admin list contracts: ${sysList.status}`);
   assert.strictEqual(sysList.body.contracts, undefined, 'no contract payload for system_admin');
 
   // relatório PDF: admin ✅ gestor ✅ prestador ❌ system_admin ❌
-  const pdfAdmin = await request(app).get(`/api/contracts/${contractId}/report.pdf`).set(as(adminToken));
+  const pdfAdmin = await request(app).get(`/api/v2/contracts/${contractId}/report.pdf`).set(as(adminToken));
   assert.strictEqual(pdfAdmin.status, 200, `admin pdf: ${pdfAdmin.status}`);
-  const pdfGestor = await request(app).get(`/api/contracts/${contractId}/report.pdf`).set(as(gestorToken));
+  const pdfGestor = await request(app).get(`/api/v2/contracts/${contractId}/report.pdf`).set(as(gestorToken));
   assert.strictEqual(pdfGestor.status, 200, `gestor pdf: ${pdfGestor.status}`);
-  const pdfPrestador = await request(app).get(`/api/contracts/${contractId}/report.pdf`).set(as(prestadorToken));
+  const pdfPrestador = await request(app).get(`/api/v2/contracts/${contractId}/report.pdf`).set(as(prestadorToken));
   assert.strictEqual(pdfPrestador.status, 403, `prestador pdf: ${pdfPrestador.status}`);
-  const pdfSys = await request(app).get(`/api/contracts/${contractId}/report.pdf`).set(as(sysToken));
+  const pdfSys = await request(app).get(`/api/v2/contracts/${contractId}/report.pdf`).set(as(sysToken));
   assert.strictEqual(pdfSys.status, 403, `system_admin pdf: ${pdfSys.status}`);
 
   // prorrogar: admin ✅ gestor ✅ prestador ❌ system_admin ❌
-  const extGestor = await post(`/api/contracts/${contractId}/prorrogar`, gestorToken, {
+  const extGestor = await post(`/api/v2/contracts/${contractId}/extend`, gestorToken, {
     forecast_date: futureDate(60),
   });
   assert.strictEqual(extGestor.status, 200, JSON.stringify(extGestor.body));
-  const extPrestador = await post(`/api/contracts/${contractId}/prorrogar`, prestadorToken, {
+  const extPrestador = await post(`/api/v2/contracts/${contractId}/extend`, prestadorToken, {
     forecast_date: futureDate(60),
   });
   assert.strictEqual(extPrestador.status, 403, `prestador prorrogar: ${extPrestador.status}`);
-  const extSys = await post(`/api/contracts/${contractId}/prorrogar`, sysToken, {
+  const extSys = await post(`/api/v2/contracts/${contractId}/extend`, sysToken, {
     forecast_date: futureDate(60),
   });
   assert.strictEqual(extSys.status, 403, `system_admin prorrogar: ${extSys.status}`);
 
   // excluir contrato: admin ✅ gestor ❌ system_admin ❌
-  const delGestor = await request(app).delete(`/api/contracts/${contractId}`).set(as(gestorToken));
+  const delGestor = await request(app).delete(`/api/v2/contracts/${contractId}`).set(as(gestorToken));
   assert.strictEqual(delGestor.status, 403, `gestor delete: ${delGestor.status}`);
-  const delPrestador = await request(app).delete(`/api/contracts/${contractId}`).set(as(prestadorToken));
+  const delPrestador = await request(app).delete(`/api/v2/contracts/${contractId}`).set(as(prestadorToken));
   assert.strictEqual(delPrestador.status, 403, `prestador delete: ${delPrestador.status}`);
-  const delSys = await request(app).delete(`/api/contracts/${contractId}`).set(as(sysToken));
+  const delSys = await request(app).delete(`/api/v2/contracts/${contractId}`).set(as(sysToken));
   assert.strictEqual(delSys.status, 403, `system_admin delete: ${delSys.status}`);
 
   // usuários e finalidades: só admin cria; gestor/prestador/system_admin 403
@@ -432,27 +432,27 @@ test('FR-006 matriz dos quatro papéis', async () => {
     role: 'prestador',
     username,
   });
-  const userAdmin = await post('/api/users', adminToken, userBody('madmin@matriz.test', 'madmin'));
+  const userAdmin = await post('/api/v2/users', adminToken, userBody('madmin@matriz.test', 'madmin'));
   assert.strictEqual(userAdmin.status, 201, JSON.stringify(userAdmin.body));
-  const userGestor = await post('/api/users', gestorToken, userBody('mgestor@matriz.test', 'mgestor'));
+  const userGestor = await post('/api/v2/users', gestorToken, userBody('mgestor@matriz.test', 'mgestor'));
   assert.strictEqual(userGestor.status, 403, `gestor create user: ${userGestor.status}`);
-  const userPrestador = await post('/api/users', prestadorToken, userBody('mprest@matriz.test', 'mprest'));
+  const userPrestador = await post('/api/v2/users', prestadorToken, userBody('mprest@matriz.test', 'mprest'));
   assert.strictEqual(userPrestador.status, 403, `prestador create user: ${userPrestador.status}`);
-  const userSys = await post('/api/users', sysToken, userBody('msys@matriz.test', 'msys'));
+  const userSys = await post('/api/v2/users', sysToken, userBody('msys@matriz.test', 'msys'));
   assert.strictEqual(userSys.status, 403, `system_admin create user: ${userSys.status}`);
   assert.strictEqual(userSys.body.user, undefined, 'no user payload for system_admin');
 
-  const finAdmin = await post('/api/finalidades', adminToken, { name: 'Matriz Finalidade Admin' });
+  const finAdmin = await post('/api/v2/purposes', adminToken, { name: 'Matriz Finalidade Admin' });
   assert.strictEqual(finAdmin.status, 201, JSON.stringify(finAdmin.body));
-  const finGestor = await post('/api/finalidades', gestorToken, { name: 'Matriz Finalidade Gestor' });
+  const finGestor = await post('/api/v2/purposes', gestorToken, { name: 'Matriz Finalidade Gestor' });
   assert.strictEqual(finGestor.status, 403, `gestor create finalidade: ${finGestor.status}`);
-  const finPrestador = await post('/api/finalidades', prestadorToken, { name: 'Matriz Finalidade Prestador' });
+  const finPrestador = await post('/api/v2/purposes', prestadorToken, { name: 'Matriz Finalidade Prestador' });
   assert.strictEqual(finPrestador.status, 403, `prestador create finalidade: ${finPrestador.status}`);
-  const finSys = await post('/api/finalidades', sysToken, { name: 'Matriz Finalidade Sys' });
+  const finSys = await post('/api/v2/purposes', sysToken, { name: 'Matriz Finalidade Sys' });
   assert.strictEqual(finSys.status, 403, `system_admin create finalidade: ${finSys.status}`);
 
   // system_admin também fica fora da rota de tarefas (ciclo é a única superfície)
-  const tasksSys = await request(app).get('/api/tasks').set(as(sysToken));
+  const tasksSys = await request(app).get('/api/v2/tasks').set(as(sysToken));
   assert.strictEqual(tasksSys.status, 403, `system_admin list tasks: ${tasksSys.status}`);
   assert.strictEqual(tasksSys.body.tasks, undefined, 'no task payload for system_admin');
 });
@@ -461,7 +461,7 @@ test('FR-006 matriz dos quatro papéis', async () => {
 test('FR-001 cria contrato validado', async () => {
   // admin cria com finalidade ativa
   const created = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(adminToken))
     .send({
       name: 'FR-001 Vistoria',
@@ -476,7 +476,7 @@ test('FR-001 cria contrato validado', async () => {
 
   // finalidade é opcional (FR-001: "quando informada")
   const semFinalidade = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'FR-001 Sem finalidade', start_date: futureDate(0), forecast_date: futureDate(30) });
   assert.strictEqual(semFinalidade.status, 201, JSON.stringify(semFinalidade.body));
@@ -484,21 +484,21 @@ test('FR-001 cria contrato validado', async () => {
 
   // nome ausente → 400
   const semNome = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ start_date: futureDate(0), forecast_date: futureDate(30) });
   assert.strictEqual(semNome.status, 400);
 
   // data fora do padrão → 400
   const dataInvalida = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'FR-001 Datas', start_date: '31/02/2026', forecast_date: futureDate(30) });
   assert.strictEqual(dataInvalida.status, 400);
 
   // finalidade inexistente → 400
   const finalidadeInexistente = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({
       name: 'FR-001 Finalidade',
@@ -510,16 +510,16 @@ test('FR-001 cria contrato validado', async () => {
 
   // finalidade aposentada → 400 (finalidade dedicada para não afetar os demais testes)
   const nova = await request(app)
-    .post('/api/finalidades')
+    .post('/api/v2/purposes')
     .set(as(adminToken))
     .send({ name: 'FR-001 Aposentada' });
   assert.strictEqual(nova.status, 201, JSON.stringify(nova.body));
   const retirada = await request(app)
-    .delete(`/api/finalidades/${nova.body.finalidade.id}`)
+    .delete(`/api/v2/purposes/${nova.body.finalidade.id}`)
     .set(as(adminToken));
   assert.strictEqual(retirada.status, 200);
   const usaAposentada = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({
       name: 'FR-001 Usa Aposentada',
@@ -531,7 +531,7 @@ test('FR-001 cria contrato validado', async () => {
 });
 test('FR-002 vincula e desvincula prestadores', async () => {
   const created = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'FR-002 Vinculo', start_date: futureDate(0), forecast_date: futureDate(60) });
   assert.strictEqual(created.status, 201, JSON.stringify(created.body));
@@ -540,12 +540,12 @@ test('FR-002 vincula e desvincula prestadores', async () => {
   const paulaId = db.get("SELECT id FROM users WHERE email = 'paula@epsilon.test'").id;
 
   const link1 = await request(app)
-    .post(`/api/contracts/${id}/prestadores`)
+    .post(`/api/v2/contracts/${id}/providers`)
     .set(as(adminToken))
     .send({ user_id: prestadorId });
   assert.strictEqual(link1.status, 201, JSON.stringify(link1.body));
   const link2 = await request(app)
-    .post(`/api/contracts/${id}/prestadores`)
+    .post(`/api/v2/contracts/${id}/providers`)
     .set(as(gestorToken))
     .send({ user_id: paulaId });
   assert.strictEqual(link2.status, 201, JSON.stringify(link2.body));
@@ -553,13 +553,13 @@ test('FR-002 vincula e desvincula prestadores', async () => {
 
   // vínculo duplicado → 409
   const dup = await request(app)
-    .post(`/api/contracts/${id}/prestadores`)
+    .post(`/api/v2/contracts/${id}/providers`)
     .set(as(gestorToken))
     .send({ user_id: prestadorId });
   assert.strictEqual(dup.status, 409);
 
   const unlink = await request(app)
-    .delete(`/api/contracts/${id}/prestadores/${paulaId}`)
+    .delete(`/api/v2/contracts/${id}/providers/${paulaId}`)
     .set(as(gestorToken));
   assert.strictEqual(unlink.status, 200, JSON.stringify(unlink.body));
   assert.strictEqual(unlink.body.contract.prestadores.length, 1);
@@ -567,7 +567,7 @@ test('FR-002 vincula e desvincula prestadores', async () => {
 
   // contrato nasce sem prestadores — aceito (FR-002)
   const semVinculo = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(adminToken))
     .send({ name: 'FR-002 Sem vinculo', start_date: futureDate(0), forecast_date: futureDate(90) });
   assert.strictEqual(semVinculo.status, 201, JSON.stringify(semVinculo.body));
@@ -576,14 +576,14 @@ test('FR-002 vincula e desvincula prestadores', async () => {
 
 test('FR-003 prorroga contrato vigente', async () => {
   const created = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'FR-003 Prorrogacao', start_date: pastDate(30), forecast_date: futureDate(10) });
   assert.strictEqual(created.status, 201, JSON.stringify(created.body));
   const id = created.body.contract.id;
 
   const extend = await request(app)
-    .post(`/api/contracts/${id}/prorrogar`)
+    .post(`/api/v2/contracts/${id}/extend`)
     .set(as(gestorToken))
     .send({ forecast_date: futureDate(120) });
   assert.strictEqual(extend.status, 200, JSON.stringify(extend.body));
@@ -591,22 +591,22 @@ test('FR-003 prorroga contrato vigente', async () => {
   assert.strictEqual(extend.body.contract.status, 'vigente');
 
   // contrato encerrado não prorroga → 400
-  const close = await request(app).post(`/api/contracts/${id}/encerrar`).set(as(gestorToken));
+  const close = await request(app).post(`/api/v2/contracts/${id}/close`).set(as(gestorToken));
   assert.strictEqual(close.status, 200, JSON.stringify(close.body));
   const reextend = await request(app)
-    .post(`/api/contracts/${id}/prorrogar`)
+    .post(`/api/v2/contracts/${id}/extend`)
     .set(as(gestorToken))
     .send({ forecast_date: futureDate(200) });
   assert.strictEqual(reextend.status, 400);
 
   // data inválida → 400 sem alterar
   const created2 = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'FR-003 Datas', start_date: futureDate(0), forecast_date: futureDate(20) });
   assert.strictEqual(created2.status, 201);
   const bad = await request(app)
-    .post(`/api/contracts/${created2.body.contract.id}/prorrogar`)
+    .post(`/api/v2/contracts/${created2.body.contract.id}/extend`)
     .set(as(gestorToken))
     .send({ forecast_date: 'not-a-date' });
   assert.strictEqual(bad.status, 400);
@@ -614,7 +614,7 @@ test('FR-003 prorroga contrato vigente', async () => {
 
 test('FR-004 encerra e restringe exclusão', async () => {
   const created = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'FR-004 Encerramento', start_date: futureDate(0), forecast_date: futureDate(60) });
   assert.strictEqual(created.status, 201, JSON.stringify(created.body));
@@ -622,7 +622,7 @@ test('FR-004 encerra e restringe exclusão', async () => {
   const db = getDomainDb(domainId);
 
   // gestor encerra; registro e histórico preservados
-  const close = await request(app).post(`/api/contracts/${id}/encerrar`).set(as(gestorToken));
+  const close = await request(app).post(`/api/v2/contracts/${id}/close`).set(as(gestorToken));
   assert.strictEqual(close.status, 200, JSON.stringify(close.body));
   assert.strictEqual(close.body.contract.status, 'encerrado');
   assert.strictEqual(
@@ -632,22 +632,22 @@ test('FR-004 encerra e restringe exclusão', async () => {
   );
 
   // encerramento repetido → 400
-  const again = await request(app).post(`/api/contracts/${id}/encerrar`).set(as(gestorToken));
+  const again = await request(app).post(`/api/v2/contracts/${id}/close`).set(as(gestorToken));
   assert.strictEqual(again.status, 400);
 
   // exclusão é só de admin
-  const gestorDelete = await request(app).delete(`/api/contracts/${id}`).set(as(gestorToken));
+  const gestorDelete = await request(app).delete(`/api/v2/contracts/${id}`).set(as(gestorToken));
   assert.strictEqual(gestorDelete.status, 403);
   assert.strictEqual(db.get('SELECT COUNT(*) AS c FROM contracts WHERE id = ?', [id]).c, 1);
 
-  const adminDelete = await request(app).delete(`/api/contracts/${id}`).set(as(adminToken));
+  const adminDelete = await request(app).delete(`/api/v2/contracts/${id}`).set(as(adminToken));
   assert.strictEqual(adminDelete.status, 200, JSON.stringify(adminDelete.body));
   assert.strictEqual(db.get('SELECT COUNT(*) AS c FROM contracts WHERE id = ?', [id]).c, 0);
 });
 test('FR-007 previsão passada é aceita', async () => {
   // gravação com previsão vencida não é bloqueada e nasce atrasada na leitura
   const created = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({
       name: 'FR-007 Vencida',
@@ -660,7 +660,7 @@ test('FR-007 previsão passada é aceita', async () => {
 
   // no dia da previsão a contagem começa só no dia seguinte (Q3)
   const hoje = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'FR-007 Hoje', start_date: pastDate(5), forecast_date: futureDate(0) });
   assert.strictEqual(hoje.status, 201, JSON.stringify(hoje.body));
@@ -669,7 +669,7 @@ test('FR-007 previsão passada é aceita', async () => {
 
 test('FR-008 prorrogação devolve vigente', async () => {
   const created = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({
       name: 'FR-008 Recuperacao',
@@ -682,7 +682,7 @@ test('FR-008 prorrogação devolve vigente', async () => {
 
   // prorrogar para o futuro devolve vigente sem escrita manual
   const extend = await request(app)
-    .post(`/api/contracts/${id}/prorrogar`)
+    .post(`/api/v2/contracts/${id}/extend`)
     .set(as(gestorToken))
     .send({ forecast_date: futureDate(40) });
   assert.strictEqual(extend.status, 200, JSON.stringify(extend.body));
@@ -700,13 +700,13 @@ test('FR-010 401/403 antes de qualquer linha', async () => {
   const db = getDomainDb(domainId);
 
   // sem token → 401 e nenhum payload de contrato
-  const semToken = await request(app).get('/api/contracts');
+  const semToken = await request(app).get('/api/v2/contracts');
   assert.strictEqual(semToken.status, 401);
   assert.strictEqual(semToken.body.contracts, undefined);
 
   // token inválido → 403 sem payload
   const invalido = await request(app)
-    .get('/api/contracts')
+    .get('/api/v2/contracts')
     .set({ Authorization: 'Bearer token-invalido' });
   assert.strictEqual(invalido.status, 403);
   assert.strictEqual(invalido.body.contracts, undefined);
@@ -714,24 +714,24 @@ test('FR-010 401/403 antes de qualquer linha', async () => {
   // papel não habilitado escrevendo → 403 sem efeito no banco
   const before = db.get('SELECT COUNT(*) AS c FROM contracts').c;
   const escritaNegada = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(prestadorToken))
     .send({ name: 'FR-010 Prestador', start_date: futureDate(0), forecast_date: futureDate(10) });
   assert.strictEqual(escritaNegada.status, 403);
   assert.strictEqual(db.get('SELECT COUNT(*) AS c FROM contracts').c, before);
   const prorrogaNegada = await request(app)
-    .post('/api/contracts/999999/prorrogar')
+    .post('/api/v2/contracts/999999/extend')
     .set(as(prestadorToken))
     .send({ forecast_date: futureDate(90) });
   assert.strictEqual(prorrogaNegada.status, 403, 'papel errado nem alcança o handler');
 
   // domínio suspenso → 403 em qualquer rota de contrato
   const sys = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(sys.status, 200);
   const omega = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Omega Suspenso',
@@ -743,21 +743,21 @@ test('FR-010 401/403 antes de qualquer linha', async () => {
   const omegaId = omega.body.domain.id;
   const omegaAdmin = await login('oscar@omega.test', 'Secret1!', omegaId);
   const susp = await request(app)
-    .post(`/api/domains/${omegaId}/suspend`)
+    .post(`/api/v2/domains/${omegaId}/suspend`)
     .set(as(sys.body.token));
   assert.strictEqual(susp.status, 200, JSON.stringify(susp.body));
-  const suspenso = await request(app).get('/api/contracts').set(as(omegaAdmin));
+  const suspenso = await request(app).get('/api/v2/contracts').set(as(omegaAdmin));
   assert.strictEqual(suspenso.status, 403);
   assert.strictEqual(suspenso.body.contracts, undefined);
 });
 test('FR-011 domainId estrangeiro 403', async () => {
   // segundo domínio para obter um domainId estrangeiro
   const sys = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(sys.status, 200);
   const iota = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Iota Estrangeiro',
@@ -771,14 +771,14 @@ test('FR-011 domainId estrangeiro 403', async () => {
 
   // query domainId estrangeiro → 403 antes de qualquer consulta, nada listado
   const query = await request(app)
-    .get(`/api/contracts?domainId=${foreign}`)
+    .get(`/api/v2/contracts?domainId=${foreign}`)
     .set(as(gestorToken));
   assert.strictEqual(query.status, 403, JSON.stringify(query.body));
   assert.strictEqual(query.body.contracts, undefined);
 
   // domainId do próprio domínio não é troca — segue permitido
   const own = await request(app)
-    .get(`/api/contracts?domainId=${domainId}`)
+    .get(`/api/v2/contracts?domainId=${domainId}`)
     .set(as(gestorToken));
   assert.strictEqual(own.status, 200, JSON.stringify(own.body));
 
@@ -786,7 +786,7 @@ test('FR-011 domainId estrangeiro 403', async () => {
   const db = getDomainDb(domainId);
   const before = db.get('SELECT COUNT(*) AS c FROM contracts').c;
   const body = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({
       name: 'FR-011 Body',
@@ -799,7 +799,7 @@ test('FR-011 domainId estrangeiro 403', async () => {
 
   // token de outro domínio enxerga só o próprio domínio (nunca o nosso)
   const iotaAdmin = await login('ivo@iota.test', 'Secret1!', foreign);
-  const estrangeiro = await request(app).get('/api/contracts').set(as(iotaAdmin));
+  const estrangeiro = await request(app).get('/api/v2/contracts').set(as(iotaAdmin));
   assert.strictEqual(estrangeiro.status, 200, JSON.stringify(estrangeiro.body));
   assert.strictEqual(estrangeiro.body.total, 0, 'iota não lista contratos de epsilon');
 });
@@ -811,7 +811,7 @@ test('FR-012 consulta restrita ao domínio e ao vínculo', async () => {
     .all('SELECT contract_id FROM contract_providers WHERE user_id = ?', [prestadorId])
     .map((r) => r.contract_id);
   assert.ok(vinculos.length > 0, 'prestador tem ao menos um vínculo');
-  const lista = await request(app).get('/api/contracts?limit=200').set(as(prestadorToken));
+  const lista = await request(app).get('/api/v2/contracts?limit=200').set(as(prestadorToken));
   assert.strictEqual(lista.status, 200, JSON.stringify(lista.body));
   assert.strictEqual(lista.body.total, vinculos.length, 'total = vínculos do prestador');
   for (const contract of lista.body.contracts) {
@@ -826,11 +826,11 @@ test('FR-012 consulta restrita ao domínio e ao vínculo', async () => {
     [prestadorId]
   );
   assert.ok(fora, 'existe contrato não vinculado');
-  const negado = await request(app).get(`/api/contracts/${fora.id}`).set(as(prestadorToken));
+  const negado = await request(app).get(`/api/v2/contracts/${fora.id}`).set(as(prestadorToken));
   assert.strictEqual(negado.status, 404);
 
   // gestor: domínio inteiro — total bate com o banco do domínio
-  const gestorLista = await request(app).get('/api/contracts?limit=1').set(as(gestorToken));
+  const gestorLista = await request(app).get('/api/v2/contracts?limit=1').set(as(gestorToken));
   assert.strictEqual(gestorLista.status, 200);
   const totalDb = db.get('SELECT COUNT(*) AS c FROM contracts').c;
   assert.strictEqual(gestorLista.body.total, totalDb, 'gestor enxerga o domínio inteiro');
@@ -841,23 +841,23 @@ test('FR-013 filtro particiona os status', async () => {
 
   // um contrato controlado por fatia
   const vigente = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'FR-013 Vigente', start_date: futureDate(-5), forecast_date: futureDate(30) });
   assert.strictEqual(vigente.status, 201, JSON.stringify(vigente.body));
   const atrasado = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'FR-013 Atrasado', start_date: pastDate(40), forecast_date: pastDate(3) });
   assert.strictEqual(atrasado.status, 201, JSON.stringify(atrasado.body));
   assert.strictEqual(atrasado.body.contract.status, 'atrasado');
   const encerrado = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'FR-013 Encerrado', start_date: futureDate(-10), forecast_date: futureDate(20) });
   assert.strictEqual(encerrado.status, 201, JSON.stringify(encerrado.body));
   const fechado = await request(app)
-    .post(`/api/contracts/${encerrado.body.contract.id}/encerrar`)
+    .post(`/api/v2/contracts/${encerrado.body.contract.id}/close`)
     .set(as(gestorToken));
   assert.strictEqual(fechado.status, 200);
 
@@ -874,7 +874,7 @@ test('FR-013 filtro particiona os status', async () => {
   const expTotal = db.get('SELECT COUNT(*) AS c FROM contracts').c;
   assert.strictEqual(expVigente + expAtrasado + expEncerrado, expTotal, 'partição cobre tudo');
 
-  const qVig = await request(app).get('/api/contracts?status=vigente&limit=200').set(as(gestorToken));
+  const qVig = await request(app).get('/api/v2/contracts?status=vigente&limit=200').set(as(gestorToken));
   assert.strictEqual(qVig.status, 200, JSON.stringify(qVig.body));
   assert.strictEqual(qVig.body.total, expVigente, 'vigente = previsão de hoje em diante');
   for (const c of qVig.body.contracts) {
@@ -882,7 +882,7 @@ test('FR-013 filtro particiona os status', async () => {
     assert.strictEqual(c.db_status, 'vigente');
   }
 
-  const qAtr = await request(app).get('/api/contracts?status=atrasado&limit=200').set(as(gestorToken));
+  const qAtr = await request(app).get('/api/v2/contracts?status=atrasado&limit=200').set(as(gestorToken));
   assert.strictEqual(qAtr.status, 200, JSON.stringify(qAtr.body));
   assert.strictEqual(qAtr.body.total, expAtrasado, 'atrasado = previsão estritamente anterior');
   assert.ok(qAtr.body.total >= 1, 'fatia atrasada não vazia');
@@ -892,7 +892,7 @@ test('FR-013 filtro particiona os status', async () => {
     assert.strictEqual(c.status, 'atrasado');
   }
 
-  const qEnc = await request(app).get('/api/contracts?status=encerrado&limit=200').set(as(gestorToken));
+  const qEnc = await request(app).get('/api/v2/contracts?status=encerrado&limit=200').set(as(gestorToken));
   assert.strictEqual(qEnc.status, 200, JSON.stringify(qEnc.body));
   assert.strictEqual(qEnc.body.total, expEncerrado);
   for (const c of qEnc.body.contracts) {
@@ -901,12 +901,12 @@ test('FR-013 filtro particiona os status', async () => {
   }
 
   // soma das fatias = total sem filtro
-  const qAll = await request(app).get('/api/contracts?limit=1').set(as(gestorToken));
+  const qAll = await request(app).get('/api/v2/contracts?limit=1').set(as(gestorToken));
   assert.strictEqual(qAll.body.total, expTotal);
   assert.strictEqual(qVig.body.total + qAtr.body.total + qEnc.body.total, qAll.body.total);
 
   // valor fora da partição → 400
-  const ruim = await request(app).get('/api/contracts?status=qualquer').set(as(gestorToken));
+  const ruim = await request(app).get('/api/v2/contracts?status=qualquer').set(as(gestorToken));
   assert.strictEqual(ruim.status, 400);
 });
 test('FR-014 100% dos vigentes com previsão', async () => {
@@ -919,7 +919,7 @@ test('FR-014 100% dos vigentes com previsão', async () => {
   // varre a listagem inteira (paginada) — previsão e status derivado em todo vigente
   for (;;) {
     const page = await request(app)
-      .get(`/api/contracts?limit=${limit}&offset=${offset}`)
+      .get(`/api/v2/contracts?limit=${limit}&offset=${offset}`)
       .set(as(gestorToken));
     assert.strictEqual(page.status, 200, JSON.stringify(page.body));
     for (const c of page.body.contracts) {
@@ -969,7 +969,7 @@ test('FR-015 p95 abaixo de 2s com 5000', async () => {
   for (let i = 0; i < 20; i++) {
     const started = Date.now();
     const res = await request(app)
-      .get('/api/contracts?status=atrasado&limit=50')
+      .get('/api/v2/contracts?status=atrasado&limit=50')
       .set(as(gestorToken));
     assert.strictEqual(res.status, 200, JSON.stringify(res.body));
     samples.push(Date.now() - started);
@@ -979,12 +979,12 @@ test('FR-015 p95 abaixo de 2s com 5000', async () => {
   assert.ok(p95 < 2000, `p95 ${p95}ms < 2000ms (amostras: ${samples.join(',')})`);
 
   // a fatia atrasada enche o volume e segue coerente com a partição
-  const res = await request(app).get('/api/contracts?status=atrasado&limit=1').set(as(gestorToken));
+  const res = await request(app).get('/api/v2/contracts?status=atrasado&limit=1').set(as(gestorToken));
   assert.strictEqual(res.status, 200);
   assert.ok(res.body.total > 1000, `fatia atrasada com volume: ${res.body.total}`);
-  const vigentes = await request(app).get('/api/contracts?status=vigente&limit=1').set(as(gestorToken));
-  const encerrados = await request(app).get('/api/contracts?status=encerrado&limit=1').set(as(gestorToken));
-  const total = await request(app).get('/api/contracts?limit=1').set(as(gestorToken));
+  const vigentes = await request(app).get('/api/v2/contracts?status=vigente&limit=1').set(as(gestorToken));
+  const encerrados = await request(app).get('/api/v2/contracts?status=encerrado&limit=1').set(as(gestorToken));
+  const total = await request(app).get('/api/v2/contracts?limit=1').set(as(gestorToken));
   assert.strictEqual(
     res.body.total + vigentes.body.total + encerrados.body.total,
     total.body.total,
@@ -992,10 +992,10 @@ test('FR-015 p95 abaixo de 2s com 5000', async () => {
   );
 });
 
-// fase 5: /api/v2 espelha a v1 com os mesmos handlers; aliases de rota em
-// inglês (extend/close/providers) respondem com os mesmos códigos das rotas
-// PT, e o payload de erro ganha o code estável aditivo.
-test('fase 5: v2 mounts e aliases de rota', async () => {
+// v1 removido (2026-10-17): a superfície é unicamente /api/v2; os aliases em
+// inglês (extend/close/providers) são as únicas rotas de mutação e respondem
+// com os mesmos códigos de sempre, com o code estável aditivo no payload.
+test('v1 removido: aliases EN sob /api/v2', async () => {
   const created = await request(app)
     .post('/api/v2/contracts')
     .set(as(adminToken))
@@ -1008,12 +1008,12 @@ test('fase 5: v2 mounts e aliases de rota', async () => {
   assert.strictEqual(created.status, 201, JSON.stringify(created.body));
   const id = created.body.contract.id;
 
-  // v2 enxerga o mesmo dado da v1
+  // o contrato vive sob /api/v2
   const v2Get = await request(app).get(`/api/v2/contracts/${id}`).set(as(gestorToken));
   assert.strictEqual(v2Get.status, 200, JSON.stringify(v2Get.body));
   assert.strictEqual(v2Get.body.contract.name, 'Fase 5 Alias');
 
-  // alias extend: mesmo código do /prorrogar v1
+  // alias extend: mesma resposta do antigo /prorrogar
   const extendV2 = await request(app)
     .post(`/api/v2/contracts/${id}/extend`)
     .set(as(gestorToken))
@@ -1035,7 +1035,7 @@ test('fase 5: v2 mounts e aliases de rota', async () => {
   assert.strictEqual(extendClosed.status, 400);
   assert.strictEqual(extendClosed.body.code, 'CONTRACT_CLOSED');
 
-  // alias providers: mesmos códigos do /prestadores v1
+  // alias providers: mesmos códigos do antigo /prestadores
   const linkV2 = await request(app)
     .post(`/api/v2/contracts/${id}/providers`)
     .set(as(adminToken))
@@ -1051,10 +1051,24 @@ test('fase 5: v2 mounts e aliases de rota', async () => {
     .set(as(adminToken));
   assert.strictEqual(unlinkV2.status, 200, JSON.stringify(unlinkV2.body));
 
-  // v1 segue idêntica no mesmo contrato
+  // o contrato encerrado continua legível — só sob /api/v2
+  const closedRead = await request(app).get(`/api/v2/contracts/${id}`).set(as(gestorToken));
+  assert.strictEqual(closedRead.status, 200, JSON.stringify(closedRead.body));
+  assert.strictEqual(closedRead.body.contract.status, 'encerrado');
+
+  // fora de /api/v2 não há rota: mounts v1 e aliases PT removidos
   const v1Get = await request(app).get(`/api/contracts/${id}`).set(as(gestorToken));
-  assert.strictEqual(v1Get.status, 200);
-  assert.strictEqual(v1Get.body.contract.status, 'encerrado');
+  assert.strictEqual(v1Get.status, 404, 'mount v1 de contracts removido');
+  const v1Extend = await request(app).post(`/api/contracts/${id}/extend`).set(as(gestorToken));
+  assert.strictEqual(v1Extend.status, 404, 'alias EN em path v1 removido');
+  const ptPath = await request(app)
+    .post(`/api/v2/contracts/${id}/prorrogar`)
+    .set(as(gestorToken));
+  assert.strictEqual(ptPath.status, 404, 'rota PT /prorrogar removida');
+  const ptProviders = await request(app)
+    .post(`/api/v2/contracts/${id}/prestadores`)
+    .set(as(adminToken));
+  assert.strictEqual(ptProviders.status, 404, 'rota PT /prestadores removida');
 
   // code estável também no POST v2 (campo error permanece)
   const missingPurpose = await request(app)

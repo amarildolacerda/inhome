@@ -23,7 +23,7 @@ const EXECUTED = ['Revisão', 'Concluída'];
 // qualquer escrita; o CHECK é a segunda linha de defesa).
 const STATES = ['atendido plenamente', 'atendido com resalva', 'deficiente (a corrigir)'];
 
-// GET /api/audits/tasks — só Revisão/Concluída do domínio do token (FR-001).
+// GET /api/v2/audits/tasks — só Revisão/Concluída do domínio do token (FR-001).
 // Cada item carrega a classificação corrente (null quando ainda não
 // classificada) conforme contracts/openapi.yaml (AuditTaskItem).
 function listAuditTasks(req, res) {
@@ -43,7 +43,7 @@ function listAuditTasks(req, res) {
   }
 }
 
-// GET /api/audits/tasks/:id — detalhe agrega histórico e anexos (FR-001).
+// GET /api/v2/audits/tasks/:id — detalhe agrega histórico e anexos (FR-001).
 // Tarefa de outro domínio simplesmente não existe no db do token → 404.
 function getAuditTask(req, res) {
   try {
@@ -63,7 +63,7 @@ function getAuditTask(req, res) {
   }
 }
 
-// PUT /api/audits/tasks/:id/classification — grava ou substitui a
+// PUT /api/v2/audits/tasks/:id/classification — grava ou substitui a
 // classificação corrente (FR-003: upsert, autor e data da última mudança).
 // Validação primeiro (FR-002: estado inválido ou nota > 500 → 400 sem
 // escrita), depois o gate de executadas (FR-004: fora de Revisão/Concluída →

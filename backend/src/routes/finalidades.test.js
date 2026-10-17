@@ -21,12 +21,12 @@ test.before(async () => {
   await initTestDb();
 
   const sys = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(sys.status, 200);
 
   const enabled = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set('Authorization', `Bearer ${sys.body.token}`)
     .send({
       name: 'Delta Finalidades',
@@ -38,18 +38,18 @@ test.before(async () => {
   domainId = enabled.body.domain.id;
 
   const login = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: 'dana@delta.test', password: 'Secret1!', domainId });
   assert.strictEqual(login.status, 200);
   adminToken = login.body.token;
 
   const prestador = await request(app)
-    .post('/api/users')
+    .post('/api/v2/users')
     .set('Authorization', `Bearer ${adminToken}`)
     .send({ name: 'Pedro', email: 'pedro@delta.test', password: 'Secret1!', role: 'prestador', username: 'pedro' });
   assert.strictEqual(prestador.status, 201);
   const pLogin = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: 'pedro@delta.test', password: 'Secret1!', domainId });
   prestadorToken = pLogin.body.token;
 });
@@ -57,33 +57,33 @@ test.before(async () => {
 test('FR-005 finalidade CRUD', async () => {
   // admin creates dictionary entries
   const created = await request(app)
-    .post('/api/finalidades')
+    .post('/api/v2/purposes')
     .set('Authorization', `Bearer ${adminToken}`)
     .send({ name: 'Limpeza' });
   assert.strictEqual(created.status, 201, JSON.stringify(created.body));
   finalidadeId = created.body.finalidade.id;
 
   const second = await request(app)
-    .post('/api/finalidades')
+    .post('/api/v2/purposes')
     .set('Authorization', `Bearer ${adminToken}`)
     .send({ name: 'Manutencao' });
   assert.strictEqual(second.status, 201);
 
   // duplicate refused; empty name refused
   const dup = await request(app)
-    .post('/api/finalidades')
+    .post('/api/v2/purposes')
     .set('Authorization', `Bearer ${adminToken}`)
     .send({ name: 'Limpeza' });
   assert.strictEqual(dup.status, 409);
   const empty = await request(app)
-    .post('/api/finalidades')
+    .post('/api/v2/purposes')
     .set('Authorization', `Bearer ${adminToken}`)
     .send({ name: '  ' });
   assert.strictEqual(empty.status, 400);
 
   // listFinalidade (gestor can read the dictionary for the contract form)
   const list = await request(app)
-    .get('/api/finalidades')
+    .get('/api/v2/purposes')
     .set('Authorization', `Bearer ${adminToken}`);
   assert.strictEqual(list.status, 200);
   const names = list.body.finalidades.map((f) => f.name);
@@ -92,7 +92,7 @@ test('FR-005 finalidade CRUD', async () => {
 
   // editar (rename)
   const renamed = await request(app)
-    .put(`/api/finalidades/${finalidadeId}`)
+    .put(`/api/v2/purposes/${finalidadeId}`)
     .set('Authorization', `Bearer ${adminToken}`)
     .send({ name: 'Limpeza Pesada' });
   assert.strictEqual(renamed.status, 200);
@@ -108,12 +108,12 @@ test('FR-005 finalidade CRUD', async () => {
 
   // retirar (retire) removes it from the default dictionary…
   const retired = await request(app)
-    .delete(`/api/finalidades/${finalidadeId}`)
+    .delete(`/api/v2/purposes/${finalidadeId}`)
     .set('Authorization', `Bearer ${adminToken}`);
   assert.strictEqual(retired.status, 200);
 
   const after = await request(app)
-    .get('/api/finalidades')
+    .get('/api/v2/purposes')
     .set('Authorization', `Bearer ${adminToken}`);
   assert.ok(!after.body.finalidades.some((f) => f.id === finalidadeId), 'retired hidden from list');
 
@@ -123,13 +123,13 @@ test('FR-005 finalidade CRUD', async () => {
 
   // retired entries remain visible to admin with showRetired
   const adminView = await request(app)
-    .get('/api/finalidades?showRetired=1')
+    .get('/api/v2/purposes?showRetired=1')
     .set('Authorization', `Bearer ${adminToken}`);
   assert.ok(adminView.body.finalidades.some((f) => f.id === finalidadeId));
 
   // role matrix: prestador cannot manage the dictionary
   const forbidden = await request(app)
-    .post('/api/finalidades')
+    .post('/api/v2/purposes')
     .set('Authorization', `Bearer ${prestadorToken}`)
     .send({ name: 'Invasao' });
   assert.strictEqual(forbidden.status, 403);
@@ -142,10 +142,10 @@ test('FR-005 finalidade CRUD', async () => {
   );
 });
 
-// fase 5: /api/v2/purposes monta o MESMO router de /api/finalidades — aliases
-// de URL apenas; o shape de resposta continua com as chaves PT (finalidade /
-// finalidades), e o 409 carrega o code estável aditivo.
-test('fase 5: v2 purposes alias', async () => {
+// v1 removido (2026-10-17): /api/v2/purposes é a única montagem deste router;
+// o shape de resposta continua com as chaves PT (finalidade / finalidades), e o
+// 409 carrega o code estável aditivo.
+test('v1 removido: purposes sob /api/v2', async () => {
   const created = await request(app)
     .post('/api/v2/purposes')
     .set('Authorization', `Bearer ${adminToken}`)
@@ -161,12 +161,16 @@ test('fase 5: v2 purposes alias', async () => {
   assert.ok(Array.isArray(listV2.body.finalidades), 'chave finalidades inalterada no v2');
   assert.ok(listV2.body.finalidades.some((f) => f.id === v2Id));
 
-  // o mesmo dicionário é visível pela rota v1 congelada
+  // o mount v1 (/api/finalidades) não existe mais — 404 sem ler dados
   const listV1 = await request(app)
     .get('/api/finalidades')
     .set('Authorization', `Bearer ${adminToken}`);
-  assert.strictEqual(listV1.status, 200);
-  assert.ok(listV1.body.finalidades.some((f) => f.id === v2Id), 'v1 e v2 leem o mesmo dado');
+  assert.strictEqual(listV1.status, 404, 'mount v1 de finalidades removido');
+  const createV1 = await request(app)
+    .post('/api/finalidades')
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({ name: 'V1 Nao Deve Criar' });
+  assert.strictEqual(createV1.status, 404, 'POST v1 de finalidades removido');
 
   // duplicata recusada com code estável
   const dup = await request(app)

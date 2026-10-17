@@ -22,20 +22,20 @@ const { UPLOAD_DIR } = require('../middleware/upload');
 test('FR-012 reopen', async () => {
   // prestador completes their own task first
   const created = await request(app)
-    .post(`/api/contracts/${contractId}/tasks`)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'Reabrivel', assignee_id: movId });
   assert.strictEqual(created.status, 201, JSON.stringify(created.body));
   const taskId = created.body.task.id;
   for (const status of ['Em Progresso', 'Revisão']) {
     const move = await request(app)
-      .patch(`/api/tasks/${taskId}/status`)
+      .patch(`/api/v2/tasks/${taskId}/status`)
       .set(as(movToken))
       .send({ status });
     assert.strictEqual(move.status, 200, JSON.stringify(move.body));
   }
   const done = await request(app)
-    .post(`/api/tasks/${taskId}/complete`)
+    .post(`/api/v2/tasks/${taskId}/complete`)
     .set(as(movToken))
     .send({ text: 'Concluida antes da inspecao' });
   assert.strictEqual(done.status, 200, JSON.stringify(done.body));
@@ -43,14 +43,14 @@ test('FR-012 reopen', async () => {
 
   // prestador reabre → negado (FR-012)
   const byPrestador = await request(app)
-    .post(`/api/tasks/${taskId}/reopen`)
+    .post(`/api/v2/tasks/${taskId}/reopen`)
     .set(as(movToken))
     .send({ motivo: 'quero reabrir' });
   assert.strictEqual(byPrestador.status, 403);
 
   // sem motivo → recusa
   const noMotivo = await request(app)
-    .post(`/api/tasks/${taskId}/reopen`)
+    .post(`/api/v2/tasks/${taskId}/reopen`)
     .set(as(gestorToken))
     .send({ motivo: '  ' });
   assert.strictEqual(noMotivo.status, 400);
@@ -59,14 +59,14 @@ test('FR-012 reopen', async () => {
 
   // gestor reabre com motivo → volta ao fluxo e registra quem/por quê (SC-006)
   const reopened = await request(app)
-    .post(`/api/tasks/${taskId}/reopen`)
+    .post(`/api/v2/tasks/${taskId}/reopen`)
     .set(as(gestorToken))
     .send({ motivo: 'Inspeção apontou infiltração' });
   assert.strictEqual(reopened.status, 200, JSON.stringify(reopened.body));
   assert.strictEqual(reopened.body.task.status, 'Em Progresso');
   assert.strictEqual(reopened.body.task.completed_text, null);
 
-  const fetched = await request(app).get(`/api/tasks/${taskId}`).set(as(gestorToken));
+  const fetched = await request(app).get(`/api/v2/tasks/${taskId}`).set(as(gestorToken));
   assert.strictEqual(fetched.status, 200);
   const reopenEntry = fetched.body.history.find((h) => h.action === 'reopen');
   assert.ok(reopenEntry, 'reopen recorded in history');
@@ -75,7 +75,7 @@ test('FR-012 reopen', async () => {
 
   // reabrir tarefa que não está Concluída → recusa
   const notConcluded = await request(app)
-    .post(`/api/tasks/${taskId}/reopen`)
+    .post(`/api/v2/tasks/${taskId}/reopen`)
     .set(as(gestorToken))
     .send({ motivo: 'de novo' });
   assert.strictEqual(notConcluded.status, 400);
@@ -99,7 +99,7 @@ function as(token) {
 
 async function login(email, password, domId) {
   const res = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email, password, domainId: domId });
   assert.strictEqual(res.status, 200, `${email}: ${JSON.stringify(res.body)}`);
   return res.body.token;
@@ -112,9 +112,9 @@ function futureDate(days) {
 test.before(async () => {
   await initTestDb();
 
-  const sys = await request(app).post('/api/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  const sys = await request(app).post('/api/v2/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   const enabled = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Zeta Tarefas',
@@ -132,7 +132,7 @@ test.before(async () => {
     ['Otavio', 'otavio@zeta.test', 'prestador'],
   ]) {
     const res = await request(app)
-      .post('/api/users')
+      .post('/api/v2/users')
       .set(as(adminToken))
       .send({ name, email, password: 'Secret1!', role, username: email.split('@')[0] });
     assert.strictEqual(res.status, 201);
@@ -146,7 +146,7 @@ test.before(async () => {
   outId = db.get("SELECT id FROM users WHERE email = 'otavio@zeta.test'").id;
 
   const contract = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({
       name: 'Obra Fluxo',
@@ -157,7 +157,7 @@ test.before(async () => {
   contractId = contract.body.contract.id;
 
   const linked = await request(app)
-    .post(`/api/contracts/${contractId}/prestadores`)
+    .post(`/api/v2/contracts/${contractId}/providers`)
     .set(as(gestorToken))
     .send({ user_id: movId });
   assert.strictEqual(linked.status, 201);
@@ -166,7 +166,7 @@ test.before(async () => {
 test('FR-010 flow+link', async () => {
   // SC-004: assignment to a prestador who is NOT linked is refused
   const unlinked = await request(app)
-    .post(`/api/contracts/${contractId}/tasks`)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'Nao atribuivel', assignee_id: outId });
   assert.strictEqual(unlinked.status, 400);
@@ -177,14 +177,14 @@ test('FR-010 flow+link', async () => {
   const db = getDomainDb(domainId);
   const gestorId = db.get("SELECT id FROM users WHERE email = 'guto@zeta.test'").id;
   const wrongRole = await request(app)
-    .post(`/api/contracts/${contractId}/tasks`)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'Gestor nao executa', assignee_id: gestorId });
   assert.strictEqual(wrongRole.status, 400);
 
   // linked prestador assignment succeeds; task starts at A Fazer
   const created = await request(app)
-    .post(`/api/contracts/${contractId}/tasks`)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'Fundacao', priority: 'high', assignee_id: movId });
   assert.strictEqual(created.status, 201, JSON.stringify(created.body));
@@ -194,28 +194,28 @@ test('FR-010 flow+link', async () => {
 
   // prestador cannot create tasks (gestor/admin only)
   const byPrestador = await request(app)
-    .post(`/api/contracts/${contractId}/tasks`)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
     .set(as(movToken))
     .send({ title: 'Auto criada' });
   assert.strictEqual(byPrestador.status, 403);
 
   // invalid priority refused
   const badPriority = await request(app)
-    .post(`/api/contracts/${contractId}/tasks`)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'X', priority: 'mega' });
   assert.strictEqual(badPriority.status, 400);
 
   // happy path flow: A Fazer → Em Progresso → Revisão (linked prestador only)
   const step1 = await request(app)
-    .patch(`/api/tasks/${taskId}/status`)
+    .patch(`/api/v2/tasks/${taskId}/status`)
     .set(as(movToken))
     .send({ status: 'Em Progresso' });
   assert.strictEqual(step1.status, 200, JSON.stringify(step1.body));
   assert.strictEqual(step1.body.task.status, 'Em Progresso');
 
   const step2 = await request(app)
-    .patch(`/api/tasks/${taskId}/status`)
+    .patch(`/api/v2/tasks/${taskId}/status`)
     .set(as(movToken))
     .send({ status: 'Revisão' });
   assert.strictEqual(step2.status, 200);
@@ -224,7 +224,7 @@ test('FR-010 flow+link', async () => {
   // skipping a stage is refused
   db.run('UPDATE tasks SET status = ? WHERE id = ?', [code('tasks.status', 'A Fazer'), taskId]);
   const skip = await request(app)
-    .patch(`/api/tasks/${taskId}/status`)
+    .patch(`/api/v2/tasks/${taskId}/status`)
     .set(as(movToken))
     .send({ status: 'Revisão' });
   assert.strictEqual(skip.status, 400);
@@ -234,20 +234,20 @@ test('FR-010 flow+link', async () => {
   // moving backward is refused (reopen flow is the gestor's, T019)
   db.run('UPDATE tasks SET status = ? WHERE id = ?', [code('tasks.status', 'Revisão'), taskId]);
   const back = await request(app)
-    .patch(`/api/tasks/${taskId}/status`)
+    .patch(`/api/v2/tasks/${taskId}/status`)
     .set(as(movToken))
     .send({ status: 'Em Progresso' });
   assert.strictEqual(back.status, 400);
 
   // only the assigned/linked prestador moves the task
   const byGestor = await request(app)
-    .patch(`/api/tasks/${taskId}/status`)
+    .patch(`/api/v2/tasks/${taskId}/status`)
     .set(as(gestorToken))
     .send({ status: 'Concluída', text: 'feito' });
   assert.strictEqual(byGestor.status, 403);
 
   const byOther = await request(app)
-    .patch(`/api/tasks/${taskId}/status`)
+    .patch(`/api/v2/tasks/${taskId}/status`)
     .set(as(outToken))
     .send({ status: 'Concluída', text: 'feito' });
   assert.strictEqual(byOther.status, 403);
@@ -255,7 +255,7 @@ test('FR-010 flow+link', async () => {
   // Concluída without text refused (edge case: sem texto → recusa)
   db.run('UPDATE tasks SET status = ? WHERE id = ?', [code('tasks.status', 'Revisão'), taskId]);
   const noText = await request(app)
-    .patch(`/api/tasks/${taskId}/status`)
+    .patch(`/api/v2/tasks/${taskId}/status`)
     .set(as(movToken))
     .send({ status: 'Concluída' });
   assert.strictEqual(noText.status, 400);
@@ -264,7 +264,7 @@ test('FR-010 flow+link', async () => {
 
   // completing with text finishes the flow
   const done = await request(app)
-    .patch(`/api/tasks/${taskId}/status`)
+    .patch(`/api/v2/tasks/${taskId}/status`)
     .set(as(movToken))
     .send({ status: 'Concluída', text: 'Fundacao concluida com laje' });
   assert.strictEqual(done.status, 200, JSON.stringify(done.body));
@@ -272,23 +272,23 @@ test('FR-010 flow+link', async () => {
   assert.match(done.body.task.completed_text, /Fundacao/);
 
   // GET /:id exposes the task + history trail
-  const fetched = await request(app).get(`/api/tasks/${taskId}`).set(as(movToken));
+  const fetched = await request(app).get(`/api/v2/tasks/${taskId}`).set(as(movToken));
   assert.strictEqual(fetched.status, 200);
   assert.ok(fetched.body.history.length >= 2, 'create + status history recorded');
 
   // prestador list: only own tasks (FR-013 basis)
-  const movList = await request(app).get('/api/tasks').set(as(movToken));
+  const movList = await request(app).get('/api/v2/tasks').set(as(movToken));
   assert.ok(movList.body.tasks.every((t) => t.assignee_id === movId));
-  const outList = await request(app).get('/api/tasks').set(as(outToken));
+  const outList = await request(app).get('/api/v2/tasks').set(as(outToken));
   assert.strictEqual(outList.body.tasks.length, 0);
 
   // admin list: whole domain
-  const adminList = await request(app).get('/api/tasks').set(as(adminToken));
+  const adminList = await request(app).get('/api/v2/tasks').set(as(adminToken));
   assert.ok(adminList.body.tasks.some((t) => t.id === taskId));
 
   // edge case: overdue contract does not block task edits (vencido so sinaliza)
   const overdue = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'Vencido Tarefas', start_date: futureDate(-90), forecast_date: futureDate(-2) });
   assert.strictEqual(overdue.status, 201);
@@ -298,12 +298,12 @@ test('FR-010 flow+link', async () => {
     [overdue.body.contract.id, movId]
   );
   const lateTask = await request(app)
-    .post(`/api/contracts/${overdue.body.contract.id}/tasks`)
+    .post(`/api/v2/contracts/${overdue.body.contract.id}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'Tarefa em vencido', assignee_id: movId });
   assert.strictEqual(lateTask.status, 201);
   const lateMove = await request(app)
-    .patch(`/api/tasks/${lateTask.body.task.id}/status`)
+    .patch(`/api/v2/tasks/${lateTask.body.task.id}/status`)
     .set(as(movToken))
     .send({ status: 'Em Progresso' });
   assert.strictEqual(lateMove.status, 200, 'tarefas seguem editáveis em contrato vencido');
@@ -314,14 +314,14 @@ const TINY_PNG =
 
 async function createTaskToRevisao(title) {
   const created = await request(app)
-    .post(`/api/contracts/${contractId}/tasks`)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
     .set(as(gestorToken))
     .send({ title, assignee_id: movId });
   assert.strictEqual(created.status, 201, JSON.stringify(created.body));
   const taskId = created.body.task.id;
   for (const status of ['Em Progresso', 'Revisão']) {
     const move = await request(app)
-      .patch(`/api/tasks/${taskId}/status`)
+      .patch(`/api/v2/tasks/${taskId}/status`)
       .set(as(movToken))
       .send({ status });
     assert.strictEqual(move.status, 200, JSON.stringify(move.body));
@@ -334,7 +334,7 @@ test('FR-011 complete', async () => {
 
   // edge case: conclusão sem texto → recusa
   const noText = await request(app)
-    .post(`/api/tasks/${taskId}/complete`)
+    .post(`/api/v2/tasks/${taskId}/complete`)
     .set(as(movToken))
     .send({ text: '   ', photos: [] });
   assert.strictEqual(noText.status, 400);
@@ -342,21 +342,21 @@ test('FR-011 complete', async () => {
 
   // gestor cannot complete (FR-011: prestador conclui só as suas)
   const byGestor = await request(app)
-    .post(`/api/tasks/${taskId}/complete`)
+    .post(`/api/v2/tasks/${taskId}/complete`)
     .set(as(gestorToken))
     .send({ text: 'feito pelo gestor' });
   assert.strictEqual(byGestor.status, 403);
 
   // another prestador sees the task as invisible (FR-013 applies, asserted here too)
   const byOther = await request(app)
-    .post(`/api/tasks/${taskId}/complete`)
+    .post(`/api/v2/tasks/${taskId}/complete`)
     .set(as(outToken))
     .send({ text: 'intruso' });
   assert.strictEqual(byOther.status, 404);
 
   // completion with text + photo: status, text, disk reference (SC-005)
   const done = await request(app)
-    .post(`/api/tasks/${taskId}/complete`)
+    .post(`/api/v2/tasks/${taskId}/complete`)
     .set(as(movToken))
     .send({
       text: 'Cobertura pronta',
@@ -379,7 +379,7 @@ test('FR-011 complete', async () => {
   // photos are optional: second task completes with text only
   const taskId2 = await createTaskToRevisao('Impermeabilizacao');
   const textOnly = await request(app)
-    .post(`/api/tasks/${taskId2}/complete`)
+    .post(`/api/v2/tasks/${taskId2}/complete`)
     .set(as(movToken))
     .send({ text: 'Sem foto, ok' });
   assert.strictEqual(textOnly.status, 200);
@@ -387,7 +387,7 @@ test('FR-011 complete', async () => {
 
   // completing an already-concluded task is refused (flow guard)
   const again = await request(app)
-    .post(`/api/tasks/${taskId}/complete`)
+    .post(`/api/v2/tasks/${taskId}/complete`)
     .set(as(movToken))
     .send({ text: 'de novo' });
   assert.strictEqual(again.status, 400);
@@ -397,13 +397,13 @@ test('FR-013 visibility', async () => {
   // give the other prestador their own contract + task
   const db = getDomainDb(domainId);
   const linked = await request(app)
-    .post(`/api/contracts/${contractId}/prestadores`)
+    .post(`/api/v2/contracts/${contractId}/providers`)
     .set(as(gestorToken))
     .send({ user_id: outId });
   assert.ok([200, 201, 409].includes(linked.status), JSON.stringify(linked.body));
 
   const created = await request(app)
-    .post(`/api/contracts/${contractId}/tasks`)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'Vistoria', assignee_id: outId });
   assert.strictEqual(created.status, 201, JSON.stringify(created.body));
@@ -412,7 +412,7 @@ test('FR-013 visibility', async () => {
   const movTask = db.get("SELECT id FROM tasks WHERE title = 'Fundacao'");
 
   // prestador list: only own tasks
-  const movList = await request(app).get('/api/tasks').set(as(movToken));
+  const movList = await request(app).get('/api/v2/tasks').set(as(movToken));
   assert.strictEqual(movList.status, 200);
   assert.ok(movList.body.tasks.length > 0);
   assert.ok(
@@ -424,29 +424,29 @@ test('FR-013 visibility', async () => {
     "other prestador's task hidden from mov"
   );
 
-  const outList = await request(app).get('/api/tasks').set(as(outToken));
+  const outList = await request(app).get('/api/v2/tasks').set(as(outToken));
   assert.ok(outList.body.tasks.every((t) => t.assignee_id === outId));
   assert.ok(outList.body.tasks.some((t) => t.id === otherTaskId));
 
   // alheia invisível: direct fetch also 404
-  const peek = await request(app).get(`/api/tasks/${otherTaskId}`).set(as(movToken));
+  const peek = await request(app).get(`/api/v2/tasks/${otherTaskId}`).set(as(movToken));
   assert.strictEqual(peek.status, 404);
 
   // management: admin/gestor see the whole domain
-  const gestorView = await request(app).get(`/api/tasks/${otherTaskId}`).set(as(gestorToken));
+  const gestorView = await request(app).get(`/api/v2/tasks/${otherTaskId}`).set(as(gestorToken));
   assert.strictEqual(gestorView.status, 200);
-  const adminList = await request(app).get('/api/tasks').set(as(adminToken));
+  const adminList = await request(app).get('/api/v2/tasks').set(as(adminToken));
   assert.ok(adminList.body.tasks.some((t) => t.id === otherTaskId));
   assert.ok(adminList.body.tasks.some((t) => t.id === movTask.id));
 
   // prestador contract list: only contracts they are linked to
-  const movContracts = await request(app).get('/api/contracts').set(as(movToken));
+  const movContracts = await request(app).get('/api/v2/contracts').set(as(movToken));
   const movIds = movContracts.body.contracts.map((c) => c.id);
   const vencido = db.get("SELECT id FROM contracts WHERE name = 'Vencido Tarefas'");
   assert.ok(movIds.includes(vencido.id), 'mov linked to vencido contract');
   assert.ok(!movIds.includes(999999), 'sanity');
 
-  const outContracts = await request(app).get('/api/contracts').set(as(outToken));
+  const outContracts = await request(app).get('/api/v2/contracts').set(as(outToken));
   const outIds = outContracts.body.contracts.map((c) => c.id);
   assert.ok(!outIds.includes(vencido.id), 'out not linked to vencido → hidden');
 });
@@ -454,7 +454,7 @@ test('FR-013 visibility', async () => {
 // Acceptance stub — plan.md §Acceptance Test Stubs (RED until T012).
 test('FR-009 tarefas seguem em atrasado', async () => {
   const created = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({
       name: 'FR-009 Atrasado',
@@ -466,14 +466,14 @@ test('FR-009 tarefas seguem em atrasado', async () => {
   assert.strictEqual(created.body.contract.status, 'atrasado');
 
   const linked = await request(app)
-    .post(`/api/contracts/${atrasadoId}/prestadores`)
+    .post(`/api/v2/contracts/${atrasadoId}/providers`)
     .set(as(gestorToken))
     .send({ user_id: movId });
   assert.strictEqual(linked.status, 201, JSON.stringify(linked.body));
 
   // criação aceita nas mesmas condições de um vigente
   const task = await request(app)
-    .post(`/api/contracts/${atrasadoId}/tasks`)
+    .post(`/api/v2/contracts/${atrasadoId}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'Tarefa sobre atrasado', assignee_id: movId });
   assert.strictEqual(task.status, 201, JSON.stringify(task.body));
@@ -482,20 +482,20 @@ test('FR-009 tarefas seguem em atrasado', async () => {
   // movimentação pelo fluxo segue aceita
   for (const status of ['Em Progresso', 'Revisão']) {
     const move = await request(app)
-      .patch(`/api/tasks/${taskId}/status`)
+      .patch(`/api/v2/tasks/${taskId}/status`)
       .set(as(movToken))
       .send({ status });
     assert.strictEqual(move.status, 200, JSON.stringify(move.body));
   }
   const done = await request(app)
-    .post(`/api/tasks/${taskId}/complete`)
+    .post(`/api/v2/tasks/${taskId}/complete`)
     .set(as(movToken))
     .send({ text: 'Concluída sobre contrato atrasado' });
   assert.strictEqual(done.status, 200, JSON.stringify(done.body));
   assert.strictEqual(done.body.task.status, 'Concluída');
 
   // tarefa não altera o status derivado do contrato
-  const fetched = await request(app).get(`/api/contracts/${atrasadoId}`).set(as(gestorToken));
+  const fetched = await request(app).get(`/api/v2/contracts/${atrasadoId}`).set(as(gestorToken));
   assert.strictEqual(fetched.status, 200);
   assert.strictEqual(fetched.body.contract.status, 'atrasado');
 });
@@ -503,7 +503,7 @@ test('FR-009 tarefas seguem em atrasado', async () => {
 // Acceptance stubs — plan.md §Acceptance Test Stubs (RED until T003–T005).
 test('FR-001 fluxo e conclusão só do prestador vinculado', async () => {
   const created = await request(app)
-    .post(`/api/contracts/${contractId}/tasks`)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'FR-001 fluxo', assignee_id: movId });
   assert.strictEqual(created.status, 201, JSON.stringify(created.body));
@@ -512,17 +512,17 @@ test('FR-001 fluxo e conclusão só do prestador vinculado', async () => {
 
   // fluxo só para frente: A Fazer → Em Progresso → Revisão → Concluída
   const step1 = await request(app)
-    .patch(`/api/tasks/${taskId}/status`)
+    .patch(`/api/v2/tasks/${taskId}/status`)
     .set(as(movToken))
     .send({ status: 'Em Progresso' });
   assert.strictEqual(step1.status, 200);
   const skip = await request(app)
-    .patch(`/api/tasks/${taskId}/status`)
+    .patch(`/api/v2/tasks/${taskId}/status`)
     .set(as(movToken))
     .send({ status: 'Concluída' });
   assert.strictEqual(skip.status, 400, 'pulo de fluxo recusado');
   const step2 = await request(app)
-    .patch(`/api/tasks/${taskId}/status`)
+    .patch(`/api/v2/tasks/${taskId}/status`)
     .set(as(movToken))
     .send({ status: 'Revisão' });
   assert.strictEqual(step2.status, 200);
@@ -533,7 +533,7 @@ test('FR-001 fluxo e conclusão só do prestador vinculado', async () => {
     [gestorToken, 'gestor'],
   ]) {
     const res = await request(app)
-      .post(`/api/tasks/${taskId}/complete`)
+      .post(`/api/v2/tasks/${taskId}/complete`)
       .set(as(token))
       .send({ text: 'não é meu ofício' });
     assert.strictEqual(res.status, 403, label);
@@ -541,7 +541,7 @@ test('FR-001 fluxo e conclusão só do prestador vinculado', async () => {
 
   // prestador vinculado conclui e o histórico registra a conclusão
   const done = await request(app)
-    .post(`/api/tasks/${taskId}/complete`)
+    .post(`/api/v2/tasks/${taskId}/complete`)
     .set(as(movToken))
     .send({ text: 'FR-001 executado' });
   assert.strictEqual(done.status, 200, JSON.stringify(done.body));
@@ -564,7 +564,7 @@ test('FR-002 conclusão sem texto responde 400', async () => {
   ).n;
 
   const res = await request(app)
-    .post(`/api/tasks/${taskId}/complete`)
+    .post(`/api/v2/tasks/${taskId}/complete`)
     .set(as(movToken))
     .send({ text: '   ', photos: [] });
   assert.strictEqual(res.status, 400, JSON.stringify(res.body));
@@ -591,7 +591,7 @@ test('FR-003 fotos opcionais gravadas antes da referência', async () => {
     dataBase64: TINY_PNG,
   }));
   const res = await request(app)
-    .post(`/api/tasks/${taskId}/complete`)
+    .post(`/api/v2/tasks/${taskId}/complete`)
     .set(as(movToken))
     .send({ text: 'FR-003 cobertura pronta', photos });
   assert.strictEqual(res.status, 200, JSON.stringify(res.body));
@@ -620,7 +620,7 @@ test('FR-003 fotos opcionais gravadas antes da referência', async () => {
     dataBase64: TINY_PNG,
   }));
   const over = await request(app)
-    .post(`/api/tasks/${taskId2}/complete`)
+    .post(`/api/v2/tasks/${taskId2}/complete`)
     .set(as(movToken))
     .send({ text: 'dezena', photos: many });
   assert.strictEqual(over.status, 400, JSON.stringify(over.body));
@@ -637,7 +637,7 @@ test('FR-003 fotos opcionais gravadas antes da referência', async () => {
 test('FR-005 reabertura sem motivo responde 400', async () => {
   const taskId = await createTaskToRevisao('FR-005 reabertura');
   const done = await request(app)
-    .post(`/api/tasks/${taskId}/complete`)
+    .post(`/api/v2/tasks/${taskId}/complete`)
     .set(as(movToken))
     .send({ text: 'concluída para reabrir' });
   assert.strictEqual(done.status, 200, JSON.stringify(done.body));
@@ -650,7 +650,7 @@ test('FR-005 reabertura sem motivo responde 400', async () => {
 
   for (const motivo of ['', '   ']) {
     const res = await request(app)
-      .post(`/api/tasks/${taskId}/reopen`)
+      .post(`/api/v2/tasks/${taskId}/reopen`)
       .set(as(gestorToken))
       .send({ motivo });
     assert.strictEqual(res.status, 400, JSON.stringify(res.body));
@@ -669,21 +669,21 @@ test('FR-005 reabertura sem motivo responde 400', async () => {
 test('FR-006 histórico de reabertura com autor e motivo', async () => {
   const taskId = await createTaskToRevisao('FR-006 reabertura justificada');
   const done = await request(app)
-    .post(`/api/tasks/${taskId}/complete`)
+    .post(`/api/v2/tasks/${taskId}/complete`)
     .set(as(movToken))
     .send({ text: 'concluída antes da correção' });
   assert.strictEqual(done.status, 200);
 
   // prestador não reabre: 403
   const byPrestador = await request(app)
-    .post(`/api/tasks/${taskId}/reopen`)
+    .post(`/api/v2/tasks/${taskId}/reopen`)
     .set(as(movToken))
     .send({ motivo: 'quero reabrir' });
   assert.strictEqual(byPrestador.status, 403);
 
   // gestor reabre: volta ao fluxo e grava ação, autor, motivo e data
   const reopened = await request(app)
-    .post(`/api/tasks/${taskId}/reopen`)
+    .post(`/api/v2/tasks/${taskId}/reopen`)
     .set(as(gestorToken))
     .send({ motivo: 'rebite mal fixado' });
   assert.strictEqual(reopened.status, 200, JSON.stringify(reopened.body));
@@ -702,17 +702,17 @@ test('FR-006 histórico de reabertura com autor e motivo', async () => {
 
   // admin também reabre (autoridade admin/gestor): leva de volta até Revisão
   const backToRevisao = await request(app)
-    .patch(`/api/tasks/${taskId}/status`)
+    .patch(`/api/v2/tasks/${taskId}/status`)
     .set(as(movToken))
     .send({ status: 'Revisão' });
   assert.strictEqual(backToRevisao.status, 200, JSON.stringify(backToRevisao.body));
   const done2 = await request(app)
-    .post(`/api/tasks/${taskId}/complete`)
+    .post(`/api/v2/tasks/${taskId}/complete`)
     .set(as(movToken))
     .send({ text: 'concluída de novo' });
   assert.strictEqual(done2.status, 200);
   const byAdmin = await request(app)
-    .post(`/api/tasks/${taskId}/reopen`)
+    .post(`/api/v2/tasks/${taskId}/reopen`)
     .set(as(adminToken))
     .send({ motivo: 'inspeção reprovou a correção' });
   assert.strictEqual(byAdmin.status, 200, JSON.stringify(byAdmin.body));
@@ -728,7 +728,7 @@ test('FR-006 histórico de reabertura com autor e motivo', async () => {
 // antes de qualquer leitura ou escrita.
 test('FR-010 domainId estrangeiro 403 nos três roteadores', async () => {
   const created = await request(app)
-    .post(`/api/contracts/${contractId}/tasks`)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'FR-010 escopo', assignee_id: movId });
   assert.strictEqual(created.status, 201, JSON.stringify(created.body));
@@ -736,9 +736,9 @@ test('FR-010 domainId estrangeiro 403 nos três roteadores', async () => {
   const foreign = domainId + 1000;
 
   const rotas = [
-    ['tasks', `/api/tasks?domainId=${foreign}`],
-    ['comments', `/api/tasks/${taskId}/comments?domainId=${foreign}`],
-    ['attachments', `/api/tasks/${taskId}/attachments?domainId=${foreign}`],
+    ['tasks', `/api/v2/tasks?domainId=${foreign}`],
+    ['comments', `/api/v2/tasks/${taskId}/comments?domainId=${foreign}`],
+    ['attachments', `/api/v2/tasks/${taskId}/attachments?domainId=${foreign}`],
   ];
   for (const [label, url] of rotas) {
     const res = await request(app).get(url).set(as(gestorToken));
@@ -748,43 +748,43 @@ test('FR-010 domainId estrangeiro 403 nos três roteadores', async () => {
 
   // escrita também passa pelo guarda: POST com domainId estrangeiro → 403
   const write = await request(app)
-    .post(`/api/tasks/${taskId}/comments?domainId=${foreign}`)
+    .post(`/api/v2/tasks/${taskId}/comments?domainId=${foreign}`)
     .set(as(movToken))
     .send({ body: 'não deve gravar' });
   assert.strictEqual(write.status, 403);
 
   // domínio do próprio token continua liberado
-  const own = await request(app).get(`/api/tasks?domainId=${domainId}`).set(as(gestorToken));
+  const own = await request(app).get(`/api/v2/tasks?domainId=${domainId}`).set(as(gestorToken));
   assert.strictEqual(own.status, 200);
-  const plain = await request(app).get(`/api/tasks/${taskId}/comments`).set(as(gestorToken));
+  const plain = await request(app).get(`/api/v2/tasks/${taskId}/comments`).set(as(gestorToken));
   assert.strictEqual(plain.status, 200);
 });
 // FR-011 (E003): o prestador só enxerga as próprias tarefas na leitura.
 test('FR-011 prestador só enxerga as próprias tarefas', async () => {
   const created = await request(app)
-    .post(`/api/contracts/${contractId}/tasks`)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'FR-011 restrito', assignee_id: movId });
   assert.strictEqual(created.status, 201, JSON.stringify(created.body));
   const taskId = created.body.task.id;
 
   // Otávio (outToken) não enxerga a tarefa de Mila: 404 esconde existência
-  const other = await request(app).get(`/api/tasks/${taskId}`).set(as(outToken));
+  const other = await request(app).get(`/api/v2/tasks/${taskId}`).set(as(outToken));
   assert.strictEqual(other.status, 404);
 
   // a lista do Otávio não expõe a tarefa de terceiros
-  const list = await request(app).get('/api/tasks').set(as(outToken));
+  const list = await request(app).get('/api/v2/tasks').set(as(outToken));
   assert.strictEqual(list.status, 200);
   assert.ok(
     !list.body.tasks.some((t) => t.id === taskId),
     'tarefa alheia fora da lista do prestador'
   );
   // a lista da própria Mila segue trazendo a tarefa
-  const mine = await request(app).get('/api/tasks').set(as(movToken));
+  const mine = await request(app).get('/api/v2/tasks').set(as(movToken));
   assert.ok(mine.body.tasks.some((t) => t.id === taskId), 'tarefa própria visível');
 
   // admin/gestor seguem vendo o domínio inteiro
-  const byGestor = await request(app).get(`/api/tasks/${taskId}`).set(as(gestorToken));
+  const byGestor = await request(app).get(`/api/v2/tasks/${taskId}`).set(as(gestorToken));
   assert.strictEqual(byGestor.status, 200);
 
   // contrato de exportação: canSeeTask exposto e correto no roteador
@@ -860,27 +860,27 @@ test('E010 FR-001: rotas de tarefa preservam 200/201 com SMTP vivo', async () =>
   process.env.SMTP_PORT = String(smtp.port);
   try {
     const created = await request(app)
-      .post(`/api/contracts/${contractId}/tasks`)
+      .post(`/api/v2/contracts/${contractId}/tasks`)
       .set(as(gestorToken))
       .send({ title: 'E010 SMTP vivo', assignee_id: movId });
     assert.strictEqual(created.status, 201, JSON.stringify(created.body));
 
     for (const status of ['Em Progresso', 'Revisão']) {
       const move = await request(app)
-        .patch(`/api/tasks/${created.body.task.id}/status`)
+        .patch(`/api/v2/tasks/${created.body.task.id}/status`)
         .set(as(movToken))
         .send({ status });
       assert.strictEqual(move.status, 200, JSON.stringify(move.body));
     }
 
     const done = await request(app)
-      .post(`/api/tasks/${created.body.task.id}/complete`)
+      .post(`/api/v2/tasks/${created.body.task.id}/complete`)
       .set(as(movToken))
       .send({ text: 'Fluxo completo com SMTP vivo' });
     assert.strictEqual(done.status, 200, JSON.stringify(done.body));
 
     const reopened = await request(app)
-      .post(`/api/tasks/${created.body.task.id}/reopen`)
+      .post(`/api/v2/tasks/${created.body.task.id}/reopen`)
       .set(as(gestorToken))
       .send({ motivo: 'ajuste pos inspecao' });
     assert.strictEqual(reopened.status, 200, JSON.stringify(reopened.body));
@@ -909,7 +909,7 @@ test('E010 FR-004: rotas de tarefa respondem 200/201 sem SMTP_* (zero conexões)
   delete process.env.SMTP_PORT;
   try {
     const created = await request(app)
-      .post(`/api/contracts/${contractId}/tasks`)
+      .post(`/api/v2/contracts/${contractId}/tasks`)
       .set(as(gestorToken))
       .send({ title: 'E010 inerte rotas', assignee_id: movId });
     assert.strictEqual(created.status, 201, JSON.stringify(created.body));
@@ -917,18 +917,18 @@ test('E010 FR-004: rotas de tarefa respondem 200/201 sem SMTP_* (zero conexões)
 
     for (const status of ['Em Progresso', 'Revisão']) {
       const move = await request(app)
-        .patch(`/api/tasks/${taskId}/status`)
+        .patch(`/api/v2/tasks/${taskId}/status`)
         .set(as(movToken))
         .send({ status });
       assert.strictEqual(move.status, 200, JSON.stringify(move.body));
     }
     const done = await request(app)
-      .post(`/api/tasks/${taskId}/complete`)
+      .post(`/api/v2/tasks/${taskId}/complete`)
       .set(as(movToken))
       .send({ text: 'concluida sem smtp' });
     assert.strictEqual(done.status, 200, JSON.stringify(done.body));
     const reopened = await request(app)
-      .post(`/api/tasks/${taskId}/reopen`)
+      .post(`/api/v2/tasks/${taskId}/reopen`)
       .set(as(gestorToken))
       .send({ motivo: 'reaberta sem smtp' });
     assert.strictEqual(reopened.status, 200, JSON.stringify(reopened.body));

@@ -1,6 +1,6 @@
 'use strict';
 
-// 00003 US5: execution plan endpoints (openapi /api/tasks/{id}/execution-plan).
+// 00003 US5: execution plan endpoints (openapi /api/v2/tasks/{id}/execution-plan).
 // Generation is an async job: 202 + Location, then poll GET for status.
 // FR-015: activation only queues pendente shells — POST dispatches the job,
 // so activation never blocks on OpenCode. FR-016: the job only writes
@@ -31,7 +31,7 @@ function getTaskOr404(db, id) {
   return row;
 }
 
-// Prestador: only its own assigned tasks (GET /api/tasks/:id convention —
+// Prestador: only its own assigned tasks (GET /api/v2/tasks/:id convention —
 // foreign task answers 404, never 403).
 function assertVisible(user, task) {
   if (user.role === 'prestador' && task.assignee_id !== user.id) {
@@ -82,11 +82,11 @@ function sendAccepted(req, res, row, task) {
   const key = row.task_id;
   res
     .status(202)
-    .set('Location', `/api/tasks/${key}/execution-plan`)
+    .set('Location', `/api/v2/tasks/${key}/execution-plan`)
     .json({ plan: ExecutionPlan.serialize(getDomainDb(req.user.domainId), row, task) });
 }
 
-// GET /api/tasks/:id/execution-plan — gestor + prestador. `plan: null` while
+// GET /api/v2/tasks/:id/execution-plan — gestor + prestador. `plan: null` while
 // the task has no plan yet (openapi getExecutionPlan).
 function getPlan(req, res) {
   try {
@@ -100,7 +100,7 @@ function getPlan(req, res) {
   }
 }
 
-// POST /api/tasks/:id/execution-plan — gestor only. Accepts shells in any
+// POST /api/v2/tasks/:id/execution-plan — gestor only. Accepts shells in any
 // state except a running job (409): pendente (queued shell), gerado
 // (regenerate on demand), falha (explicit regenerate path).
 function requestPlan(req, res) {
@@ -121,7 +121,7 @@ function requestPlan(req, res) {
   }
 }
 
-// POST /api/tasks/:id/execution-plan/regenerate — gestor only, only after a
+// POST /api/v2/tasks/:id/execution-plan/regenerate — gestor only, only after a
 // failure (openapi regenerateExecutionPlan).
 function regeneratePlan(req, res) {
   try {

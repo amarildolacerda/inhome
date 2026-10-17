@@ -46,7 +46,7 @@ function as(token) {
 
 async function login(email, password, domId) {
   const res = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email, password, domainId: domId });
   assert.strictEqual(res.status, 200, `${email}: ${JSON.stringify(res.body)}`);
   return res.body.token;
@@ -55,9 +55,9 @@ async function login(email, password, domId) {
 test.before(async () => {
   await initTestDb();
 
-  const sys = await request(app).post('/api/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  const sys = await request(app).post('/api/v2/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   const enabled = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Teta Validacao',
@@ -70,7 +70,7 @@ test.before(async () => {
   adminToken = await login('vera@teta.test', 'Secret1!', domainId);
 
   const gestor = await request(app)
-    .post('/api/users')
+    .post('/api/v2/users')
     .set(as(adminToken))
     .send({ name: 'Guto', email: 'guto@teta.test', password: 'Secret1!', role: 'gestor', username: 'guto' });
   assert.strictEqual(gestor.status, 201);
@@ -124,7 +124,7 @@ test('FR-021 validation', async () => {
 
   // ---- integration: contract creation payload ----
   const badContract = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: '' });
   assert.strictEqual(badContract.status, 400, JSON.stringify(badContract.body));
@@ -132,47 +132,47 @@ test('FR-021 validation', async () => {
   assert.ok(badContract.body.details.some((d) => d.includes('start_date')));
 
   const badDate = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'Obra', start_date: '31/01/2026', forecast_date: 'nunca' });
   assert.strictEqual(badDate.status, 400);
 
   const badType = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'Obra', start_date: '2026-01-01', forecast_date: '2026-12-31', purpose_id: 'abc' });
   assert.strictEqual(badType.status, 400);
 
   // ---- integration: task creation payload ----
   const contract = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'Obra Validada', start_date: '2026-01-01', forecast_date: '2026-12-31' });
   assert.strictEqual(contract.status, 201, JSON.stringify(contract.body));
 
   const missingTitle = await request(app)
-    .post(`/api/contracts/${contract.body.contract.id}/tasks`)
+    .post(`/api/v2/contracts/${contract.body.contract.id}/tasks`)
     .set(as(gestorToken))
     .send({});
   assert.strictEqual(missingTitle.status, 400, JSON.stringify(missingTitle.body));
   assert.ok(missingTitle.body.details.some((d) => d.includes('title')));
 
   const badPriority = await request(app)
-    .post(`/api/contracts/${contract.body.contract.id}/tasks`)
+    .post(`/api/v2/contracts/${contract.body.contract.id}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'X', priority: 'mega' });
   assert.strictEqual(badPriority.status, 400);
   assert.ok(badPriority.body.details.some((d) => d.includes('priority')));
 
   const badDue = await request(app)
-    .post(`/api/contracts/${contract.body.contract.id}/tasks`)
+    .post(`/api/v2/contracts/${contract.body.contract.id}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'X', due_date: 'sexta' });
   assert.strictEqual(badDue.status, 400);
 
   // valid task payload still reaches the handler (201)
   const okTask = await request(app)
-    .post(`/api/contracts/${contract.body.contract.id}/tasks`)
+    .post(`/api/v2/contracts/${contract.body.contract.id}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'Tarefa valida', priority: 'high', due_date: '2026-06-30' });
   assert.strictEqual(okTask.status, 201, JSON.stringify(okTask.body));

@@ -26,7 +26,7 @@ function decorate(db, row) {
   };
 }
 
-// POST /api/tasks/:id/comments
+// POST /api/v2/tasks/:id/comments
 function addComment(req, res) {
   try {
     const db = getDomainDb(req.user.domainId);
@@ -51,7 +51,7 @@ function addComment(req, res) {
   }
 }
 
-// GET /api/tasks/:id/comments
+// GET /api/v2/tasks/:id/comments
 function listComments(req, res) {
   try {
     const db = getDomainDb(req.user.domainId);

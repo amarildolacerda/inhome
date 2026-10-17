@@ -142,18 +142,18 @@ test('FR-014 cross-domain', () => {
 // SC-008: two domains — API of A never reads B (403/404, zero crossover).
 test('SC-008 two domains zero cross', async () => {
   const sys = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(sys.status, 200, JSON.stringify(sys.body));
 
   const makeDomain = async (name, slug, email) => {
     const enabled = await request(app)
-      .post('/api/domains/enable')
+      .post('/api/v2/domains/enable')
       .set('Authorization', `Bearer ${sys.body.token}`)
       .send({ name, adminName: `Admin ${slug}`, adminEmail: email, adminPassword: 'Secret1!' });
     assert.strictEqual(enabled.status, 201, JSON.stringify(enabled.body));
     const login = await request(app)
-      .post('/api/auth/login')
+      .post('/api/v2/auth/login')
       .send({ email, password: 'Secret1!', domainId: enabled.body.domain.id });
     assert.strictEqual(login.status, 200, JSON.stringify(login.body));
     return { id: enabled.body.domain.id, token: login.body.token };
@@ -165,7 +165,7 @@ test('SC-008 two domains zero cross', async () => {
 
   // domain A creates a contract
   const created = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set('Authorization', `Bearer ${alpha.token}`)
     .send({
       name: 'Contrato Sensivel Alpha',
@@ -177,14 +177,14 @@ test('SC-008 two domains zero cross', async () => {
 
   // domain A sees it
   const listA = await request(app)
-    .get('/api/contracts')
+    .get('/api/v2/contracts')
     .set('Authorization', `Bearer ${alpha.token}`);
   assert.strictEqual(listA.status, 200);
   assert.ok(listA.body.contracts.some((c) => c.id === alphaContractId));
 
   // domain B list never contains A's rows (separate physical DB)
   const listB = await request(app)
-    .get('/api/contracts')
+    .get('/api/v2/contracts')
     .set('Authorization', `Bearer ${beta.token}`);
   assert.strictEqual(listB.status, 200);
   assert.ok(
@@ -194,7 +194,7 @@ test('SC-008 two domains zero cross', async () => {
 
   // API of B addressing A's resource id → 404 (not B's data)
   const crossRead = await request(app)
-    .get(`/api/contracts/${alphaContractId}`)
+    .get(`/api/v2/contracts/${alphaContractId}`)
     .set('Authorization', `Bearer ${beta.token}`);
   assert.strictEqual(crossRead.status, 404);
 
@@ -225,12 +225,12 @@ test('SC-008 two domains zero cross', async () => {
 // E001 (spec 00002) — RED stub; T006 turns it GREEN.
 test('FR-003 suspensão bloqueia sessão', async () => {
   const sys = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(sys.status, 200, JSON.stringify(sys.body));
 
   const enabled = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set('Authorization', `Bearer ${sys.body.token}`)
     .send({
       name: 'Suspenso Ciclo',
@@ -242,39 +242,39 @@ test('FR-003 suspensão bloqueia sessão', async () => {
   const domainId = enabled.body.domain.id;
 
   const adminLogin = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: 'sc@ciclo.test', password: 'Secret1!', domainId });
   assert.strictEqual(adminLogin.status, 200, JSON.stringify(adminLogin.body));
   const liveToken = adminLogin.body.token;
 
   // business data exists before suspension
   const created = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set('Authorization', `Bearer ${liveToken}`)
     .send({ name: 'Contrato Antes Suspensao', start_date: '2026-01-01', forecast_date: '2026-12-31' });
   assert.strictEqual(created.status, 201, JSON.stringify(created.body));
 
   // suspend flips status only
   const sus = await request(app)
-    .post(`/api/domains/${domainId}/suspend`)
+    .post(`/api/v2/domains/${domainId}/suspend`)
     .set('Authorization', `Bearer ${sys.body.token}`);
   assert.strictEqual(sus.status, 200, JSON.stringify(sus.body));
   assert.strictEqual(sus.body.domain.status, 'suspended');
 
   // login blocked with 403
   const deniedLogin = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: 'sc@ciclo.test', password: 'Secret1!', domainId });
   assert.strictEqual(deniedLogin.status, 403, JSON.stringify(deniedLogin.body));
   assert.match(deniedLogin.body.error, /suspended/i);
 
   // session opened before the suspension is refused without reading data
   const me = await request(app)
-    .get('/api/auth/me')
+    .get('/api/v2/auth/me')
     .set('Authorization', `Bearer ${liveToken}`);
   assert.strictEqual(me.status, 403, JSON.stringify(me.body));
   const blocked = await request(app)
-    .get('/api/contracts')
+    .get('/api/v2/contracts')
     .set('Authorization', `Bearer ${liveToken}`);
   assert.strictEqual(blocked.status, 403, JSON.stringify(blocked.body));
   assert.strictEqual(blocked.body.contracts, undefined, 'no business payload on a suspended domain');
@@ -307,19 +307,19 @@ test('FR-003 suspensão bloqueia sessão', async () => {
 
   // reactivation restores access with the data intact
   const rea = await request(app)
-    .post(`/api/domains/${domainId}/reactivate`)
+    .post(`/api/v2/domains/${domainId}/reactivate`)
     .set('Authorization', `Bearer ${sys.body.token}`);
   assert.strictEqual(rea.status, 200, JSON.stringify(rea.body));
   assert.strictEqual(rea.body.domain.status, 'active');
   assert.ok(assertDomainActive(domainId), 'assertDomainActive passes again');
 
   const back = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: 'sc@ciclo.test', password: 'Secret1!', domainId });
   assert.strictEqual(back.status, 200, JSON.stringify(back.body));
 
   const after = await request(app)
-    .get('/api/contracts')
+    .get('/api/v2/contracts')
     .set('Authorization', `Bearer ${back.body.token}`);
   assert.strictEqual(after.status, 200, JSON.stringify(after.body));
   assert.ok(
@@ -337,9 +337,9 @@ test('FR-005 401/403 deny by default', async () => {
     return req;
   };
 
-  const sys = await call('post', '/api/auth/login', null, { email: SYS_EMAIL, password: SYS_PASSWORD });
+  const sys = await call('post', '/api/v2/auth/login', null, { email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(sys.status, 200, JSON.stringify(sys.body));
-  const enabled = await call('post', '/api/domains/enable', sys.body.token, {
+  const enabled = await call('post', '/api/v2/domains/enable', sys.body.token, {
     name: 'Deny By Default',
     adminName: 'Dana',
     adminEmail: 'dana@deny.test',
@@ -348,7 +348,7 @@ test('FR-005 401/403 deny by default', async () => {
   assert.strictEqual(enabled.status, 201, JSON.stringify(enabled.body));
   const domainId = enabled.body.domain.id;
 
-  const admin = await call('post', '/api/auth/login', null, {
+  const admin = await call('post', '/api/v2/auth/login', null, {
     email: 'dana@deny.test',
     password: 'Secret1!',
     domainId,
@@ -356,7 +356,7 @@ test('FR-005 401/403 deny by default', async () => {
   assert.strictEqual(admin.status, 200, JSON.stringify(admin.body));
   const adminToken = admin.body.token;
 
-  const prestador = await call('post', '/api/users', adminToken, {
+  const prestador = await call('post', '/api/v2/users', adminToken, {
     name: 'Pri',
     email: 'pri@deny.test',
     password: 'Secret1!',
@@ -364,7 +364,7 @@ test('FR-005 401/403 deny by default', async () => {
     username: 'pri',
   });
   assert.strictEqual(prestador.status, 201, JSON.stringify(prestador.body));
-  const prestadorLogin = await call('post', '/api/auth/login', null, {
+  const prestadorLogin = await call('post', '/api/v2/auth/login', null, {
     email: 'pri@deny.test',
     password: 'Secret1!',
     domainId,
@@ -373,14 +373,14 @@ test('FR-005 401/403 deny by default', async () => {
   const prestadorToken = prestadorLogin.body.token;
 
   const business = [
-    ['get', '/api/contracts'],
-    ['post', '/api/contracts'],
-    ['get', '/api/users'],
-    ['post', '/api/users'],
-    ['get', '/api/tasks'],
-    ['post', '/api/finalidades'],
-    ['get', '/api/dashboard/stats'],
-    ['post', '/api/domains/enable'],
+    ['get', '/api/v2/contracts'],
+    ['post', '/api/v2/contracts'],
+    ['get', '/api/v2/users'],
+    ['post', '/api/v2/users'],
+    ['get', '/api/v2/tasks'],
+    ['post', '/api/v2/purposes'],
+    ['get', '/api/v2/dashboard/stats'],
+    ['post', '/api/v2/domains/enable'],
   ];
 
   // 401 without a token — refused before any read
@@ -393,23 +393,23 @@ test('FR-005 401/403 deny by default', async () => {
   }
 
   // malformed or wrong-key token → 403
-  const malformed = await call('get', '/api/contracts', 'not-a-jwt');
+  const malformed = await call('get', '/api/v2/contracts', 'not-a-jwt');
   assert.strictEqual(malformed.status, 403, `malformed token: ${malformed.status}`);
   const wrongKeyToken = jwt.sign(
     { id: 1, email: 'x@deny.test', role: 'admin', domainId },
     'not-the-server-secret',
     { expiresIn: '24h' }
   );
-  const wrongKey = await call('get', '/api/contracts', wrongKeyToken);
+  const wrongKey = await call('get', '/api/v2/contracts', wrongKeyToken);
   assert.strictEqual(wrongKey.status, 403, `wrong key token: ${wrongKey.status}`);
 
   // wrong role → 403 on routes that do not list it
   const refused = [
-    ['post', '/api/contracts', { name: 'Prestador Leak', start_date: '2026-01-01', forecast_date: '2026-12-31' }],
-    ['post', '/api/users', { name: 'Leak', email: 'leak@deny.test', password: 'Secret1!', role: 'gestor', username: 'leak' }],
-    ['post', '/api/finalidades', { name: 'Leak Finalidade' }],
-    ['delete', '/api/contracts/1', null],
-    ['post', '/api/domains/enable', { name: 'Leak Domain', adminName: 'L', adminEmail: 'l@deny.test', adminPassword: 'Secret1!' }],
+    ['post', '/api/v2/contracts', { name: 'Prestador Leak', start_date: '2026-01-01', forecast_date: '2026-12-31' }],
+    ['post', '/api/v2/users', { name: 'Leak', email: 'leak@deny.test', password: 'Secret1!', role: 'gestor', username: 'leak' }],
+    ['post', '/api/v2/purposes', { name: 'Leak Finalidade' }],
+    ['delete', '/api/v2/contracts/1', null],
+    ['post', '/api/v2/domains/enable', { name: 'Leak Domain', adminName: 'L', adminEmail: 'l@deny.test', adminPassword: 'Secret1!' }],
   ];
   for (const [method, url, body] of refused) {
     const res = await call(method, url, prestadorToken, body);
@@ -418,7 +418,7 @@ test('FR-005 401/403 deny by default', async () => {
   }
 
   // positive control: admin passes the same guard
-  const adminCreate = await call('post', '/api/contracts', adminToken, {
+  const adminCreate = await call('post', '/api/v2/contracts', adminToken, {
     name: 'Admin Pode',
     start_date: '2026-01-01',
     forecast_date: '2026-12-31',
@@ -458,16 +458,16 @@ test('FR-007 escopo de domínio', async () => {
     return req;
   };
   const mk = async (name, email) => {
-    const sys = await call('post', '/api/auth/login', null, { email: SYS_EMAIL, password: SYS_PASSWORD });
+    const sys = await call('post', '/api/v2/auth/login', null, { email: SYS_EMAIL, password: SYS_PASSWORD });
     assert.strictEqual(sys.status, 200, JSON.stringify(sys.body));
-    const en = await call('post', '/api/domains/enable', sys.body.token, {
+    const en = await call('post', '/api/v2/domains/enable', sys.body.token, {
       name,
       adminName: `A ${name}`,
       adminEmail: email,
       adminPassword: 'Secret1!',
     });
     assert.strictEqual(en.status, 201, JSON.stringify(en.body));
-    const li = await call('post', '/api/auth/login', null, {
+    const li = await call('post', '/api/v2/auth/login', null, {
       email,
       password: 'Secret1!',
       domainId: en.body.domain.id,
@@ -480,7 +480,7 @@ test('FR-007 escopo de domínio', async () => {
   const beta = await mk('Escopo Beta', 'beta@escopo.test');
   assert.notStrictEqual(alpha.id, beta.id);
 
-  const created = await call('post', '/api/contracts', alpha.token, {
+  const created = await call('post', '/api/v2/contracts', alpha.token, {
     name: 'Contrato Segredo Alfa',
     start_date: '2026-01-01',
     forecast_date: '2026-12-31',
@@ -499,7 +499,7 @@ test('FR-007 escopo de domínio', async () => {
   );
 
   // domain B addressing domain A's resource → 404, no content leak
-  const cross = await call('get', `/api/contracts/${alphaContractId}`, beta.token);
+  const cross = await call('get', `/api/v2/contracts/${alphaContractId}`, beta.token);
   assert.strictEqual(cross.status, 404, JSON.stringify(cross.body));
   assert.strictEqual(cross.body.contract, undefined);
   assert.ok(!JSON.stringify(cross.body).includes('Segredo'), 'no domain A content in the answer');
@@ -528,7 +528,7 @@ test('FR-007 escopo de domínio', async () => {
   assert.throws(() => getDomainDb('not-a-number'), /invalid domainId/);
 
   // B's list stays empty of A's rows (read path also scoped)
-  const listB = await call('get', '/api/contracts', beta.token);
+  const listB = await call('get', '/api/v2/contracts', beta.token);
   assert.strictEqual(listB.status, 200, JSON.stringify(listB.body));
   assert.ok(
     !listB.body.contracts.some((c) => c.name === 'Contrato Segredo Alfa'),

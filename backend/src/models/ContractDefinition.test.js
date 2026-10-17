@@ -30,7 +30,7 @@ function futureDate(days) {
 
 async function login(email, password, domId) {
   const res = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email, password, domainId: domId });
   assert.strictEqual(res.status, 200, `${email}: ${JSON.stringify(res.body)}`);
   return res.body.token;
@@ -40,12 +40,12 @@ test.before(async () => {
   await initTestDb();
 
   const sys = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(sys.status, 200);
 
   const enabled = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Kappa Model',
@@ -63,7 +63,7 @@ test.before(async () => {
     ['Pia', 'pia@kappa.test', 'prestador'],
   ]) {
     const res = await request(app)
-      .post('/api/users')
+      .post('/api/v2/users')
       .set(as(adminToken))
       .send({ name, email, password: 'Secret1!', role, username: email.split('@')[0] });
     assert.strictEqual(res.status, 201, JSON.stringify(res.body));
@@ -72,7 +72,7 @@ test.before(async () => {
   prestadorToken = await login('pia@kappa.test', 'Secret1!', domainId);
 
   const contract = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'Obra Model', start_date: futureDate(-2), forecast_date: futureDate(20) });
   assert.strictEqual(contract.status, 201, JSON.stringify(contract.body));
@@ -111,7 +111,7 @@ test('FR-002 versiona e restringe', async () => {
 
   // version numbers are per contract: a second contract restarts at 1
   const other = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'Outra Model', start_date: futureDate(-1), forecast_date: futureDate(9) });
   assert.strictEqual(other.status, 201);
@@ -142,26 +142,26 @@ test('FR-002 versiona e restringe', async () => {
   // restringe: só admin e gestor alcançam o recurso (requireRole na rota)
   const body = { ...v1Fields, escopo: 'Escopo v3' };
   const byGestor = await request(app)
-    .put(`/api/contracts/${contractId}/definitions`)
+    .put(`/api/v2/contracts/${contractId}/definitions`)
     .set(as(gestorToken))
     .send(body);
   assert.strictEqual(byGestor.status, 200, JSON.stringify(byGestor.body));
   assert.strictEqual(byGestor.body.definitions.versao, 3);
 
   const byAdmin = await request(app)
-    .put(`/api/contracts/${contractId}/definitions`)
+    .put(`/api/v2/contracts/${contractId}/definitions`)
     .set(as(adminToken))
     .send(body);
   assert.strictEqual(byAdmin.status, 200);
   assert.strictEqual(byAdmin.body.definitions.versao, 4, 'admin também edita definições');
 
   const byPrestador = await request(app)
-    .put(`/api/contracts/${contractId}/definitions`)
+    .put(`/api/v2/contracts/${contractId}/definitions`)
     .set(as(prestadorToken))
     .send(body);
   assert.strictEqual(byPrestador.status, 403, 'prestador não edita');
   const prestadorRead = await request(app)
-    .get(`/api/contracts/${contractId}/definitions`)
+    .get(`/api/v2/contracts/${contractId}/definitions`)
     .set(as(prestadorToken));
   assert.strictEqual(prestadorRead.status, 403, 'prestador não lê');
 });

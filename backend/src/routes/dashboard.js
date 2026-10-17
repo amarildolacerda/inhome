@@ -138,7 +138,7 @@ function getDomainMetrics(db, user) {
 
 router.use(authenticateToken);
 
-// GET /api/dashboard/stats
+// GET /api/v2/dashboard/stats
 router.get('/stats', requireRole('admin', 'gestor', 'prestador'), (req, res) => {
   try {
     const db = getDomainDb(req.user.domainId);

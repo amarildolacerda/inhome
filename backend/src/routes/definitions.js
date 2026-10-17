@@ -36,7 +36,7 @@ function contractOr404(db, rawId) {
   return { id };
 }
 
-// GET /api/contracts/:id/definitions — active version, 404 when none saved.
+// GET /api/v2/contracts/:id/definitions — active version, 404 when none saved.
 function getDefinitions(req, res) {
   try {
     const db = getDomainDb(req.user.domainId);
@@ -50,7 +50,7 @@ function getDefinitions(req, res) {
   }
 }
 
-// PUT /api/contracts/:id/definitions — append a new version (FR-001/FR-002).
+// PUT /api/v2/contracts/:id/definitions — append a new version (FR-001/FR-002).
 function saveDefinitions(req, res) {
   try {
     const db = getDomainDb(req.user.domainId);
@@ -89,7 +89,7 @@ function saveDefinitions(req, res) {
   }
 }
 
-// GET /api/contracts/:id/definitions/history — FR-017: versions with author
+// GET /api/v2/contracts/:id/definitions/history — FR-017: versions with author
 // and date, newest first.
 function getDefinitionHistory(req, res) {
   try {

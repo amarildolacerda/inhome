@@ -18,7 +18,7 @@ let sysToken;
 
 async function loginSys() {
   const res = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(res.status, 200, `sysadmin login failed: ${res.status} ${JSON.stringify(res.body)}`);
   return res.body.token;
@@ -26,7 +26,7 @@ async function loginSys() {
 
 async function enable(name, adminEmail) {
   return request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set('Authorization', `Bearer ${sysToken}`)
     .send({ name, adminName: 'Admin ' + name, adminEmail, adminPassword: 'Secret1!' });
 }
@@ -53,7 +53,7 @@ test('FR-001 enable', async () => {
 
   // first admin logs in (SC-001)
   const login = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: 'ada@alpha.test', password: 'Secret1!', domainId: domain.id });
   assert.strictEqual(login.status, 200, JSON.stringify(login.body));
   assert.strictEqual(login.body.user.role, 'admin');
@@ -62,7 +62,7 @@ test('FR-001 enable', async () => {
 
   // /me resolves the domain session
   const me = await request(app)
-    .get('/api/auth/me')
+    .get('/api/v2/auth/me')
     .set('Authorization', `Bearer ${login.body.token}`);
   assert.strictEqual(me.status, 200);
   assert.strictEqual(me.body.user.email, 'ada@alpha.test');
@@ -73,14 +73,14 @@ test('FR-001 enable', async () => {
 
   // domain admin cannot enable domains (FR-003: cycle is system_admin only)
   const forbidden = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set('Authorization', `Bearer ${login.body.token}`)
     .send({ name: 'Rogue', adminName: 'R', adminEmail: 'r@rogue.test', adminPassword: 'Secret1!' });
   assert.strictEqual(forbidden.status, 403);
 
   // unauthenticated refused
   const anon = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .send({ name: 'Anon', adminName: 'A', adminEmail: 'a@anon.test', adminPassword: 'Secret1!' });
   assert.strictEqual(anon.status, 401);
 
@@ -91,7 +91,7 @@ test('FR-001 enable', async () => {
 test('FR-002 suspend/reactivate', async () => {
   // locate Beta domain (suspended under test)
   const list = await request(app)
-    .get('/api/domains')
+    .get('/api/v2/domains')
     .set('Authorization', `Bearer ${sysToken}`);
   assert.strictEqual(list.status, 200);
   const beta = list.body.domains.find((d) => d.slug === 'beta-gestao');
@@ -99,28 +99,28 @@ test('FR-002 suspend/reactivate', async () => {
 
   // admin session while active
   const activeLogin = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: 'bob@beta.test', password: 'Secret1!', domainId: beta.id });
   assert.strictEqual(activeLogin.status, 200);
   const liveToken = activeLogin.body.token;
 
   // suspend
   const sus = await request(app)
-    .post(`/api/domains/${beta.id}/suspend`)
+    .post(`/api/v2/domains/${beta.id}/suspend`)
     .set('Authorization', `Bearer ${sysToken}`);
   assert.strictEqual(sus.status, 200);
   assert.strictEqual(sus.body.domain.status, 'suspended');
 
   // suspended domain refuses login (FR-002 / SC-002)
   const denied = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: 'bob@beta.test', password: 'Secret1!', domainId: beta.id });
   assert.strictEqual(denied.status, 403);
   assert.match(denied.body.error, /suspended/i);
 
   // existing session revalidation denied (edge case: pós-suspensão)
   const stale = await request(app)
-    .get('/api/auth/me')
+    .get('/api/v2/auth/me')
     .set('Authorization', `Bearer ${liveToken}`);
   assert.strictEqual(stale.status, 403);
 
@@ -136,19 +136,19 @@ test('FR-002 suspend/reactivate', async () => {
 
   // reactivate restores access (SC-002)
   const rea = await request(app)
-    .post(`/api/domains/${beta.id}/reactivate`)
+    .post(`/api/v2/domains/${beta.id}/reactivate`)
     .set('Authorization', `Bearer ${sysToken}`);
   assert.strictEqual(rea.status, 200);
   assert.strictEqual(rea.body.domain.status, 'active');
 
   const ok = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: 'bob@beta.test', password: 'Secret1!', domainId: beta.id });
   assert.strictEqual(ok.status, 200);
 
   // domain admin cannot suspend (FR-003)
   const forbidden = await request(app)
-    .post(`/api/domains/${beta.id}/suspend`)
+    .post(`/api/v2/domains/${beta.id}/suspend`)
     .set('Authorization', `Bearer ${ok.body.token}`);
   assert.strictEqual(forbidden.status, 403);
 
@@ -204,10 +204,10 @@ test('FR-001 habilitação atômica', async () => {
 });
 test('FR-004 ciclo só system_admin', async () => {
   const cycleRoutes = [
-    ['get', '/api/domains', null],
-    ['post', '/api/domains/enable', { name: 'Rogue Cycle', adminName: 'R', adminEmail: 'r@rogue.test', adminPassword: 'Secret1!' }],
-    ['post', '/api/domains/:id/suspend', null],
-    ['post', '/api/domains/:id/reactivate', null],
+    ['get', '/api/v2/domains', null],
+    ['post', '/api/v2/domains/enable', { name: 'Rogue Cycle', adminName: 'R', adminEmail: 'r@rogue.test', adminPassword: 'Secret1!' }],
+    ['post', '/api/v2/domains/:id/suspend', null],
+    ['post', '/api/v2/domains/:id/reactivate', null],
   ];
   const hit = (method, url, id) => url.replace(':id', id);
 
@@ -222,14 +222,14 @@ test('FR-004 ciclo só system_admin', async () => {
     assert.strictEqual(res.status, method === 'get' ? 200 : (url.includes('enable') ? 409 : 200), `${method} ${url} as system_admin: ${res.status}`);
   }
   assert.strictEqual(
-    (await request(app).get('/api/domains').set('Authorization', `Bearer ${sysToken}`)).body.domains
+    (await request(app).get('/api/v2/domains').set('Authorization', `Bearer ${sysToken}`)).body.domains
       .find((d) => d.id === id).status,
     'active'
   );
 
   // domain admin session is refused on every cycle route
   const admin = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: 'ciclo@fechado.test', password: 'Secret1!', domainId: id });
   assert.strictEqual(admin.status, 200, JSON.stringify(admin.body));
   for (const [method, url, body] of cycleRoutes) {
@@ -247,11 +247,11 @@ test('FR-004 ciclo só system_admin', async () => {
 
   // system_admin stays out of business data (deny by default)
   const business = [
-    ['get', '/api/contracts', null],
-    ['post', '/api/contracts', { name: 'Sysadmin Leak', start_date: '2026-01-01', forecast_date: '2026-12-31' }],
-    ['get', '/api/users', null],
-    ['get', '/api/tasks', null],
-    ['get', '/api/finalidades', null],
+    ['get', '/api/v2/contracts', null],
+    ['post', '/api/v2/contracts', { name: 'Sysadmin Leak', start_date: '2026-01-01', forecast_date: '2026-12-31' }],
+    ['get', '/api/v2/users', null],
+    ['get', '/api/v2/tasks', null],
+    ['get', '/api/v2/purposes', null],
   ];
   for (const [method, url, body] of business) {
     const req = request(app)[method](url).set('Authorization', `Bearer ${sysToken}`);

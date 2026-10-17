@@ -366,17 +366,14 @@ router.get('/', requireRole('admin', 'gestor', 'prestador'), listContracts);
 router.post('/', requireRole('admin', 'gestor'), validate(CONTRACT_SCHEMA), createContract);
 router.get('/:id', requireRole('admin', 'gestor', 'prestador'), getContract);
 router.put('/:id', requireRole('admin', 'gestor'), updateContract);
-router.post('/:id/prestadores', requireRole('admin', 'gestor'), linkPrestador);
-router.delete('/:id/prestadores/:userId', requireRole('admin', 'gestor'), unlinkPrestador);
-router.post('/:id/prorrogar', requireRole('admin', 'gestor'), extendContract);
-router.post('/:id/encerrar', requireRole('admin', 'gestor'), closeContract);
 router.get('/:id/report.pdf', requireRole('admin', 'gestor'), reportPdf);
 router.get('/:id/report.csv', requireRole('admin', 'gestor'), reportCsv);
 // FR-009: admin only — requireRole('admin') after the gestor-capable routes.
 router.delete('/:id', requireRole('admin'), deleteContract);
 
-// fase 5: alias v1 → v2 — segmentos em inglês apontando para os mesmos
-// handlers das rotas PT (/prorrogar, /encerrar, /prestadores).
+// v1 removido em 2026-10-17 — superfície única /api/v2. Segmentos em inglês
+// apontam para os handlers que antes serviam /prorrogar, /encerrar e
+// /prestadores.
 router.post('/:id/extend', requireRole('admin', 'gestor'), extendContract);
 router.post('/:id/close', requireRole('admin', 'gestor'), closeContract);
 router.post('/:id/providers', requireRole('admin', 'gestor'), linkPrestador);

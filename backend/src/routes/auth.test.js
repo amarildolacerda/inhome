@@ -17,12 +17,12 @@ const SYS_PASSWORD = process.env.PLATFORM_ADMIN_PASSWORD || 'Admin@123';
 let sysToken;
 
 function login(body) {
-  return request(app).post('/api/auth/login').send(body);
+  return request(app).post('/api/v2/auth/login').send(body);
 }
 
 async function enable(name, adminEmail) {
   const res = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set('Authorization', `Bearer ${sysToken}`)
     .send({ name, adminName: `Admin ${name}`, adminEmail, adminPassword: 'Secret1!' });
   assert.strictEqual(res.status, 201, JSON.stringify(res.body));
@@ -62,7 +62,7 @@ test('domain user auto-identifies without domainId', async () => {
 
   // the auto-identified session resolves like any explicit domain session
   const me = await request(app)
-    .get('/api/auth/me')
+    .get('/api/v2/auth/me')
     .set('Authorization', `Bearer ${res.body.token}`);
   assert.strictEqual(me.status, 200, JSON.stringify(me.body));
   assert.strictEqual(me.body.user.email, 'auto@perfil.test');
@@ -119,7 +119,7 @@ test('unknown domainId answers 401 Invalid credentials', async () => {
 test('suspended domain does not auto-resolve', async () => {
   const domain = await enable('Suspenso Auto', 'sus@auto.test');
   const sus = await request(app)
-    .post(`/api/domains/${domain.id}/suspend`)
+    .post(`/api/v2/domains/${domain.id}/suspend`)
     .set('Authorization', `Bearer ${sysToken}`);
   assert.strictEqual(sus.status, 200, JSON.stringify(sus.body));
 
@@ -169,7 +169,7 @@ test('login accepts email or username (domain sessions)', async () => {
   const adminLogin = await login({ email: 'rita@usuario.test', password: 'Secret1!' });
   assert.strictEqual(adminLogin.status, 200, JSON.stringify(adminLogin.body));
   const created = await request(app)
-    .post('/api/users')
+    .post('/api/v2/users')
     .set('Authorization', `Bearer ${adminLogin.body.token}`)
     .send({
       name: 'Caio',
@@ -218,7 +218,7 @@ test('FR-002 JWT 24h e login', async () => {
 
   // admin creates a gestor with a username — role must resolve automatically
   const created = await request(app)
-    .post('/api/users')
+    .post('/api/v2/users')
     .set('Authorization', `Bearer ${adminLogin.body.token}`)
     .send({
       name: 'Gestor JWT',
@@ -256,7 +256,7 @@ test('FR-002 JWT 24h e login', async () => {
 
   // the issued token opens the session
   const me = await request(app)
-    .get('/api/auth/me')
+    .get('/api/v2/auth/me')
     .set('Authorization', `Bearer ${byUsername.body.token}`);
   assert.strictEqual(me.status, 200, JSON.stringify(me.body));
   assert.strictEqual(me.body.user.role, 'gestor');

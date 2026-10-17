@@ -26,32 +26,32 @@ project-manager/
 ### Endpoints Principais
 
 #### Autenticação
-- `POST /api/auth/register` — Criar conta
-- `POST /api/auth/login` — Fazer login
-- `GET /api/auth/me` — Obter usuário atual
+- `POST /api/v2/auth/register` — Criar conta
+- `POST /api/v2/auth/login` — Fazer login
+- `GET /api/v2/auth/me` — Obter usuário atual
 
-#### Projetos
-- `GET /api/projects` — Listar projetos do usuário
-- `GET /api/projects/:id` — Detalhes do projeto
-- `POST /api/projects` — Criar projeto
-- `PUT /api/projects/:id` — Atualizar projeto
-- `DELETE /api/projects/:id` — Excluir projeto
+#### Contratos
+- `GET /api/v2/contracts` — Listar contratos do usuário
+- `GET /api/v2/contracts/:id` — Detalhes do contrato
+- `POST /api/v2/contracts` — Criar contrato
+- `PUT /api/v2/contracts/:id` — Atualizar contrato
+- `DELETE /api/v2/contracts/:id` — Excluir contrato
 
 #### Tarefas
-- `GET /api/tasks` — Listar tarefas
-- `GET /api/tasks/:id` — Detalhes da tarefa
-- `POST /api/tasks` — Criar tarefa
-- `PUT /api/tasks/:id` — Atualizar tarefa
-- `DELETE /api/tasks/:id` — Excluir tarefa
+- `GET /api/v2/tasks` — Listar tarefas
+- `GET /api/v2/tasks/:id` — Detalhes da tarefa
+- `POST /api/v2/tasks` — Criar tarefa
+- `PUT /api/v2/tasks/:id` — Atualizar tarefa
+- `DELETE /api/v2/tasks/:id` — Excluir tarefa
 
 #### Dashboard
-- `GET /api/dashboard/stats` — Métricas e estatísticas
+- `GET /api/v2/dashboard/stats` — Métricas e estatísticas
 
 #### Alertas e vencimentos
-- `GET /api/alerts/sweep` — Executa a varredura de vencimentos (admin/gestor)
-- `GET /api/alerts/panel` — Painel agrupado pelas janelas de alerta, com paginação (admin/gestor)
-- `GET /api/alerts/windows` — Lê as janelas configuradas do domínio (admin/gestor)
-- `PUT /api/alerts/windows` — Grava as janelas do domínio, validadas (admin/gestor)
+- `GET /api/v2/alerts/sweep` — Executa a varredura de vencimentos (admin/gestor)
+- `GET /api/v2/alerts/panel` — Painel agrupado pelas janelas de alerta, com paginação (admin/gestor)
+- `GET /api/v2/alerts/windows` — Lê as janelas configuradas do domínio (admin/gestor)
+- `PUT /api/v2/alerts/windows` — Grava as janelas do domínio, validadas (admin/gestor)
 
 ### Headers de Autenticação
 

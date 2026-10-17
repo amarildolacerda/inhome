@@ -34,7 +34,7 @@ function as(token) {
 
 async function login(email, password, domId) {
   const res = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email, password, domainId: domId });
   assert.strictEqual(res.status, 200, `${email}: ${JSON.stringify(res.body)}`);
   return res.body.token;
@@ -50,9 +50,9 @@ const TINY_PNG =
 test.before(async () => {
   await initTestDb();
 
-  const sys = await request(app).post('/api/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  const sys = await request(app).post('/api/v2/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   const enabled = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Teta Comentários',
@@ -70,7 +70,7 @@ test.before(async () => {
     ['Otavio', 'otavio@teta.test', 'prestador'],
   ]) {
     const res = await request(app)
-      .post('/api/users')
+      .post('/api/v2/users')
       .set(as(adminToken))
       .send({ name, email, password: 'Secret1!', role, username: email.split('@')[0] });
     assert.strictEqual(res.status, 201);
@@ -84,7 +84,7 @@ test.before(async () => {
   outId = db.get("SELECT id FROM users WHERE email = 'otavio@teta.test'").id;
 
   const contract = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'Obra Comentários', start_date: futureDate(-5), forecast_date: futureDate(60) });
   assert.strictEqual(contract.status, 201);
@@ -92,21 +92,21 @@ test.before(async () => {
 
   for (const userId of [movId, outId]) {
     const linked = await request(app)
-      .post(`/api/contracts/${contractId}/prestadores`)
+      .post(`/api/v2/contracts/${contractId}/providers`)
       .set(as(gestorToken))
       .send({ user_id: userId });
     assert.ok([200, 201].includes(linked.status), JSON.stringify(linked.body));
   }
 
   const own = await request(app)
-    .post(`/api/contracts/${contractId}/tasks`)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'Tarefa da Mila', assignee_id: movId });
   assert.strictEqual(own.status, 201);
   ownTaskId = own.body.task.id;
 
   const alheia = await request(app)
-    .post(`/api/contracts/${contractId}/tasks`)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
     .set(as(gestorToken))
     .send({ title: 'Tarefa do Otavio', assignee_id: outId });
   assert.strictEqual(alheia.status, 201);
@@ -116,7 +116,7 @@ test.before(async () => {
 test('FR-015 comments/attach', async () => {
   // management comment on any task in the domain
   const gestorComment = await request(app)
-    .post(`/api/tasks/${ownTaskId}/comments`)
+    .post(`/api/v2/tasks/${ownTaskId}/comments`)
     .set(as(gestorToken))
     .send({ body: 'Priorize a laje' });
   assert.strictEqual(gestorComment.status, 201, JSON.stringify(gestorComment.body));
@@ -124,41 +124,41 @@ test('FR-015 comments/attach', async () => {
 
   // prestador comments on their own task
   const ownComment = await request(app)
-    .post(`/api/tasks/${ownTaskId}/comments`)
+    .post(`/api/v2/tasks/${ownTaskId}/comments`)
     .set(as(movToken))
     .send({ body: 'Em andamento, previsão sexta' });
   assert.strictEqual(ownComment.status, 201);
 
   // prestador cannot comment on someone else's task (FR-015: só nas próprias)
   const alheia = await request(app)
-    .post(`/api/tasks/${alheiaTaskId}/comments`)
+    .post(`/api/v2/tasks/${alheiaTaskId}/comments`)
     .set(as(movToken))
     .send({ body: 'intruso' });
   assert.strictEqual(alheia.status, 404);
 
   // empty body refused
   const empty = await request(app)
-    .post(`/api/tasks/${ownTaskId}/comments`)
+    .post(`/api/v2/tasks/${ownTaskId}/comments`)
     .set(as(movToken))
     .send({ body: '   ' });
   assert.strictEqual(empty.status, 400);
 
   // comments listing respects visibility
-  const ownList = await request(app).get(`/api/tasks/${ownTaskId}/comments`).set(as(movToken));
+  const ownList = await request(app).get(`/api/v2/tasks/${ownTaskId}/comments`).set(as(movToken));
   assert.strictEqual(ownList.status, 200);
   assert.strictEqual(ownList.body.comments.length, 2);
 
-  const peek = await request(app).get(`/api/tasks/${alheiaTaskId}/comments`).set(as(movToken));
+  const peek = await request(app).get(`/api/v2/tasks/${alheiaTaskId}/comments`).set(as(movToken));
   assert.strictEqual(peek.status, 404);
 
   const adminList = await request(app)
-    .get(`/api/tasks/${alheiaTaskId}/comments`)
+    .get(`/api/v2/tasks/${alheiaTaskId}/comments`)
     .set(as(adminToken));
   assert.strictEqual(adminList.status, 200);
 
   // attachment upload: disk bytes, reference stored (FR-023 + FR-015)
   const attach = await request(app)
-    .post(`/api/tasks/${ownTaskId}/attachments`)
+    .post(`/api/v2/tasks/${ownTaskId}/attachments`)
     .set(as(movToken))
     .send({ filename: 'nota.pdf', dataBase64: TINY_PNG, kind: 'file' });
   assert.strictEqual(attach.status, 201, JSON.stringify(attach.body));
@@ -168,21 +168,21 @@ test('FR-015 comments/attach', async () => {
 
   // attachment on alheia refused
   const alheiaAttach = await request(app)
-    .post(`/api/tasks/${alheiaTaskId}/attachments`)
+    .post(`/api/v2/tasks/${alheiaTaskId}/attachments`)
     .set(as(movToken))
     .send({ filename: 'x.png', dataBase64: TINY_PNG });
   assert.strictEqual(alheiaAttach.status, 404);
 
   // attachments listing visible to management
   const attachList = await request(app)
-    .get(`/api/tasks/${ownTaskId}/attachments`)
+    .get(`/api/v2/tasks/${ownTaskId}/attachments`)
     .set(as(gestorToken));
   assert.strictEqual(attachList.status, 200);
   assert.strictEqual(attachList.body.attachments.length, 1);
 
   // missing payload refused with 400
   const noPayload = await request(app)
-    .post(`/api/tasks/${ownTaskId}/attachments`)
+    .post(`/api/v2/tasks/${ownTaskId}/attachments`)
     .set(as(movToken))
     .send({ filename: 'vazio.png' });
   assert.strictEqual(noPayload.status, 400);
@@ -192,7 +192,7 @@ test('FR-015 comments/attach', async () => {
 test('FR-004 comentário e anexo com autor e data', async () => {
   // comentário gravado junto da tarefa com autor e data
   const comment = await request(app)
-    .post(`/api/tasks/${ownTaskId}/comments`)
+    .post(`/api/v2/tasks/${ownTaskId}/comments`)
     .set(as(movToken))
     .send({ body: 'FR-004 anotação de execução' });
   assert.strictEqual(comment.status, 201, JSON.stringify(comment.body));
@@ -209,7 +209,7 @@ test('FR-004 comentário e anexo com autor e data', async () => {
 
   // anexo gravado junto da tarefa com autor e data
   const attach = await request(app)
-    .post(`/api/tasks/${ownTaskId}/attachments`)
+    .post(`/api/v2/tasks/${ownTaskId}/attachments`)
     .set(as(movToken))
     .send({ filename: 'relatorio-fr004.pdf', dataBase64: TINY_PNG, kind: 'file' });
   assert.strictEqual(attach.status, 201, JSON.stringify(attach.body));

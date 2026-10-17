@@ -41,7 +41,7 @@ function as(token) {
 
 async function login(email, password, domId) {
   const res = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email, password, domainId: domId });
   assert.strictEqual(res.status, 200, `${email}: ${JSON.stringify(res.body)}`);
   return res.body.token;
@@ -51,12 +51,12 @@ test.before(async () => {
   await initTestDb();
 
   const sys = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(sys.status, 200);
 
   const enabled = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Teta Histórico',
@@ -70,7 +70,7 @@ test.before(async () => {
   adminToken = await login('tina@teta.test', 'Secret1!', domainId);
 
   const gestor = await request(app)
-    .post('/api/users')
+    .post('/api/v2/users')
     .set(as(adminToken))
     .send({
       name: 'Gil',
@@ -83,7 +83,7 @@ test.before(async () => {
   gestorToken = await login('gil@teta.test', 'Secret1!', domainId);
 
   const contract = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'Obra Histórico', start_date: '2026-01-01', forecast_date: '2026-12-31' });
   assert.strictEqual(contract.status, 201, JSON.stringify(contract.body));
@@ -94,7 +94,7 @@ test('FR-017 histórico de versões com autor e data', async () => {
   // --- definitions: each saved version appends author + date -------------
   const put = (body) =>
     request(app)
-      .put(`/api/contracts/${contractId}/definitions`)
+      .put(`/api/v2/contracts/${contractId}/definitions`)
       .set(as(gestorToken))
       .send(body);
   const first = await put(DEFS_A);
@@ -155,7 +155,7 @@ test('FR-017 histórico de versões com autor e data', async () => {
 
   // --- approve/activation appends version 2 of the same suggestion -------
   const approved = await request(app)
-    .post(`/api/suggestions/${refined.id}/approve`)
+    .post(`/api/v2/suggestions/${refined.id}/approve`)
     .set(as(gestorToken));
   assert.strictEqual(approved.status, 201, JSON.stringify(approved.body));
   const approveHist = History.listVersions(db, 'suggestion', refined.id);

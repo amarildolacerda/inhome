@@ -84,7 +84,7 @@ function futureDate(days) {
 
 async function login(email, password, domId) {
   const res = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email, password, domainId: domId });
   assert.strictEqual(res.status, 200, `${email}: ${JSON.stringify(res.body)}`);
   return res.body.token;
@@ -104,7 +104,7 @@ function setFake(env) {
 
 async function postAnalysis(extra = {}) {
   return request(app)
-    .post(`/api/contracts/${contractId}/analysis`)
+    .post(`/api/v2/contracts/${contractId}/analysis`)
     .set(as(gestorToken))
     .send(extra.body ?? {});
 }
@@ -115,7 +115,7 @@ async function waitFor(accept, label, timeoutMs = 8000) {
   let last = null;
   while (Date.now() < deadline) {
     const res = await request(app)
-      .get(`/api/contracts/${contractId}/analysis`)
+      .get(`/api/v2/contracts/${contractId}/analysis`)
       .set(as(gestorToken));
     if (res.status === 200) {
       last = res.body.analysis;
@@ -130,12 +130,12 @@ test.before(async () => {
   await initTestDb();
 
   const sys = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(sys.status, 200);
 
   const enabled = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Iota OpenCode',
@@ -153,7 +153,7 @@ test.before(async () => {
     ['Paulo', 'paulo@iota.test', 'prestador'],
   ]) {
     const res = await request(app)
-      .post('/api/users')
+      .post('/api/v2/users')
       .set(as(adminToken))
       .send({ name, email, password: 'Secret1!', role, username: email.split('@')[0] });
     assert.strictEqual(res.status, 201, JSON.stringify(res.body));
@@ -162,7 +162,7 @@ test.before(async () => {
   prestadorToken = await login('paulo@iota.test', 'Secret1!', domainId);
 
   const contract = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({
       name: 'Contrato Cobertura',
@@ -174,7 +174,7 @@ test.before(async () => {
   contractId = contract.body.contract.id;
 
   const saved = await request(app)
-    .put(`/api/contracts/${contractId}/definitions`)
+    .put(`/api/v2/contracts/${contractId}/definitions`)
     .set(as(gestorToken))
     .send(DEFINITIONS);
   assert.strictEqual(saved.status, 200, JSON.stringify(saved.body));
@@ -209,7 +209,7 @@ test('FR-004 só allowlist', async () => {
 
   // client fields are refused — payload is server-built only (FR-004)
   const withFields = await request(app)
-    .post(`/api/contracts/${contractId}/analysis`)
+    .post(`/api/v2/contracts/${contractId}/analysis`)
     .set(as(gestorToken))
     .send({ instrucoes: 'fazer rápido' });
   assert.strictEqual(withFields.status, 400);
@@ -261,7 +261,7 @@ test('FR-020 sem partes/CNPJ', async () => {
 
   // the server refuses a contract without definitions rather than guessing
   const bare = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'Sem definições', start_date: futureDate(1), forecast_date: futureDate(2) });
   assert.strictEqual(bare.status, 201);
@@ -314,7 +314,7 @@ test('FR-006 falha preserva', async () => {
 
   // definitions survive every failure (SC-003)
   const definitions = await request(app)
-    .get(`/api/contracts/${contractId}/definitions`)
+    .get(`/api/v2/contracts/${contractId}/definitions`)
     .set(as(gestorToken));
   assert.strictEqual(definitions.status, 200, 'falha não apaga definições');
   assert.strictEqual(definitions.body.definitions.finalidade, DEFINITIONS.finalidade);
@@ -322,14 +322,14 @@ test('FR-006 falha preserva', async () => {
   // no auto-retry: the state stays `falha` until a manual retry
   await new Promise((resolve) => setTimeout(resolve, 250));
   const still = await request(app)
-    .get(`/api/contracts/${contractId}/analysis`)
+    .get(`/api/v2/contracts/${contractId}/analysis`)
     .set(as(gestorToken));
   assert.strictEqual(still.body.analysis.status, 'falha');
 
   // empty response → falha (manual retry re-runs the same row)
   setFake({ FAKE_OPENCODE_OUTPUT: '' });
   const retryEmpty = await request(app)
-    .post(`/api/contracts/${contractId}/analysis/retry`)
+    .post(`/api/v2/contracts/${contractId}/analysis/retry`)
     .set(as(gestorToken))
     .send();
   assert.strictEqual(retryEmpty.status, 202, JSON.stringify(retryEmpty.body));
@@ -340,7 +340,7 @@ test('FR-006 falha preserva', async () => {
   // unparseable response → falha
   setFake({ FAKE_OPENCODE_OUTPUT: '{"oops": true' });
   const retryBad = await request(app)
-    .post(`/api/contracts/${contractId}/analysis/retry`)
+    .post(`/api/v2/contracts/${contractId}/analysis/retry`)
     .set(as(gestorToken))
     .send();
   assert.strictEqual(retryBad.status, 202);
@@ -354,7 +354,7 @@ test('FR-006 falha preserva', async () => {
   // successful manual retry settles on sugerido with items
   setFake({ FAKE_OPENCODE_OUTPUT: GOOD_OUTPUT });
   const retryGood = await request(app)
-    .post(`/api/contracts/${contractId}/analysis/retry`)
+    .post(`/api/v2/contracts/${contractId}/analysis/retry`)
     .set(as(gestorToken))
     .send();
   assert.strictEqual(retryGood.status, 202, JSON.stringify(retryGood.body));
@@ -364,7 +364,7 @@ test('FR-006 falha preserva', async () => {
 
   // retry outside `falha` → 409 (manual-only policy)
   const retrySugerido = await request(app)
-    .post(`/api/contracts/${contractId}/analysis/retry`)
+    .post(`/api/v2/contracts/${contractId}/analysis/retry`)
     .set(as(gestorToken))
     .send();
   assert.strictEqual(retrySugerido.status, 409);
@@ -372,7 +372,7 @@ test('FR-006 falha preserva', async () => {
 
 test('FR-018 timeout 60s', async () => {
   // config defaults and read-only allowlist snapshot
-  const initial = await request(app).get('/api/opencode/config').set(as(gestorToken));
+  const initial = await request(app).get('/api/v2/opencode/config').set(as(gestorToken));
   assert.strictEqual(initial.status, 200, JSON.stringify(initial.body));
   assert.strictEqual(initial.body.config.enabled, true);
   assert.strictEqual(initial.body.config.timeout_ms, 60000, 'padrão 60000 ms');
@@ -389,34 +389,34 @@ test('FR-018 timeout 60s', async () => {
 
   // só gestor configura; admin edita definições, nunca a integração
   const byAdmin = await request(app)
-    .put('/api/opencode/config')
+    .put('/api/v2/opencode/config')
     .set(as(adminToken))
     .send({ enabled: false });
   assert.strictEqual(byAdmin.status, 403);
   const byPrestador = await request(app)
-    .put('/api/opencode/config')
+    .put('/api/v2/opencode/config')
     .set(as(prestadorToken))
     .send({ enabled: false });
   assert.strictEqual(byPrestador.status, 403);
-  const adminRead = await request(app).get('/api/opencode/config').set(as(adminToken));
+  const adminRead = await request(app).get('/api/v2/opencode/config').set(as(adminToken));
   assert.strictEqual(adminRead.status, 200, 'admin lê a configuração');
 
   // validation: mínimo 1000 ms, ajuste parcial obrigatório
   const tooSmall = await request(app)
-    .put('/api/opencode/config')
+    .put('/api/v2/opencode/config')
     .set(as(gestorToken))
     .send({ timeout_ms: 500 });
   assert.strictEqual(tooSmall.status, 400);
   assert.strictEqual(tooSmall.body.error, 'Validation failed');
   const empty = await request(app)
-    .put('/api/opencode/config')
+    .put('/api/v2/opencode/config')
     .set(as(gestorToken))
     .send({});
   assert.strictEqual(empty.status, 400);
 
   // disabled integration refuses to start (FR-018 flag)
   const disabled = await request(app)
-    .put('/api/opencode/config')
+    .put('/api/v2/opencode/config')
     .set(as(gestorToken))
     .send({ enabled: false });
   assert.strictEqual(disabled.status, 200);
@@ -425,14 +425,14 @@ test('FR-018 timeout 60s', async () => {
   assert.strictEqual(refused.status, 400);
   assert.match(refused.body.error, /disabled/i);
   const reenabled = await request(app)
-    .put('/api/opencode/config')
+    .put('/api/v2/opencode/config')
     .set(as(gestorToken))
     .send({ enabled: true });
   assert.strictEqual(reenabled.status, 200);
 
   // configurable timeout: 1000 ms + a 2500 ms CLI → falha by timeout
   const lowered = await request(app)
-    .put('/api/opencode/config')
+    .put('/api/v2/opencode/config')
     .set(as(gestorToken))
     .send({ timeout_ms: 1000 });
   assert.strictEqual(lowered.status, 200);
@@ -453,7 +453,7 @@ test('FR-018 timeout 60s', async () => {
   // restore defaults for the remaining suite
   setFake({});
   const restored = await request(app)
-    .put('/api/opencode/config')
+    .put('/api/v2/opencode/config')
     .set(as(gestorToken))
     .send({ timeout_ms: 60000 });
   assert.strictEqual(restored.status, 200);

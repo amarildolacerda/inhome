@@ -1,8 +1,8 @@
 'use strict';
 
 const express = require('express');
-const router = express.Router(); // /api/suggestions (top-level, T015-T018)
-const nested = express.Router(); // /api/contracts/:id/analysis|suggestions
+const router = express.Router(); // /api/v2/suggestions (top-level, T015-T018)
+const nested = express.Router(); // /api/v2/contracts/:id/analysis|suggestions
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { getDomainDb } = require('../config/database');
@@ -49,7 +49,7 @@ function analysisResource(db, contractId) {
   return { state };
 }
 
-// Top-level suggestion resolution (/api/suggestions/:sid): the contract scope
+// Top-level suggestion resolution (/api/v2/suggestions/:sid): the contract scope
 // comes from the token domain — a suggestion from another domain is a 404.
 function suggestionOr404(db, rawSid) {
   const sid = Number(rawSid);
@@ -107,7 +107,7 @@ function buildItemUpdate(body) {
   return { updates };
 }
 
-// GET /api/suggestions/:sid — detail with item ids, the base for FR-007.
+// GET /api/v2/suggestions/:sid — detail with item ids, the base for FR-007.
 function getSuggestion(req, res) {
   try {
     const db = getDomainDb(req.user.domainId);
@@ -120,7 +120,7 @@ function getSuggestion(req, res) {
   }
 }
 
-// PATCH /api/suggestions/:sid/items/:itemId — edit fields or flip `removed`.
+// PATCH /api/v2/suggestions/:sid/items/:itemId — edit fields or flip `removed`.
 // Only while the suggestion is `sugerido`; any other state is 409 (FR-007).
 function updateSuggestionItem(req, res) {
   try {
@@ -153,7 +153,7 @@ const REFINE_SCHEMA = {
   instrucoes: { required: true, type: 'string', min: 1, max: 5000 },
 };
 
-// POST /api/suggestions/:sid/refine — FR-008/AD-006: synchronous refinement.
+// POST /api/v2/suggestions/:sid/refine — FR-008/AD-006: synchronous refinement.
 // The CLI runs FIRST; only a successful run creates the new version (row +
 // items inside one transaction). The previous version is never touched. A job
 // in progress or a non-`sugerido` state answers 409 (refaça a análise).
@@ -191,7 +191,7 @@ async function refineSuggestion(req, res) {
   }
 }
 
-// POST /api/suggestions/:sid/approve — FR-009/FR-010/AD-003: materializes the
+// POST /api/v2/suggestions/:sid/approve — FR-009/FR-010/AD-003: materializes the
 // kept items as the contract's official tasks and activates the workflow
 // version, all inside ONE transaction. Empty kept list → 400; any state other
 // than `sugerido` → 409; only gestor (FR-007/FR-019). The `workflow_activated`
@@ -225,7 +225,7 @@ function approveSuggestion(req, res) {
   }
 }
 
-// POST /api/contracts/:id/analysis — FR-003 gate first (400 + missing), then
+// POST /api/v2/contracts/:id/analysis — FR-003 gate first (400 + missing), then
 // integration state: disabled 400, running job 409; otherwise a new suggestion
 // version is queued and answered with 202 + Location (FR-021 polling).
 function startAnalysis(req, res) {
@@ -267,14 +267,14 @@ function startAnalysis(req, res) {
     });
 
     const { state } = analysisResource(db, found.id);
-    res.status(202).set('Location', `/api/contracts/${found.id}/analysis`);
+    res.status(202).set('Location', `/api/v2/contracts/${found.id}/analysis`);
     return res.json({ analysis: state });
   } catch (error) {
     return res.status(error.status || 500).json({ error: error.message });
   }
 }
 
-// GET /api/contracts/:id/analysis — FR-021 polling resource. The reader lives
+// GET /api/v2/contracts/:id/analysis — FR-021 polling resource. The reader lives
 // in server.js (getAnalysisStatus) per plan Requirement Coverage Map.
 function getAnalysis(req, res) {
   try {
@@ -287,7 +287,7 @@ function getAnalysis(req, res) {
   }
 }
 
-// POST /api/contracts/:id/analysis/retry — manual retry only: falha → pendente
+// POST /api/v2/contracts/:id/analysis/retry — manual retry only: falha → pendente
 // re-runs the same row; any other state answers 409 (FR-006/FR-018).
 function retryAnalysis(req, res) {
   try {
@@ -319,14 +319,14 @@ function retryAnalysis(req, res) {
     });
 
     const { state } = analysisResource(db, found.id);
-    res.status(202).set('Location', `/api/contracts/${found.id}/analysis`);
+    res.status(202).set('Location', `/api/v2/contracts/${found.id}/analysis`);
     return res.json({ analysis: state });
   } catch (error) {
     return res.status(error.status || 500).json({ error: error.message });
   }
 }
 
-// GET /api/contracts/:id/suggestions — every analysis version of the contract,
+// GET /api/v2/contracts/:id/suggestions — every analysis version of the contract,
 // newest first (FR-008 refines append, FR-017 keeps them consultable). Scoped
 // to kind='analise': reviews are listed through /review, so "sem análise" is
 // exactly an empty list. Contract resolved inside the caller's domain (404

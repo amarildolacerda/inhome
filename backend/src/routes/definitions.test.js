@@ -38,7 +38,7 @@ function futureDate(days) {
 
 async function login(email, password, domId) {
   const res = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email, password, domainId: domId });
   assert.strictEqual(res.status, 200, `${email}: ${JSON.stringify(res.body)}`);
   return res.body.token;
@@ -48,12 +48,12 @@ test.before(async () => {
   await initTestDb();
 
   const sys = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   assert.strictEqual(sys.status, 200);
 
   const enabled = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Epsilon Definições',
@@ -70,7 +70,7 @@ test.before(async () => {
     ['Pedro', 'pedro@epsilon.test', 'prestador'],
   ]) {
     const res = await request(app)
-      .post('/api/users')
+      .post('/api/v2/users')
       .set(as(adminToken))
       .send({ name, email, password: 'Secret1!', role, username: email.split('@')[0] });
     assert.strictEqual(res.status, 201, JSON.stringify(res.body));
@@ -79,7 +79,7 @@ test.before(async () => {
   prestadorToken = await login('pedro@epsilon.test', 'Secret1!', domainId);
 
   const contract = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'Obra Definições', start_date: futureDate(-5), forecast_date: futureDate(60) });
   assert.strictEqual(contract.status, 201, JSON.stringify(contract.body));
@@ -87,7 +87,7 @@ test.before(async () => {
 
   // second physical domain (FR-019): own db, own contract, own definitions
   const enabledOther = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Outro Domínio Def',
@@ -99,7 +99,7 @@ test.before(async () => {
   const otherDomainId = enabledOther.body.domain.id;
   otherAdminToken = await login('otto@outro.test', 'Secret1!', otherDomainId);
   const otherContract = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(otherAdminToken))
     .send({ name: 'Contrato Outro', start_date: futureDate(-1), forecast_date: futureDate(30) });
   assert.strictEqual(otherContract.status, 201);
@@ -108,12 +108,12 @@ test.before(async () => {
 
 test('FR-001 persiste definições', async () => {
   // nothing saved yet
-  const none = await request(app).get(`/api/contracts/${contractId}/definitions`).set(as(gestorToken));
+  const none = await request(app).get(`/api/v2/contracts/${contractId}/definitions`).set(as(gestorToken));
   assert.strictEqual(none.status, 404, JSON.stringify(none.body));
 
   // first save creates version 1 (admin também edita definições)
   const saved = await request(app)
-    .put(`/api/contracts/${contractId}/definitions`)
+    .put(`/api/v2/contracts/${contractId}/definitions`)
     .set(as(adminToken))
     .send(DEFINITIONS);
   assert.strictEqual(saved.status, 200, JSON.stringify(saved.body));
@@ -123,7 +123,7 @@ test('FR-001 persiste definições', async () => {
   assert.ok(Number.isInteger(saved.body.definitions.autor_id), 'autor_id gravado');
 
   // read-back returns the active version
-  const read = await request(app).get(`/api/contracts/${contractId}/definitions`).set(as(gestorToken));
+  const read = await request(app).get(`/api/v2/contracts/${contractId}/definitions`).set(as(gestorToken));
   assert.strictEqual(read.status, 200);
   assert.deepStrictEqual(
     { ...read.body.definitions, autor_id: null, created_at: null },
@@ -132,7 +132,7 @@ test('FR-001 persiste definições', async () => {
 
   // second save appends version 2; version 1 is never rewritten (FR-002)
   const saved2 = await request(app)
-    .put(`/api/contracts/${contractId}/definitions`)
+    .put(`/api/v2/contracts/${contractId}/definitions`)
     .set(as(gestorToken))
     .send({ ...DEFINITIONS, escopo: 'Escopo ampliado' });
   assert.strictEqual(saved2.status, 200, JSON.stringify(saved2.body));
@@ -141,7 +141,7 @@ test('FR-001 persiste definições', async () => {
 
   // history: newest first, author and date present (FR-017 para definições)
   const history = await request(app)
-    .get(`/api/contracts/${contractId}/definitions/history`)
+    .get(`/api/v2/contracts/${contractId}/definitions/history`)
     .set(as(gestorToken));
   assert.strictEqual(history.status, 200, JSON.stringify(history.body));
   assert.strictEqual(history.body.history.length, 2);
@@ -153,7 +153,7 @@ test('FR-001 persiste definições', async () => {
 
   // blank definition → 400 with `missing` (never persisted)
   const blank = await request(app)
-    .put(`/api/contracts/${contractId}/definitions`)
+    .put(`/api/v2/contracts/${contractId}/definitions`)
     .set(as(gestorToken))
     .send({ ...DEFINITIONS, entregaveis: '   ' });
   assert.strictEqual(blank.status, 400);
@@ -161,7 +161,7 @@ test('FR-001 persiste definições', async () => {
 
   // absent field → same `missing` answer
   const absent = await request(app)
-    .put(`/api/contracts/${contractId}/definitions`)
+    .put(`/api/v2/contracts/${contractId}/definitions`)
     .set(as(gestorToken))
     .send({ ...DEFINITIONS, premissas: undefined });
   assert.strictEqual(absent.status, 400);
@@ -169,7 +169,7 @@ test('FR-001 persiste definições', async () => {
 
   // payload validation → 400 Validation failed + details (middleware)
   const wrongType = await request(app)
-    .put(`/api/contracts/${contractId}/definitions`)
+    .put(`/api/v2/contracts/${contractId}/definitions`)
     .set(as(gestorToken))
     .send({ ...DEFINITIONS, alvo: 42 });
   assert.strictEqual(wrongType.status, 400);
@@ -177,7 +177,7 @@ test('FR-001 persiste definições', async () => {
   assert.ok(wrongType.body.details.some((d) => /alvo/.test(d)));
 
   const tooLong = await request(app)
-    .put(`/api/contracts/${contractId}/definitions`)
+    .put(`/api/v2/contracts/${contractId}/definitions`)
     .set(as(gestorToken))
     .send({ ...DEFINITIONS, finalidade: 'x'.repeat(5001) });
   assert.strictEqual(tooLong.status, 400);
@@ -185,25 +185,25 @@ test('FR-001 persiste definições', async () => {
 
   // failures never persisted a version
   const after = await request(app)
-    .get(`/api/contracts/${contractId}/definitions/history`)
+    .get(`/api/v2/contracts/${contractId}/definitions/history`)
     .set(as(gestorToken));
   assert.strictEqual(after.body.history.length, 2, '400 não grava versão');
 
   // prestador não alcança definições (FR-002/FR-019)
-  const pGet = await request(app).get(`/api/contracts/${contractId}/definitions`).set(as(prestadorToken));
+  const pGet = await request(app).get(`/api/v2/contracts/${contractId}/definitions`).set(as(prestadorToken));
   assert.strictEqual(pGet.status, 403);
   const pPut = await request(app)
-    .put(`/api/contracts/${contractId}/definitions`)
+    .put(`/api/v2/contracts/${contractId}/definitions`)
     .set(as(prestadorToken))
     .send(DEFINITIONS);
   assert.strictEqual(pPut.status, 403);
   const pHistory = await request(app)
-    .get(`/api/contracts/${contractId}/definitions/history`)
+    .get(`/api/v2/contracts/${contractId}/definitions/history`)
     .set(as(prestadorToken));
   assert.strictEqual(pHistory.status, 403);
 
   // unknown contract → 404
-  const ghost = await request(app).get('/api/contracts/999999/definitions').set(as(gestorToken));
+  const ghost = await request(app).get('/api/v2/contracts/999999/definitions').set(as(gestorToken));
   assert.strictEqual(ghost.status, 404);
 });
 
@@ -213,27 +213,27 @@ test('FR-019 isolamento', async () => {
 
   // save definitions only in the other domain
   const saved = await request(app)
-    .put(`/api/contracts/${otherContractId}/definitions`)
+    .put(`/api/v2/contracts/${otherContractId}/definitions`)
     .set(as(otherAdminToken))
     .send({ ...DEFINITIONS, finalidade: 'Finalidade do outro domínio' });
   assert.strictEqual(saved.status, 200, JSON.stringify(saved.body));
 
   // domain A's token never sees domain B's rows (own db, own contract)
   const mine = await request(app)
-    .get(`/api/contracts/${contractId}/definitions`)
+    .get(`/api/v2/contracts/${contractId}/definitions`)
     .set(as(gestorToken));
   assert.strictEqual(mine.status, 200);
   assert.notStrictEqual(mine.body.definitions.finalidade, 'Finalidade do outro domínio');
 
   // a contract that exists only in domain A is 404 for domain B (same id)
   const onlyInA = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(gestorToken))
     .send({ name: 'Só no A', start_date: futureDate(-1), forecast_date: futureDate(10) });
   assert.strictEqual(onlyInA.status, 201);
   const foreignId = onlyInA.body.contract.id;
   const byB = await request(app)
-    .get(`/api/contracts/${foreignId}/definitions`)
+    .get(`/api/v2/contracts/${foreignId}/definitions`)
     .set(as(otherAdminToken));
   assert.strictEqual(byB.status, 404, 'domínio B não alcança contrato do domínio A');
 });

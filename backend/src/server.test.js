@@ -75,9 +75,9 @@ function closeSrv(srv) {
 test.before(async () => {
   await initTestDb();
 
-  const sys = await request(app).post('/api/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  const sys = await request(app).post('/api/v2/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
   const enabled = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Teta Realtime',
@@ -88,13 +88,13 @@ test.before(async () => {
   assert.strictEqual(enabled.status, 201);
   domainId = enabled.body.domain.id;
   const login = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: 'rita@teta.test', password: 'Secret1!', domainId });
   assert.strictEqual(login.status, 200, JSON.stringify(login.body));
   adminToken = login.body.token;
 
   const other = await request(app)
-    .post('/api/domains/enable')
+    .post('/api/v2/domains/enable')
     .set(as(sys.body.token))
     .send({
       name: 'Outro Realtime',
@@ -105,13 +105,13 @@ test.before(async () => {
   assert.strictEqual(other.status, 201, JSON.stringify(other.body));
   otherDomainId = other.body.domain.id;
   const otherLogin = await request(app)
-    .post('/api/auth/login')
+    .post('/api/v2/auth/login')
     .send({ email: 'otto@outro.test', password: 'Secret1!', domainId: otherDomainId });
   assert.strictEqual(otherLogin.status, 200, JSON.stringify(otherLogin.body));
   otherAdminToken = otherLogin.body.token; // sessão do outro domínio, para o socket "outsider"
 
   const contract = await request(app)
-    .post('/api/contracts')
+    .post('/api/v2/contracts')
     .set(as(adminToken))
     .send({
       name: 'Obra Realtime',
@@ -154,7 +154,7 @@ test('FR-020 socket', async () => {
     });
 
     const created = await request(app)
-      .post(`/api/contracts/${contractId}/tasks`)
+      .post(`/api/v2/contracts/${contractId}/tasks`)
       .set(as(adminToken))
       .send({ title: 'Tarefa realtime' });
     assert.strictEqual(created.status, 201, JSON.stringify(created.body));
@@ -178,7 +178,7 @@ test('FR-020 socket', async () => {
     // client A also receives B-side mutations (both directions)
     const aWait = onceEvent(clientA, 'task:updated');
     const second = await request(app)
-      .post(`/api/contracts/${contractId}/tasks`)
+      .post(`/api/v2/contracts/${contractId}/tasks`)
       .set(as(adminToken))
       .send({ title: 'Segunda tarefa realtime' });
     assert.strictEqual(second.status, 201);
@@ -203,10 +203,37 @@ test('FR-029 ports', async () => {
   const srv = await start();
   try {
     assert.strictEqual(srv.address().port, 3001, 'actually listening on 3001');
-    const health = await request('http://127.0.0.1:3001').get('/api/health');
+    const health = await request('http://127.0.0.1:3001').get('/api/v2/health');
     assert.strictEqual(health.status, 200);
     assert.strictEqual(health.body.status, 'ok');
+    // v1 removido em 2026-10-17 — superfície única /api/v2
+    const healthV1 = await request('http://127.0.0.1:3001').get('/api/health');
+    assert.strictEqual(healthV1.status, 404, 'GET /api/health fora do ar');
   } finally {
     await closeSrv(srv);
+  }
+});
+
+// v1 removido (2026-10-17): nenhum mount v1 responde; /api/v2 é a superfície
+// única. Regressão explícita — qualquer reintrodução de alias v1 falha aqui.
+test('v1 removido', async () => {
+  const alive = await request(app).get('/api/v2/health');
+  assert.strictEqual(alive.status, 200, 'health só sob /api/v2');
+
+  const v1Routes = [
+    ['get', '/api/health'],
+    ['get', '/api/contracts'],
+    ['get', '/api/finalidades'],
+    ['get', '/api/tasks'],
+    ['get', '/api/suggestions/1'],
+    ['get', '/api/dashboard/stats'],
+    ['post', '/api/contracts/1/extend'],
+    ['post', '/api/contracts/1/close'],
+    ['post', '/api/contracts/1/providers'],
+    ['post', '/api/auth/login'],
+  ];
+  for (const [method, path] of v1Routes) {
+    const res = await request(app)[method](path).set(as(adminToken));
+    assert.strictEqual(res.status, 404, `${method.toUpperCase()} ${path} → 404`);
   }
 });
