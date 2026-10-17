@@ -3,6 +3,8 @@
 Custom project TODOs. Agents read this file at session start.
 
 ## Pending
+- implementar manutenção das tarefas com pemissão para mudar o estado da tarefa e tambem poder anexar documento relativo a tarefa como documentaçao de como fazer, foto do realizado ...
+- pensar: permitir que uma tarefas permita marcar que foi iniciado a execução e concluida; na revisão do gestor poder mudar o estado de acordo com a forma de aprovação ou rejeição;
 
 ## Done
 
