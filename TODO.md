@@ -3,12 +3,14 @@
 Custom project TODOs. Agents read this file at session start.
 
 ## Pending
-- implementar manutenção das tarefas com pemissão para mudar o estado da tarefa e tambem poder anexar documento relativo a tarefa como documentaçao de como fazer, foto do realizado ...
-- pensar: permitir que uma tarefas permita marcar que foi iniciado a execução e concluida; na revisão do gestor poder mudar o estado de acordo com a forma de aprovação ou rejeição;
-- mostrar o nome do usuario logado junto ao "Sair"
-- submeter o dashboard para o design melhorar a apresentação e thema para um modelo funcional mais atualizado de acordo com as novas tendências
+- implementar manutenção das tarefas com pemissão para mudar o estado da tarefa e tambem poder anexar documento relativo a tarefa como documentaçao de como fazer, foto do realizado ... — **spec criada: `specs/00014-manutencao-tarefas-aprovacao` (2026-10-17), 3 NEEDS CLARIFICATION a responder antes do Plan**
+- pensar: permitir que uma tarefas permita marcar que foi iniciado a execução e concluida; na revisão do gestor poder mudar o estado de acordo com a forma de aprovação ou rejeição; — mesmo spec 00014, aguardando Clarify
 
 ## Done
+
+- [X] Nome do usuário logado junto ao "Sair" — identificação (nome + papel) no NavigationRail acima de `Text('Sair')`, com tooltip em rail estreito; sessão legada sem `auth_user` mantém só o botão (2026-10-17, `frontend/lib/main.dart`)
+- [X] Dashboard submetido ao design — reescrita de `dashboard_screen.dart`: KPIs (Taxa de conclusão em destaque + Urgentes), grade de contagens, tarefas por status ordenada pelo fluxo, projetos recentes com chips de status, estados de loading/erro/vazio com retry; só tokens do `ColorScheme`, sem dependências novas; flutter analyze 0 issues + 25/25 (2026-10-17)
+- [X] Especificação SDD da manutenção de tarefas — `specs/00014-manutencao-tarefas-aprovacao/spec.md` (FR-030..037, SC-001..003, gate Spec→Plan PASS, 3 NEEDS CLARIFICATION pendentes de Clarify) (2026-10-17)
 
 - [X] Padronização de nomenclatura em inglês — fase 5 (superfície de API) concluída em 2026-10-12: prefixo `/api/v2` com alias compartilhado de handlers (v1 congelado), paths/sufixos EN (`/purposes`, `/providers`, `:extend`, `:close`), mensagens de erro em inglês + campo `code` estável; frontend migrado para v2. Fases 1–3 concluídas, fase 4 mantida (papéis em PT) — inventário e ciclo de vida do v1 em `docs/naming-conventions.md`
 

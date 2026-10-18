@@ -129,12 +129,34 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
+/// Papéis do domínio em PT — mesmo vocabulário de `users_screen.dart`.
+String _roleLabel(String role) {
+  switch (role) {
+    case 'admin':
+      return 'Administrador';
+    case 'gestor':
+      return 'Gestor';
+    case 'prestador':
+      return 'Prestador';
+    case 'auditor':
+      return 'Auditor';
+    case 'system_admin':
+      return 'Admin. do sistema';
+    default:
+      return role;
+  }
+}
+
 class _MainShellState extends State<MainShell> {
   final api = ApiService();
 
   int _selectedIndex = 0;
   bool _loading = true;
   List<_NavEntry> _entries = const [];
+
+  /// Identificação da sessão exibida acima do "Sair" (nome e papel).
+  String? _userName;
+  String? _userRoleLabel;
 
   @override
   void initState() {
@@ -174,6 +196,20 @@ class _MainShellState extends State<MainShell> {
       widget.onLogout?.call();
       return;
     }
+    final resolvedRole = role;
+
+    // Nome do usuário logado para o rodapé do rail — opcional: sessão sem
+    // 'auth_user' salvo (estado legado) só fica sem a identificação visual.
+    String? userName;
+    try {
+      final user = await api.currentUser;
+      final name = user?['name'];
+      if (name is String && name.trim().isNotEmpty) {
+        userName = name.trim();
+      }
+    } catch (_) {
+      userName = null;
+    }
 
     // [FR-020]: só sessão de domínio liga o Socket.io. system_admin não tem
     // 'auth_domain' salvo (domainId null) e fica fora; a falha de rede não
@@ -187,9 +223,11 @@ class _MainShellState extends State<MainShell> {
       // Sem rede o app segue sem tempo real.
     }
 
-    final entries = _entriesForRole(role);
+    final entries = _entriesForRole(resolvedRole);
     setState(() {
       _entries = entries;
+      _userName = userName;
+      _userRoleLabel = _roleLabel(resolvedRole);
       // O papel pode encurtar a lista — volta ao início se fora de faixa.
       if (_selectedIndex >= entries.length) _selectedIndex = 0;
       _loading = false;
@@ -357,16 +395,71 @@ class _MainShellState extends State<MainShell> {
               trailingAtBottom: true,
               trailing: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: TextButton(
-                  onPressed: _logout,
-                  child: const Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.logout_outlined),
-                      SizedBox(height: 4),
-                      Text('Sair'),
-                    ],
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Sessão corrente em texto pequeno — identifica quem está
+                    // logado sem competir com a ação de sair. O rail é estreito,
+                    // então o nome pode cortar com reticências; o tooltip
+                    // mostra nome e papel completos.
+                    if (_userName != null || _userRoleLabel != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Tooltip(
+                          message: [
+                            if (_userName != null) _userName,
+                            if (_userRoleLabel != null) _userRoleLabel,
+                          ].join(' · '),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_userName != null)
+                                Text(
+                                  _userName!,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelSmall
+                                      ?.copyWith(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                      ),
+                                ),
+                              if (_userRoleLabel != null)
+                                Text(
+                                  _userRoleLabel!,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelSmall
+                                      ?.copyWith(
+                                        fontSize: 10,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .outline,
+                                      ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    TextButton(
+                      onPressed: _logout,
+                      child: const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.logout_outlined),
+                          SizedBox(height: 4),
+                          Text('Sair'),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
               destinations: [
