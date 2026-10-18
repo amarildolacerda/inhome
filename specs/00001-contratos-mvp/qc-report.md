@@ -157,14 +157,14 @@
 | backend/src/support/testenv.js | 988c68ce977652fea97baa49d6e28bd3af7ae6affa6dc8fa1316548c18a8c099 |
 | backend/test.sh | e5928ae8afcda22d3fc632339ddff56e33367c819e4bc908d81ce7b5734878b1 |
 | docker-compose.yml | 2d0449dd3e094cfcdddc7c2a361c985c80e64f1f2812d58a03b3f005eb88eec8 |
-| frontend/lib/main.dart | 99c4e08866c7ae89614178711d2bfe29c845fc9b44e13198b944e17b0a1babb1 |
+| frontend/lib/main.dart | 396fa7a21cd1aedbe1bae19a01dda2eec76d1c0f4b126da1292f06b927cc223b |
 | frontend/lib/models/contract.dart | 7da8ce63968754bcb15ed334a699bf697f50d7e81136eed6f497299e5b05d702 |
 | frontend/lib/models/finalidade.dart | bc43d42fcc9538fa780f5fb8943106f6816521622ecbc1f68ca07666ab444b4f |
 | frontend/lib/models/project.dart | 9568f3033c682b1704dd046dc675ae5885058321edf90a9c3aef0c476af756a8 |
 | frontend/lib/models/task.dart | 808d230aa47c53227825f7dd6eae5128bf4fcedb45892514a8956aa6ea1583a7 |
 | frontend/lib/models/user.dart | dbfc8d897f31bb375b17124f8cff8b575b2d176d1098f43adbd1a20ba9933719 |
 | frontend/lib/screens/contract_detail_screen.dart | 231b90584a19ae8e0df43506e44cb61b60483b652ef0538a4a225eabf3235d8e |
-| frontend/lib/screens/dashboard_screen.dart | 536782455544479e096dc600188f3aafae248294e32cc7557ce9673e8e32ac76 |
+| frontend/lib/screens/dashboard_screen.dart | 5d1a74658b716b186f8d206e2994abfa50abf425b4407ea85e5a765493ad0689 |
 | frontend/lib/screens/domains_screen.dart | 84187efce1a3886888ac57de3489132426353c6ceeca1dad191958c1f67268d4 |
 | frontend/lib/screens/finalidades_screen.dart | 4dec9e410c2425e901b4ae0303cea920c57698c043ee6e0ae5e96e094bbf1a8c |
 | frontend/lib/screens/login_screen.dart | 6249ee56b1aea6565c1eaa1f593ab1a044b27fb8d286c17769f5fe85baeef2ec |

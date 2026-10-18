@@ -115,7 +115,7 @@
 | backend/src/routes/users.js | c876001662f18f280c4eafb6ffb839d852cb1656fe4ce963d51aedea85fa205b |
 | backend/src/routes/users.test.js | 805f337700e508e44a89d215094856dd577cf6887368746da659ac4d9e81578a |
 | backend/src/server.js | c3d963494f21ba84ec433f513f2230d36d245b4e4b5833003b58248d0a55d6ce |
-| frontend/lib/main.dart | 99c4e08866c7ae89614178711d2bfe29c845fc9b44e13198b944e17b0a1babb1 |
+| frontend/lib/main.dart | 396fa7a21cd1aedbe1bae19a01dda2eec76d1c0f4b126da1292f06b927cc223b |
 | frontend/lib/models/user.dart | dbfc8d897f31bb375b17124f8cff8b575b2d176d1098f43adbd1a20ba9933719 |
 | frontend/lib/screens/audit_screen.dart | 27e07ee0779eb0f5f3ea98f321cb4e5d3384762be71dd93fbe876fc006e538fa |
 | frontend/lib/services/api_service.dart | 931db7ede934f1106ca308204718d34343db3a0a4c87bd130720f816e00cf11f |
