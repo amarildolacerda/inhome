@@ -18,7 +18,7 @@ CAP-007 existe para provar o que foi feito: o escritor de PDF próprio e o CSV j
 - **Gap de embedding**: o PDF passa a embutir as fotos de `task_photos.path` lidas da loja `backend/uploads/` — JPEG (`DCTDecode`) e PNG (`FlateDecode` + preditor PNG, todos os tipos de cor com alpha via SMask); formato sem suporte nativo (`webp`, `gif`) vira referência textual preservada.
 - Foto referenciada mas ausente/corrompida em disco: linha textual preservada, documento conclui, nunca derruba a geração.
 - Documento vazio legível: contrato sem tarefas sai com cabeçalho e nenhuma linha (PDF `(vazio)` de conteúdo, CSV só cabeçalho), sem erro.
-- Escopo: papel `admin`/`gestor` do mesmo domínio; recusa antes de gerar para prestador (403), domínio explícito divergente (`scopeDomain` 403) e contrato inexistente/estrangeiro (404 no banco do domínio).
+- Papel `admin`/`gestor` do mesmo domínio; recusa antes de gerar para prestador (403), domínio explícito divergente (`scopeDomain` 403) e contrato inexistente/estrangeiro (404 no banco do domínio).
 - Regressão de falha de leitura: 500 com mensagem, repetição manual, sem retry e sem arquivo persistido.
 
 ### Excluded

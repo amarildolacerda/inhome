@@ -12,29 +12,29 @@ epic_sources: "{PRD:CAP-003}"
 
 ## Problem Statement
 
-Conclusão sem documentação não existe no produto: texto obrigatório e fotos sustentam a prova do que foi feito, é a prova que o gestor entrega quando alguém questiona. O fluxo já roda, mas as fotos só chegam à tela com `/uploads` same-origin no Edge, decisão aprovada e ainda fora do `frontend/nginx.conf`. Sem ele, o fallback devolve o `index.html` do SPA no lugar da imagem.
+Conclusão sem documentação não existe no produto: texto obrigatório e fotos sustentam a prova do que foi feito — o que o gestor entrega quando questionado. O fluxo já roda, mas as fotos só chegam à tela com `/uploads` same-origin no Edge, decisão aprovada e ainda fora do `frontend/nginx.conf`; sem o encaminhamento, o fallback devolve o `index.html` do SPA no lugar da imagem.
 
 ## Scope
 
 ### Included
 
-- Verificação do fluxo `A Fazer → Em Progresso → Revisão → Concluída` com vínculo obrigatório do prestador.
+- Verificação do fluxo `A Fazer → Em Progresso → Revisão → Concluída` com vínculo obrigatório de prestador.
 - Conclusão documentada: texto obrigatório, fotos opcionais, arquivo gravado antes da referência no banco.
-- Reabertura com motivo obrigatório registrado no histórico; comentários e anexos junto da tarefa.
+- Reabertura com motivo obrigatório no histórico; comentários e anexos junto da tarefa.
 - Encaminhamento `location ^~ /uploads/ { proxy_pass http://backend:3001; }` no `frontend/nginx.conf` e imagem renderizada em `http://localhost/`.
 - Regressão de upload recusado (400 sem gravação) e de escopo de domínio nas rotas de tarefa.
 
 ### Excluded
 
-- Central documental (anexos de contrato, ocorrências, trilha de alterações) — próxima release, PDD-003.
-- Assinatura eletrônica e fluxo jurídico de cláusulas — fora do escopo, PDD-009.
-- Limpeza automática de arquivos órfãos — falha de banco após gravar arquivo é aceita e documentada.
-- Proteção de `/uploads` por token — decisão Q4 aceita nesta release, revisão em 2026-12-26.
+- Central documental (anexos de contrato, ocorrências, trilha) — próxima release, PDD-003.
+- Assinatura eletrônica e fluxo jurídico de cláusulas — PDD-009.
+- Limpeza automática de arquivos órfãos — falha de banco após gravar é aceita e documentada.
+- Proteção de `/uploads` por token — decisão Q4 nesta release, revisão em 2026-12-26.
 
 ### Edge Cases & Boundaries
 
-- Upload recusado (tipo ou tamanho fora do padrão): 400 e nada é gravado, nem arquivo nem registro.
-- Banco falhar depois de o arquivo existir: 500 e arquivo órfão permanece, sem retrial automático.
+- Upload recusado (tipo ou tamanho fora do padrão): 400 sem gravar arquivo nem registro.
+- Banco falhar depois de o arquivo existir: 500 e órfão permanece, sem retrial automático.
 - Reabertura sem motivo: 400 antes de qualquer escrita.
 - Evidência em domínio suspenso ou de outro domínio: 403.
 - URL de `/uploads` sem token: acessível a quem tenha o endereço — restrição aceita, revisão em 2026-12-26.
@@ -43,21 +43,21 @@ Conclusão sem documentação não existe no produto: texto obrigatório e fotos
 
 ### User Story 1 - Conclusão documentada visível (Priority: P1)
 
-Como prestador, concluo descrevendo o que fiz e anexando fotos; o gestor vê as fotos na tela, provando a execução sem pedir arquivo por fora.
+Como prestador, concluo descrevendo o que fiz e anexando fotos; o gestor as vê na tela, provando a execução sem pedir arquivo por fora.
 
-**Why this priority**: evidência junto da execução é princípio de produto e o valor probatório é metade da proposta de valor.
+**Why this priority**: evidência junto da execução é princípio de produto; o valor probatório é metade da proposta.
 
-**Independent Test**: concluir tarefa com texto e duas fotos e confirmar que elas renderizam no navegador pelo caminho `/uploads`.
+**Independent Test**: concluir com texto e duas fotos e confirmar que renderizam no navegador pelo caminho `/uploads`.
 
 **Acceptance Scenarios**:
 
-1. **Given** tarefa em `Revisão`, **When** o prestador vinculado envia texto e fotos, **Then** fica `Concluída` com evidência anexada e histórico registrado.
+1. **Given** tarefa em `Revisão`, **When** o prestador vinculado envia texto e fotos, **Then** fica `Concluída` com evidência anexada e histórico.
 2. **Given** conclusão sem texto, **When** a requisição chega, **Then** 400 e nada muda no banco.
-3. **Given** tarefa concluída, **When** o gestor comenta e anexa arquivo, **Then** comentário e anexo ficam junto da tarefa com autor e data.
+3. **Given** tarefa concluída, **When** o gestor comenta e anexa arquivo, **Then** ambos ficam junto da tarefa com autor e data.
 
 ### User Story 2 - Reabertura justificada (Priority: P1)
 
-Como gestor, devolvo a tarefa ao prestador com motivo obrigatório, e o histórico guarda quem reabriu e por quê.
+Como gestor, devolvo a tarefa ao prestador com motivo obrigatório; o histórico guarda quem reabriu e por quê.
 
 **Why this priority**: sem motivo registrado a reabertura vira disputa sem prova, o problema de responsabilidade que o produto resolve.
 
@@ -65,7 +65,7 @@ Como gestor, devolvo a tarefa ao prestador com motivo obrigatório, e o históri
 
 **Acceptance Scenarios**:
 
-1. **Given** tarefa concluída, **When** o gestor reabre com motivo, **Then** a tarefa volta ao fluxo e o histórico registra ação, autor e motivo.
+1. **Given** tarefa concluída, **When** o gestor reabre com motivo, **Then** ela volta ao fluxo e o histórico registra ação, autor e motivo.
 2. **Given** reabertura sem motivo, **When** a requisição chega, **Then** 400 antes de qualquer escrita.
 
 ### User Story 3 - Evidência acessível same-origin (Priority: P1)
@@ -74,25 +74,25 @@ Como gestor, abro a tarefa e vejo a foto na própria tela, sem URL quebrada nem 
 
 **Why this priority**: sem o proxy `/uploads` a prova existe no disco mas não chega ao usuário — a capacidade fica pela metade.
 
-**Independent Test**: aplicar o bloco nginx e confirmar que `GET /uploads/<arquivo>` devolve 200 com content-type de imagem, não o `index.html`, e abrir a foto no navegador.
+**Independent Test**: aplicar o bloco nginx e confirmar que `GET /uploads/<arquivo>` devolve 200 com content-type de imagem, não o `index.html`; abrir a foto no navegador.
 
 **Acceptance Scenarios**:
 
-1. **Given** encaminhamento `/uploads` aplicado no Edge, **When** a SPA pede a imagem, **Then** o nginx repassa para `backend:3001` e a imagem renderiza.
+1. **Given** encaminhamento `/uploads` aplicado no Edge, **When** a SPA pede a imagem, **Then** o nginx repassa para `backend:3001` e ela renderiza.
 2. **Given** `/uploads/` sem encaminhamento, **When** a SPA pede a imagem, **Then** a resposta seria `index.html` — cenário eliminado pela correção.
 
 ### User Story 4 - Recusa limpa e domínio isolado (Priority: P1)
 
-Como admin, sei que upload inválido não deixa lixo e que tarefa, comentário ou anexo de outro domínio ou domínio suspenso não se lê nem escreve.
+Como admin, sei que upload inválido não deixa lixo e que tarefa, comentário ou anexo de outro domínio ou suspenso não se lê nem escreve.
 
 **Why this priority**: resíduo de upload e vazamento entre domínios corrompem a prova e quebram o isolamento de E001.
 
-**Independent Test**: enviar arquivo inválido, repetir a leitura com domínio cruzado e domínio suspenso, conferindo 400 sem resíduo e 403.
+**Independent Test**: enviar arquivo inválido, repetir a leitura com domínio cruzado e suspenso, conferindo 400 sem resíduo e 403.
 
 **Acceptance Scenarios**:
 
-1. **Given** arquivo com tipo ou tamanho fora do padrão, **When** o upload chega, **Then** 400 e nem arquivo nem registro existem depois.
-2. **Given** token de domínio A ou domínio suspenso, **When** a requisição atinge rota de tarefa, **Then** 403 sem leitura nem escrita.
+1. **Given** arquivo com tipo ou tamanho fora do padrão, **When** o upload chega, **Then** 400 sem arquivo nem registro depois.
+2. **Given** token de domínio A ou domínio suspenso, **When** atinge rota de tarefa, **Then** 403 sem leitura nem escrita.
 
 ## Requirements
 
@@ -122,18 +122,18 @@ Como admin, sei que upload inválido não deixa lixo e que tarefa, comentário o
 ### Assumptions
 
 - O diff do SAD não conflita com as regras de fallback do `nginx.conf`.
-- Nomes opacos gerados no upload seguem impedindo enumeração enquanto `/uploads` ficar sem token.
-- A suíte atual cobre conclusão e reabertura; só a renderização da foto precisa de verificação nova.
+- Nomes opacos do upload seguem impedindo enumeração enquanto `/uploads` ficar sem token.
+- A suíte atual cobre conclusão e reabertura; só a renderização da foto precisa de nova verificação.
 
 ### Risks
 
-- **Evidência fora da sessão** *(likelihood: medium, impact: medium)*: URL de `/uploads` sem token lê a foto sem sessão; mitigação: nome opaco e revisão em 2026-12-26; superfície limitada ao host local.
-- **Fallback mascarando erro** *(likelihood: low, impact: high)*: sem o proxy o navegador exibe o SPA no lugar da imagem e o erro parece de UI; mitigado pela verificação de status e content-type.
-- **Arquivo órfão acumulando** *(likelihood: low, impact: low)*: falha de banco após gravar deixa lixo em disco; aceito e documentado, sem coleta automática nesta release.
+- **Evidência fora da sessão** *(likelihood: medium, impact: medium)*: URL de `/uploads` sem token lê a foto sem sessão; mitigação: nome opaco e revisão em 2026-12-26; limitada ao host local.
+- **Fallback mascarando erro** *(likelihood: low, impact: high)*: sem o proxy o navegador exibe o SPA no lugar da imagem e o erro parece de UI; mitigado pela checagem de status e content-type.
+- **Arquivo órfão acumulando** *(likelihood: low, impact: low)*: falha de banco após gravar deixa lixo em disco; aceito e documentado, sem coleta nesta release.
 
 ## Implementation Signals
 
-- `NEW-CONFIG` — bloco `location ^~ /uploads/ { proxy_pass http://backend:3001; }` com headers `Host` e `X-Real-IP` em `frontend/nginx.conf`, do diff registrado no SAD.
+- `NEW-CONFIG` — bloco `location ^~ /uploads/ { proxy_pass http://backend:3001; }` com headers `Host` e `X-Real-IP` em `frontend/nginx.conf`, do diff do SAD.
 
 ## Success Criteria
 
@@ -147,7 +147,7 @@ SC-004 [US4]: Upload inválido deixa disco e banco limpos, e requisição de out
 ### Session 2026-10-08
 
 - Q: Quem conclui a tarefa? -> A: Só o prestador vinculado em `Revisão`; admin e gestor recebem 403.
-- Q: Rotas de tarefa, comentário e anexo ligam `scopeDomain()`? -> A: Sim, nos três; `domainId` estrangeiro → 403 antes de qualquer consulta.
+- Q: Rotas de tarefa, comentário e anexo ligam `scopeDomain()`? -> A: Sim, nos três; `domainId` estrangeiro → 403 antes de consulta.
 - Q: Headers do bloco `/uploads`? -> A: Diff do SAD literal: `Host` e `X-Real-IP`.
 - Q: Como comprovar a renderização? -> A: Requisição automatizada no stack nginx (200 e `image/*`) e abertura visual no manual-test.
 - Q: Limite de fotos por conclusão? -> A: 10, já implementado; sem regra nova.

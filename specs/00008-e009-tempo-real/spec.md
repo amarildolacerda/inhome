@@ -9,15 +9,15 @@ epic_sources: "{PRD:CAP-008}"
 
 ## Problem Statement
 
-Quando o time trabalha ao longo do dia, a tela dos outros precisa acompanhar sem recarregar — sem isso, dois usuários veem estados diferentes da mesma tarefa. O Socket.io com salas por domínio já está entregue (`emitDomainEvent()` em `backend/src/server.js`, sala `domain_<id>`, injeção via `services/events.js`), e as telas de tarefa e detalhe de contrato já consomem `task:updated`. Falta provar que uma mutação feita por um usuário chega à sessão dos demais do mesmo domínio, que nada vaza para outro domínio, e que falha de emissão nunca quebra a resposta HTTP. Sem essa prova, a CAP-008 fica declarada mas não verificada.
+O time trabalha o dia inteiro e a tela dos outros precisa acompanhar sem recarregar; sem isso, dois usuários veem estados diferentes da mesma tarefa. O Socket.io com salas por domínio já está entregue (`emitDomainEvent()` em `backend/src/server.js`, sala `domain_<id>`, injeção via `services/events.js`) e as telas de tarefa e detalhe de contrato já consomem `task:updated`. Falta provar que a mutação de um usuário chega às sessões dos demais do mesmo domínio, que nada vaza para outro domínio e que falha de emissão nunca quebra a resposta HTTP. Sem essa prova, a CAP-008 fica declarada mas não verificada.
 
 ## Scope
 
 ### Included
-- Verificação de que uma mutação de tarefa via HTTP publica `task:updated` na sala `domain_<id>` e que a sessão de outro usuário do mesmo domínio o recebe (ponta a ponta HTTP → socket).
-- Verificação de isolamento de sala: sessão de outro domínio não recebe o evento.
-- Verificação da inércia da falha de emissão: exceção capturada em `services/events.js` retorna `false` e a resposta HTTP da mutação que originou o evento permanece a de sucesso.
-- Verificação da entrega melhor esforço sem replay: sem emitter registrado a emissão retorna `false`; estado é relido do banco na reconexão, sem fila de eventos.
+- Mutação de tarefa via HTTP publica `task:updated` na sala `domain_<id>` e a sessão de outro usuário do mesmo domínio o recebe (ponta a ponta HTTP → socket).
+- Isolamento de sala: sessão de outro domínio não recebe o evento.
+- Inércia da falha de emissão: exceção capturada em `services/events.js` retorna `false` e a resposta HTTP da mutação permanece a de sucesso.
+- Entrega melhor esforço sem replay: sem emitter registrado a emissão retorna `false`; estado é relido do banco na reconexão, sem fila de eventos.
 - Regressão das telas consumidoras (lista de tarefas e detalhe de contrato) que já ouvem `task:updated`.
 
 ### Excluded
@@ -25,7 +25,7 @@ Quando o time trabalha ao longo do dia, a tela dos outros precisa acompanhar sem
 - Tempo real entre domínios ou para usuários externos.
 - Notificação desktop/push do navegador.
 - Estado de alerta em tempo real do motor — E004 publica na sala; aqui só se verifica o transporte.
-- Evento de mutação de contrato — `contracts.js` não emite domínio; as telas consumidoras não ouvem mutação de contrato, apenas `task:updated`.
+- Evento de mutação de contrato — `contracts.js` não emite domínio e as telas só ouvem `task:updated`.
 
 ### Edge Cases & Boundaries
 - Emissor com erro: captura a própria exceção em `services/events.js` e devolve `false`; a resposta HTTP da mutação segue normalmente.
@@ -78,19 +78,19 @@ Como usuário, sigo usando a aplicação normalmente mesmo se o canal de eventos
 ## Assumptions & Risks
 
 ### Assumptions
-- As telas consumidoras já ligadas (lista de tarefas e detalhe de contrato) continuam sendo os únicos pontos de consumo desta release; ambas ouvem `task:updated`.
+- As telas consumidoras já ligadas (lista de tarefas e detalhe de contrato) são os únicos pontos de consumo desta release; ambas ouvem `task:updated`.
 - O domínio da sessão vem do mesmo `domainId` do token usado no restante da API.
-- Não há mais de uma instância da API em nenhum ambiente previsto (instância única).
-- `contracts.js` não emite domínio e isso é aceito — as telas consumidoras não ouvem mutação de contrato.
+- Instância única de API em todos os ambientes previstos.
+- `contracts.js` não emitir domínio é aceito — as telas não ouvem mutação de contrato.
 
 ### Risks
-- **Evento perdido sem replay** *(likelihood: medium, impact: low)*: sessão desconectada na hora da mutação não recupera o evento. Mitigação: estado é sempre relido do banco na reconexão (FR-004).
+- **Evento perdido sem replay** *(likelihood: medium, impact: low)*: sessão desconectada na hora da mutação não recupera o evento. Mitigação: estado sempre relido do banco na reconexão (FR-004).
 - **Resposta HTTP dependendo da emissão** *(likelihood: low, impact: high)*: se a emissão lançasse exceção não capturada, a mutação falharia junto. Mitigação: `try/catch` em `services/events.js` retorna `false` (FR-003).
 
 ## Implementation Signals
 
 - `MIGRATION`/`NEW-API`: nenhum — transporte entregue (`emitDomainEvent`, sala `domain_<id>`, injeção via `services/events.js`).
-- Só sinal novo se a verificação mostrar evento publicado sem sala ou resposta HTTP dependendo da emissão — ambos já protegidos; verificação confirma.
+- Só sinal novo se a verificação mostrar evento publicado sem sala ou resposta HTTP dependendo da emissão — ambos já protegidos.
 
 ## Success Criteria
 
@@ -118,4 +118,4 @@ Nenhum finding — quatro passagens (contradições, impossibilidades, gatilho c
 
 ## Compliance Check
 
-- **PASS** — `spec.md` segue as convenções do projeto: `spec_type: product`, `epic_id: E009`, `epic_sources: "{PRD:CAP-008}"`, `spec_maturity: clarified`, seções obrigatórias completas, FR-001..004 com dono US1/US2 (ambas P2), SC-001..004, nenhum marcador de clarificação pendente, rastreável ao PRD.
+- **PASS** — Convenções: `product`/E009/`{PRD:CAP-008}`/clarified; seções completas; FR-001..004 → US1/US2 (P2); SC-001..004; 0 marcadores; rastreável ao PRD.

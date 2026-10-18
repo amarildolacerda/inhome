@@ -9,7 +9,7 @@ epic_sources: "{PRD:CAP-004}"
 
 ## Problem Statement
 
-A pesquisa de set/2026 coloca o alerta de vigência como desejo número um: a planilha não avisa e o vencimento só aparece quando já é prejuízo. O produto controla — E002 deriva `vigente`/`atrasado`/`encerrado` de `contracts.forecast_date` — mas não avisa: sem tabela de alertas, varredura de vencimento ou janelas configuráveis. Sem o motor, CAP-004 e HYP-001 ficam sem como ser testadas e nenhum contrato entra em atraso com aviso prévio registrado.
+A pesquisa de set/2026 coloca o alerta de vigência como desejo número um: a planilha não avisa e o vencimento só aparece quando já é prejuízo. O produto controla — E002 deriva `vigente`/`atrasado`/`encerrado` de `contracts.forecast_date` — mas não avisa: sem tabela de alertas, varredura de vencimento ou janelas configuráveis. Sem o motor, CAP-004 e HYP-001 não têm como ser testadas e nenhum contrato entra em atraso com aviso prévio registrado.
 
 ## Scope
 
@@ -31,7 +31,7 @@ A pesquisa de set/2026 coloca o alerta de vigência como desejo número um: a pl
 
 ### Edge Cases & Boundaries
 - Varredura reiniciar no meio: a linha já gravada em `alert_events` impede reenvio.
-- Contrato alertado e prorrogado: a nova previsão reabre a passagem conforme a janela re-atingida.
+- Contrato alertado e prorrogado: a nova previsão reabre a passagem na janela re-atingida.
 - SMTP sem resposta em 5 s: falha registrada, varredura segue.
 - Sem `SMTP_HOST`/`SMTP_PORT`: envio pulado; aviso em aplicativo segue.
 - Domínio suspenso: varredura não emite.
@@ -101,7 +101,7 @@ Como gestor, com `SMTP_*` configurado, recebo também o e-mail do vencimento; se
 ### Assumptions
 - `runDueSweep` (tarefas, FR-017) e `notify()` entregues são ponto de partida; novo: esquema, janelas, varredura de contratos, dedup.
 - Processo único por host, sem trava entre instâncias.
-- Janela calculada sobre `forecast_date`, fonte do `atrasado` de E002.
+- Janela calculada sobre `forecast_date`.
 - Janelas do domínio lidas do banco a cada passo da varredura.
 
 ### Risks
@@ -142,7 +142,7 @@ SC-005 [US1]: Varredura na subida e a cada 60 min fora do caminho de requisiçã
 
 ## Stress-Test Findings
 
-Nenhum finding — quatro passagens sem achados. Migração preguiçosa consistente com o boot (sweep abre domain DB via `getDomainDb` → `migrateSchema`); processo único documentado; timeout 5 s e domínio suspenso cobertos.
+Nenhum finding — quatro passagens sem achados. Migração preguiçosa consistente com o boot (sweep abre domain DB via `getDomainDb` → `migrateSchema`); processo único, timeout 5 s e domínio suspenso cobertos.
 
 ## Compliance Check
 

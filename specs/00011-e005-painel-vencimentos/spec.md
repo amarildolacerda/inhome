@@ -12,16 +12,16 @@ epic_sources: "{PRD:CAP-004}"
 
 ## Problem Statement
 
-O gestor precisa ver o que vence primeiro antes de o prazo virar prejuízo, e hoje essa resposta não está em nenhuma tela: a listagem não ordena por urgência nem mostra a janela de cada contrato. O motor de E004 já grava `alert_events` e as janelas, mas sem o painel o aviso chega avulso, sem visão de conjunto, e HYP-001 (alerta como principal valor) fica sem uso real.
+O gestor precisa ver o que vence primeiro antes de o prazo virar prejuízo e nenhuma tela responde isso hoje: a listagem não ordena por urgência nem mostra a janela de cada contrato. O motor de E004 já grava `alert_events` e as janelas, mas sem o painel o aviso chega avulso, sem visão de conjunto, e HYP-001 (alerta como principal valor) fica sem uso real.
 
 ## Scope
 
 ### Included
 
 - Tela de próximos vencimentos: vigentes agrupados nas janelas 90/60/30/15, ordenados pela previsão, com seção fora das janelas e lista de incompletos.
-- Estado de alertado lido de `alert_events` contra a janela atribuída — o painel consome o motor, sem regra própria de emissão.
+- Estado de alertado lido de `alert_events` contra a janela atribuída; o painel consome o motor, sem regra própria de emissão.
 - Leitura e gravação das janelas em tela (admin e gestor) em `domains.alert_windows`, observadas pela varredura seguinte de E004 sem reinício.
-- Escopo por papel: gestor e admin consomem painel e configuração; prestador 403.
+- Gestor e admin consomem painel e configuração; prestador 403.
 - Paginação na rota quente (limit/offset, leitura única, sem cache) para p95 abaixo de 2 s com milhares de contratos.
 
 ### Excluded
@@ -59,7 +59,7 @@ Como gestor, abro o painel e vejo os vigentes agrupados nos blocos 90/60/30/15, 
 
 ### User Story 2 - Janelas ajustáveis sem deploy (Priority: P1)
 
-Como admin ou gestor, ajusto as janelas do domínio na própria tela; o painel reagrupa na releitura e a varredura seguinte de E004 observa o novo valor, sem reinício.
+Como admin ou gestor, ajusto as janelas do domínio na própria tela; o painel reagrupa na releitura e a varredura seguinte de E004 observa o novo valor sem reinício.
 
 **Why this priority**: a janela 90/60/30/15 é hipótese da pesquisa (EVD-002); ajuste sem deploy permite confirmá-la em uso real.
 

@@ -12,23 +12,23 @@ epic_sources: "{PRD:CAP-002}"
 
 ## Problem Statement
 
-O contrato carrega objeto, finalidade, início, previsão de finalização e status e alimenta alertas, painel e relatório; sem ele correto, nada tem o que ler. A capacidade está entregue; falta provar cadastro, vínculo, prorrogação, encerramento e o status `atrasado` derivado, corrigindo o que a regressão apontar.
+O contrato carrega objeto, finalidade, início, previsão e status e alimenta alertas, painel e relatório; sem ele correto, nada tem o que ler. A capacidade está entregue; falta provar cadastro, vínculo, prorrogação, encerramento e o `atrasado` derivado, corrigindo o que a regressão apontar.
 
 ## Scope
 
 ### Included
 
-- Cadastro com objeto, exatamente uma finalidade ativa do dicionário, início e previsão de finalização.
-- Vínculo e desvinculação de prestadores; prorrogação e encerramento, com status `vigente`, `atrasado` ou `encerrado`.
-- Status `atrasado` derivado na leitura, sem escrita de rotina e sem bloquear tarefas.
-- Regressão dos endpoints com escopo de domínio e papéis, recusando antes de qualquer leitura.
-- Filtro de status e paginação da listagem (consomem E007 e E008), previsão em 100% dos vigentes e listagem abaixo de 2 s.
+- Cadastro com objeto, exatamente uma finalidade ativa do dicionário, início e previsão.
+- Vínculo e desvinculação de prestadores; prorrogação e encerramento; status `vigente`, `atrasado` ou `encerrado`.
+- Status `atrasado` derivado na leitura, sem escrita de rotina e sem travar tarefas.
+- Regressão dos endpoints com escopo de domínio e papéis, recusando antes de ler.
+- Filtro de status e paginação da listagem (consomem E007 e E008), previsão em 100% dos vigentes e resposta abaixo de 2 s.
 
 ### Excluded
 
 - Central documental (anexos, ocorrências, trilha) — próxima release, PDD-003.
-- Renovação automática, multa e reajuste — fora do escopo (PDD-008).
-- Novos papéis ou mudança na matriz de permissão — matriz fechada por E001.
+- Renovação automática, multa e reajuste — PDD-008.
+- Novos papéis ou mudança na matriz de permissão — fechada por E001.
 
 ### Edge Cases & Boundaries
 
@@ -42,20 +42,20 @@ O contrato carrega objeto, finalidade, início, previsão de finalização e sta
 
 ### User Story 1 - Contrato do início ao fim (Priority: P1)
 
-Como gestor, cadastro o contrato, vinculo os prestadores, prorrogo quando o prazo aperta e encerro quando o objeto termina.
+Como gestor, cadastro o contrato, vinculo prestadores, prorrogo quando o prazo aperta e encerro no fim do objeto.
 
 **Why this priority**: espinha dorsal da CAP-002 e fonte de alertas, painel e relatório.
 
-**Independent Test**: criar, vincular dois prestadores, prorrogar e encerrar, conferindo cada transição.
+**Independent Test**: criar, vincular dois prestadores, prorrogar e encerrar, conferindo a transição.
 
 **Acceptance Scenarios**:
 
-1. **Given** contrato com previsão futura, **When** a listagem abre, **Then** ele aparece `vigente` com finalidade e prestadores.
-2. **Given** papel não habilitado, **When** ele cria, vincula, prorroga ou encerra, **Then** 403 sem efeito no banco.
+1. **Given** previsão futura, **When** a lista abre, **Then** o contrato aparece `vigente` com finalidade e prestadores.
+2. **Given** papel não habilitado, **When** cria, vincula, prorroga ou encerra, **Then** 403 sem efeito no banco.
 
 ### User Story 2 - Atraso sinalizado sem travar (Priority: P1)
 
-Como gestor, vejo o contrato `atrasado` assim que a previsão passa, mas continuo criando e executando tarefas.
+Como gestor, vejo o contrato `atrasado` assim que a previsão passa, mas sigo criando e executando tarefas.
 
 **Why this priority**: o PRD trata `atrasado` como lastro, não como rotina; bloqueio indevido quebraria "aviso antes do prejuízo".
 
@@ -63,35 +63,35 @@ Como gestor, vejo o contrato `atrasado` assim que a previsão passa, mas continu
 
 **Acceptance Scenarios**:
 
-1. **Given** contrato com previsão vencida, **When** a lista é consultada, **Then** o exibido é `atrasado` e o gravado permanece `vigente`.
-2. **Given** contrato `atrasado`, **When** o gestor cria e move tarefas, **Then** as operações seguem aceitas como num `vigente`.
+1. **Given** previsão vencida, **When** a lista é consultada, **Then** o exibido é `atrasado` e o gravado permanece `vigente`.
+2. **Given** contrato `atrasado`, **When** o gestor cria e move tarefas, **Then** as operações seguem aceitas como em `vigente`.
 3. **Given** contrato `atrasado`, **When** a previsão vai para data futura, **Then** o derivado volta a `vigente` sem escrita manual.
 
 ### User Story 3 - Contrato só do meu domínio (Priority: P1)
 
-Como gestor, opero só sobre os contratos do meu cliente: domínio estranho, papel sem permissão ou sessão suspensa não lê nem escreve.
+Como gestor, opero só nos contratos do meu cliente: domínio estranho, papel sem permissão ou sessão suspensa não lê nem escreve.
 
-**Why this priority**: isolamento por domínio é inegociável e a superfície de contrato é a mais exposta.
+**Why this priority**: isolamento por domínio é inegociável; a superfície de contrato é a mais exposta.
 
-**Independent Test**: repetir leitura e escrita com domínio cruzado, papel errado e domínio suspenso, conferindo 403/401.
+**Independent Test**: repetir leitura e escrita com domínio cruzado, papel errado e suspenso, conferindo 403/401.
 
 **Acceptance Scenarios**:
 
-1. **Given** token do domínio A enviando `domainId` do B ou papel sem permissão, **When** a requisição chega, **Then** 403 e nenhuma linha é lida.
-2. **Given** requisição sem token ou de domínio suspenso, **When** ela atinge a rota, **Then** 401 ou 403 e a listagem do outro domínio não aparece.
+1. **Given** token do domínio A com `domainId` de B ou papel sem permissão, **When** chega a requisição, **Then** 403 e nenhuma linha é lida.
+2. **Given** requisição sem token ou de domínio suspenso, **When** chega à rota, **Then** 401 ou 403 e a listagem do outro domínio não aparece.
 
 ### User Story 4 - Listagem com volume, filtro e previsão (Priority: P1)
 
-Como gestor, filtro a listagem por `vigente`, `atrasado` ou `encerrado` e recebo-a rápida com 5.000 contratos, sempre com a previsão visível.
+Como gestor, filtro por `vigente`, `atrasado` ou `encerrado` e recebo a lista rápida com 5.000 contratos, previsão sempre visível.
 
-**Why this priority**: E007 e E008 consomem os filtros expostos aqui e a previsão em 100% dos vigentes é pré-condição do motor de alertas.
+**Why this priority**: E007 e E008 consomem os filtros daqui; a previsão em 100% dos vigentes é pré-condição do motor de alertas.
 
 **Independent Test**: carregar 5.000 contratos, filtrar por status e medir o tempo.
 
 **Acceptance Scenarios**:
 
-1. **Given** contrato com previsão vencida e gravado `vigente`, **When** a lista filtra `atrasado`, **Then** ele é retornado; encerrado, sai.
-2. **Given** milhares de contratos, **When** a listagem é repetida, **Then** a resposta fica abaixo de 2 s no p95 e todo vigente devolve previsão.
+1. **Given** previsão vencida e gravado `vigente`, **When** a lista filtra `atrasado`, **Then** o contrato retorna; `encerrado`, sai.
+2. **Given** milhares de contratos, **When** a listagem repete, **Then** resposta abaixo de 2 s no p95 e todo vigente devolve previsão.
 
 ## Requirements
 
@@ -117,18 +117,18 @@ Como gestor, filtro a listagem por `vigente`, `atrasado` ou `encerrado` e recebo
 
 ### Assumptions
 
-- A finalidade vem do dicionário, exatamente uma por contrato, e o status é derivado na leitura, sem job de reprocessamento.
-- Guards de papel e escopo de E001 seguem válidos e aplicáveis à superfície de contrato.
+- A finalidade vem do dicionário, exatamente uma por contrato; o status é derivado na leitura, sem job de reprocessamento.
+- Guards de papel e escopo de E001 valem também para a superfície de contrato.
 
 ### Risks
 
-- **Fonte de dados instável para alertas** *(likelihood: low, impact: high)*: previsão ausente em vigente deixa o motor sem o que varrer; mitigado pela métrica de 100%.
-- **Regressão em prorrogação** *(likelihood: medium, impact: medium)*: data alterada sem refletir no status derivado confundiria o painel; mitigado pelo cenário fim a fim.
+- **Fonte de dados instável para alertas** *(likelihood: low, impact: high)*: previsão ausente em vigente deixa o motor sem o que varrer; mitigação: métrica de 100%.
+- **Regressão em prorrogação** *(likelihood: medium, impact: medium)*: data alterada sem refletir no status derivado confundiria o painel; mitigação: cenário fim a fim.
 
 ## Implementation Signals
 
 - `BREAKING-CHANGE` — ligar o guarda de escopo no roteador de contrato devolve 403 para domínio estranho, valor que antes alcançava o handler.
-- `NEW-API` — o filtro de status de `GET /api/contracts` ganha o valor derivado `atrasado`, superfície consumida por E007 e E008.
+- `NEW-API` — o filtro de status de `GET /api/contracts` ganha o valor derivado `atrasado`, consumido por E007 e E008.
 
 ## Success Criteria
 
@@ -141,9 +141,9 @@ SC-004 [US4]: Listagem abaixo de 2 s no p95 com 5.000 contratos, previsão preen
 
 ### Session 2026-10-08
 
-- Q: Filtro `status=vigente` inclui contrato com previsão vencida? -> A: Não; `vigente`, `atrasado` e `encerrado` particionam os contratos.
-- Q: Rotas de contrato precisam aceitar `domainId` explícito? -> A: Liga o guarda no roteador; estrangeiro → 403; sem novo parâmetro.
-- Q: Quando a previsão conta como `atrasado`? -> A: Data estritamente anterior à atual; no dia da previsão segue `vigente`.
+- Q: `status=vigente` inclui previsão vencida? -> A: Não; `vigente`, `atrasado` e `encerrado` particionam os contratos.
+- Q: Rotas de contrato aceitam `domainId` explícito? -> A: Guarda no roteador; estrangeiro → 403; sem novo parâmetro.
+- Q: Quando a previsão vira `atrasado`? -> A: Data estritamente anterior à atual; no dia da previsão segue `vigente`.
 - Q: Qual volume define "milhares" no p95 < 2 s? -> A: 5.000 contratos no domínio.
 
 ## Stress-Test Findings

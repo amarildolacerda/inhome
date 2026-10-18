@@ -9,7 +9,7 @@ spec_maturity: clarified
 
 ## Problem Statement
 
-O aviso em aplicativo é sempre disponível, mas quando o cliente tem infraestrutura de envio, atribuição, conclusão, reabertura e vencimento também deveriam sair por e-mail. O notificador SMTP já está entregue (gate `SMTP_HOST`/`SMTP_PORT`, timeout de 5 s, `notify()` sem exceção) e a varredura de E004 já chama `notify()` gravando `alert_events.email_status`. Falta provar o ciclo fim a fim com servidor SMTP real, modo inerte e falha sem quebrar resposta ou varredura, e expor o estado de envio no registro do alerta; sem isso a CAP-009 fica declarada mas não verificada.
+O aviso em aplicativo é sempre disponível, mas com infraestrutura de envio do cliente, atribuição, conclusão, reabertura e vencimento também deveriam sair por e-mail. O notificador SMTP já está entregue (gate `SMTP_HOST`/`SMTP_PORT`, timeout de 5 s, `notify()` sem exceção) e a varredura de E004 já chama `notify()` gravando `alert_events.email_status`. Falta provar o ciclo fim a fim com servidor SMTP real, modo inerte e falha sem quebrar resposta ou varredura, e expor o estado de envio no registro do alerta; sem isso a CAP-009 fica declarada mas não verificada.
 
 ## Scope
 
@@ -23,7 +23,7 @@ O aviso em aplicativo é sempre disponível, mas quando o cliente tem infraestru
 - Sem `creator_email`: sem tentativa, registro `skipped`.
 
 ### Excluded
-- E-mail obrigatório, fila de reenvio ou retry — o SAD fixa melhor esforço, sem retry.
+- E-mail obrigatório, fila de reenvio ou retry — o SAD fixa melhor esforço.
 - Modelos personalizados, marketing, push, preferência de canal por usuário.
 - Verificação do motor em si (esquema, dedup, janelas — E004); aqui só o ponto de chamada e o desfecho.
 
@@ -49,7 +49,7 @@ Como gestor, com envio configurado no cliente, recebo e-mail na atribuição, na
 3. **Given** envio concluído ou falho, **When** o gestor lê o painel, **Then** o estado da janela atribuída aparece como enviado, falho ou inerte.
 
 ### User Story 2 - Produto completo sem e-mail (Priority: P2)
-Como cliente sem infraestrutura de envio, uso o sistema normalmente: avisos na tela, nenhuma tela com erro por falta de e-mail e nenhuma ação terminando em falha por causa do canal.
+Como cliente sem infraestrutura de envio, uso o sistema normalmente: avisos na tela, nenhuma tela com erro por falta de e-mail e nenhuma ação falha por causa do canal.
 
 **Why this priority**: princípio de produto — "o produto funciona sem e-mail"; o canal só existe opcional por cima.
 

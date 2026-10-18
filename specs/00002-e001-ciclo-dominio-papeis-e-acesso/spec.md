@@ -14,29 +14,29 @@ epic_sources: "{PRD:CAP-001}"
 
 ## Problem Statement
 
-Cada cliente opera como domínio isolado e a suspensão bloqueia acesso sem apagar nada. Se o ciclo de domínio ou a matriz dos quatro papéis falhar, dado de um cliente aparece para outro, violação inegociável do produto. A capacidade já está entregue; falha aqui contamina a release.
+Cada cliente opera como domínio isolado e a suspensão bloqueia acesso sem apagar nada. Se o ciclo de domínio ou a matriz dos quatro papéis falhar, dado de um cliente aparece para outro — violação inegociável. A capacidade já está entregue; falha aqui contamina a release.
 
 ## Scope
 
 ### Included
 
 - Ciclo de domínio: habilitar, suspender e reativar com arquivo criado em operação única e dados preservados.
-- Login com JWT de 24 h (`role`, `domainId`), identificação por e-mail ou username, papel automático e bloqueio de domínio suspenso.
-- Matriz dos quatro papéis (system_admin, admin, gestor, prestador) conforme README, com todos os casos negativos.
-- Guards de sessão, papel e escopo: 401 sem token e 403 com papel ou domínio errado, antes de qualquer leitura.
-- Superfície da interface por papel, e correção pontual de rota ou tela sem guarda, se a regressão abrir o gap.
+- Login com JWT de 24 h (`role`, `domainId`), identificação por e-mail ou username, papel automático e bloqueio de suspenso.
+- Matriz dos quatro papéis (system_admin, admin, gestor, prestador) conforme README, com todos os negativos.
+- Guards de sessão, papel e escopo: 401 sem token, 403 com papel ou domínio errado, antes de qualquer leitura.
+- Superfície da interface por papel e correção pontual de rota ou tela sem guarda se a regressão abrir o gap.
 
 ### Excluded
 
 - Novos papéis ou permissões — matriz fechada pelo MVP aprovado (EVD-001).
 - Usuário em múltiplos domínios — excluído no MVP aprovado.
-- SSO, 2FA e recuperação de senha self-service — sem exigência registrada no PRD.
-- Habilitação ou suspensão apenas pelo system_admin — só o operador da plataforma executa o ciclo.
+- SSO, 2FA e recuperação de senha self-service — sem exigência no PRD.
+- Habilitação ou suspensão só pelo system_admin — o operador da plataforma executa o ciclo.
 - Acesso à rota `/uploads` sem token — restrição aceita no SAD (2026-12-26); a verificação cobre a API.
 
 ### Edge Cases & Boundaries
 
-- Sessão ativa em domínio suspenso: token segue assinado e a requisição seguinte recebe 403 sem ler dados.
+- Sessão ativa em domínio suspenso: token segue assinado e a requisição seguinte recebe 403 sem ler.
 - Falha na criação do arquivo do domínio: 500 e o registro em `domains` não é reaproveitado.
 - Parâmetro divergente do token: recusa antes de consultar; recurso de outro domínio responde 403/404 sem expor conteúdo.
 - Login com domínio inexistente ou senha errada: 401/403 sem revelar qual falhou; suspenso não é pesquisado.
@@ -47,7 +47,7 @@ Cada cliente opera como domínio isolado e a suspensão bloqueia acesso sem apag
 
 ### User Story 1 - Ciclo de domínio verificado (Priority: P1)
 
-Como system_admin, habilito um domínio, entro com o primeiro administrador, suspendo o domínio e reativo sem que nenhum dado se perca no caminho.
+Como system_admin, habilito um domínio, entro com o primeiro administrador, suspendo e reativo sem que nenhum dado se perca no caminho.
 
 **Why this priority**: fronteira de isolamento que a release toda pressupõe.
 
@@ -55,28 +55,28 @@ Como system_admin, habilito um domínio, entro com o primeiro administrador, sus
 
 **Acceptance Scenarios**:
 
-1. **Given** domínio criado e usuário ativo, **When** o usuário faz login, **Then** o JWT de 24 h traz `role` e `domainId` e a sessão abre.
-2. **Given** domínio com contratos, usuários e histórico, **When** ele é suspenso e reativado, **Then** todos os registros seguem presentes e o login volta a funcionar.
-3. **Given** domínio suspenso, **When** chega requisição com token válido emitido antes da suspensão, **Then** a resposta é 403 sem ler dados de negócio.
+1. **Given** domínio criado e usuário ativo, **When** faz login, **Then** o JWT de 24 h traz `role`/`domainId` e a sessão abre.
+2. **Given** domínio com contratos, usuários e histórico, **When** é suspenso e reativado, **Then** os registros seguem presentes e o login volta a funcionar.
+3. **Given** domínio suspenso, **When** chega requisição com token válido emitido antes da suspensão, **Then** 403 sem ler dados de negócio.
 
 ### User Story 2 - Permissão mínima por papel (Priority: P1)
 
-Como gestor, uso cada tela sabendo que o prestador enxerga apenas as próprias tarefas e que papéis sem permissão recebem 403 em qualquer rota de gestão.
+Como gestor, uso cada tela sabendo que o prestador enxerga só as próprias tarefas e que papéis sem permissão recebem 403 em rota de gestão.
 
 **Why this priority**: vazamento entre papéis é tão grave quanto entre domínios.
 
-**Independent Test**: executar a matriz do README nos quatro papéis, com dois domínios ativos e todos os casos negativos.
+**Independent Test**: matriz do README nos quatro papéis, com dois domínios ativos e todos os negativos.
 
 **Acceptance Scenarios**:
 
-1. **Given** prestador autenticado, **When** ele chama uma rota de criação ou gestão de contratos, **Then** a resposta é 403.
-2. **Given** gestor autenticado no domínio A, **When** ele pede um recurso do domínio B, **Then** a resposta é 403 ou 404 sem expor conteúdo do domínio B.
-3. **Given** requisição sem token, **When** ela chega a qualquer rota de negócio, **Then** a resposta é 401 antes de qualquer leitura.
-4. **Given** admin do domínio A autenticado, **When** ele tenta operações de gestão do domínio B ou o ciclo de domínio, **Then** a resposta é 403.
+1. **Given** prestador autenticado, **When** chama rota de criação ou gestão de contratos, **Then** 403.
+2. **Given** gestor autenticado no domínio A, **When** pede recurso do domínio B, **Then** 403 ou 404 sem expor conteúdo de B.
+3. **Given** requisição sem token, **When** chega a qualquer rota de negócio, **Then** 401 antes de qualquer leitura.
+4. **Given** admin do domínio A autenticado, **When** tenta gestão do domínio B ou o ciclo de domínio, **Then** 403.
 
 ### User Story 3 - Superfície da interface por papel (Priority: P2)
 
-Como usuário autenticado, vejo apenas as entradas de navegação e as ações que o meu papel permite, sem topar em botão que termina em 403.
+Como usuário autenticado, vejo só as entradas de navegação e as ações que meu papel permite, sem topar em botão que termina em 403.
 
 **Why this priority**: sem isso a experiência quebra mesmo com o backend certo.
 
@@ -84,8 +84,8 @@ Como usuário autenticado, vejo apenas as entradas de navegação e as ações q
 
 **Acceptance Scenarios**:
 
-1. **Given** prestador logado, **When** a aplicação monta a navegação, **Then** as entradas de usuários, finalidades e gestão de contratos não aparecem.
-2. **Given** system_admin logado, **When** a aplicação monta a navegação, **Then** ele vê apenas o ciclo de domínio e nenhuma tela de dados de negócio.
+1. **Given** prestador logado, **When** a aplicação monta a navegação, **Then** não aparecem usuários, finalidades nem gestão de contratos.
+2. **Given** system_admin logado, **When** a aplicação monta a navegação, **Then** ele vê só o ciclo de domínio e nenhuma tela de dados de negócio.
 
 ## Requirements
 
@@ -111,7 +111,7 @@ Como usuário autenticado, vejo apenas as entradas de navegação e as ações q
 ### Assumptions
 
 - A matriz de permissões do README reflete o comportamento real das rotas implementadas.
-- `JWT_SECRET` está definido em `backend/.env` em todo ambiente que roda a suíte; ausente, o login devolve 500 e as requisições 403.
+- `JWT_SECRET` está definido em `backend/.env` em todo ambiente que roda a suíte; ausente, login devolve 500 e requisições 403.
 - A base entregue não mudou desde a validação fim a fim 28/28 (EVD-005).
 - A rota `/uploads` sem token permanece aceita e fora da verificação de suspensão.
 

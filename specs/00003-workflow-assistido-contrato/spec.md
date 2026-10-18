@@ -16,7 +16,7 @@ epic_sources: "{novo (fora do PRD); depende de E003, PRD:CAP-003}"
 
 ## Problem Statement
 
-Cadastrado o contrato, o gestor monta tarefas à mão e ignora o descritivo de finalidade já existente. As definições ficam dispersas, a lista sai incompleta e o prestador executa sem roteiro. Restam retrabalho e nenhuma auditoria por que cada tarefa existe.
+Cadastrado o contrato, o gestor monta tarefas à mão e ignora o descritivo de finalidade já existente. As definições ficam dispersas, a lista sai incompleta e o prestador executa sem roteiro: restam retrabalho e nenhuma auditoria de por que cada tarefa existe.
 
 ## Scope
 
@@ -150,7 +150,7 @@ Na vigência, gestor revisita a lista; após aprovação, o registro muda.
 - Definições em texto livre; obrigatórias validadas no salvamento.
 - OpenCode via CLI local, assíncrono com timeout e retry, sem limite nesta release.
 - Fluxo de status existente; geração, ativação e revisão: só do gestor; admin edita só definições.
-- Revisão não altera tarefas iniciadas ou concluídas nem histórico; reabertura (fluxo existente, fora desta capacidade) devolve a tarefa a Em Progresso, que fica fora de A Fazer e vira conflito na revisão.
+- Revisão não altera tarefas iniciadas ou concluídas nem histórico; reabertura (fluxo existente, fora desta capacidade) devolve a tarefa a Em Progresso, fora de A Fazer, e vira conflito na revisão.
 
 ### Risks
 

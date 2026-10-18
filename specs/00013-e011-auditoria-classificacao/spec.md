@@ -9,7 +9,7 @@ spec_maturity: clarified
 
 ## Problem Statement
 
-CAP-003 prova o que foi feito — texto, fotos e histórico de reabertura —, mas quem audita não tem como olhar as tarefas executadas nem registrar o que achou: o gestor vê o painel (E006) e o relatório prova por contrato (E008), nenhum com olhar de auditoria. A pendência está aberta no TODO desde a baseline; sem o papel que lê as executadas e classifica, a release fecha sem a trilha da CAP-003.
+CAP-003 prova o que foi feito — texto, fotos e histórico de reabertura —, mas quem audita não tem como olhar as tarefas executadas nem registrar o que achou: o gestor vê o painel (E006) e o relatório prova por contrato (E008), nenhum com olhar de auditoria. A pendência está no TODO desde a baseline; sem o papel que lê e classifica as executadas, a release fecha sem a trilha da CAP-003.
 
 ## Scope
 
@@ -50,7 +50,7 @@ Como auditor, na visão de auditoria do meu domínio, vejo as tarefas executadas
 3. **Given** classificação registrada, **When** o auditor ou o gestor reclassificam a mesma tarefa, **Then** o registro é substituído com autor e data da última mudança — nunca dois registros.
 
 ### User Story 2 - Papel controlado e isolado (Priority: P1)
-Como admin, habilito o papel auditor pelo cadastro existente; sessões sem nenhum dos papéis de auditoria não acessam rota ou tela de auditoria, e o auditor não enxerga fora do domínio.
+Como admin, habilito o papel auditor pelo cadastro existente; sessões sem nenhum papel de auditoria não acessam rota ou tela de auditoria, e o auditor não enxerga fora do domínio.
 
 **Why this priority**: sem o papel no enum e nos guards, dados de auditoria ficam abertos ou o recurso é inútil — segurança P1 que destrava a US1.
 
@@ -74,7 +74,7 @@ Como admin, habilito o papel auditor pelo cadastro existente; sessões sem nenhu
 
 ## Key Entities
 
-- **Tarefa executada**: tarefa do domínio em Revisão ou Concluída, com histórico e anexos de E003.
+- **Tarefa executada**: em Revisão ou Concluída no domínio, com histórico e anexos de E003.
 - **Classificação de atendimento**: registro único por tarefa: estado, nota opcional, autor e data da última mudança.
 - **Papel auditor**: lê as executadas do domínio e classifica, sem alterar fluxo, evidência ou cadastro.
 

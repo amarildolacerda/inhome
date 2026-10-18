@@ -8,7 +8,7 @@ updated: 2026-09-22
 
 ## Problem Statement
 
-Administração: vigência, tarefas, evidências. Dashboard multi-domínio: contrato agrupa tarefas; conclusão documentada; relatório.
+Administração: vigência, tarefas, evidências. Dashboard multi-domínio: contrato agrupa tarefas, conclusão documentada, relatório.
 
 ## Scope
 
@@ -24,7 +24,7 @@ Administração: vigência, tarefas, evidências. Dashboard multi-domínio: cont
 - Subtarefas; multi-domínio; fornecedor além prestador; WCAG AA; deploy/CI; system_admin lendo negócio
 
 ### Edge Cases & Boundaries
-- Contrato vencido com tarefas abertas: tarefas seguem editáveis; atraso só sinalizado
+- Contrato vencido com tarefas abertas: seguem editáveis; atraso só sinalizado
 - Sessão pós-suspensão: revalidação nega
 - Tarefas abertas travam desvinculação
 - Retirar finalidade não altera contratos

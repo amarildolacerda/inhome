@@ -9,60 +9,60 @@ epic_sources: "{PRD:CAP-006}"
 
 ## Problem Statement
 
-O gestor precisa achar contrato, fornecedor ou conteúdo em segundos sem abrir planilha paralela. A busca já existe em `/api/search` com os seis filtros do PRD (contrato, status, prioridade, prestador, finalidade, prazo), mas falta provar que cada filtro devolve o conjunto certo, que o escopo do domínio e do papel nunca vaza, e que a resposta segue abaixo de 2 s em volume representativo. Sem essa prova, a CAP-006 não está entregue: um filtro sem índice ou uma rota sem escopo passaria despercebido até o usuário comparar com o Excel.
+O gestor precisa achar contrato, fornecedor ou conteúdo em segundos, sem cair na planilha paralela. A busca já existe em `/api/search` com os seis filtros do PRD (contrato, status, prioridade, prestador, finalidade, prazo); falta provar que cada filtro devolve o conjunto certo, que o escopo de domínio e papel nunca vaza e que a resposta fica abaixo de 2 s em volume representativo. Sem essa prova a CAP-006 não está entregue: um filtro sem índice ou uma rota sem escopo passaria despercebido.
 
 ## Scope
 
 ### Included
 - Verificação dos seis filtros (contrato, status, prioridade, prestador, finalidade, prazo) isolados e combinados em `/api/search/contracts` e `/api/search/tasks`.
-- Verificação do escopo por domínio do token e alcance do papel (prestador enxerga só as próprias tarefas).
+- Verificação do escopo de domínio do token e alcance do papel (prestador enxerga só as próprias tarefas).
 - Verificação de `ensureIndexes()` e da paginação em `backend/src/config/database.js`.
-- Medição de latência (p95) da listagem/busca em ambiente local com volume representativo.
-- Correção pontual de índice ou filtro apontado pela verificação, sem introduzir cache.
+- Medição de latência (p95) da listagem/busca local com volume representativo.
+- Correção pontual de índice ou filtro apontada pela verificação, sem cache.
 
 ### Excluded
-- Busca full-text ou por conteúdo de evidência/foto — fora do escopo do PRD.
+- Busca full-text ou por conteúdo de evidência/foto — fora do PRD.
 - Salvar buscas, favoritos ou alertas de busca — nenhuma exigência registrada.
 - Autocomplete com sugestões — nenhuma exigência registrada.
-- Exportação do resultado de busca — relatório é domínio de E008.
-- Nova camada de cache — proibida pela restrição de leitura única por requisição.
+- Exportação do resultado — relatório é domínio de E008.
+- Nova camada de cache — proibida pela leitura única por requisição.
 
 ### Edge Cases & Boundaries
 - Combinação de filtros sem resultado: resposta vazia, sem erro, paginação consistente.
 - Filtro por prestador sem tarefas/contratos: lista vazia legível.
 - Página além do total: resposta vazia, sem erro.
-- Parâmetro de domínio divergente do token: não aceito — a rota não recebe `domainId` e usa o domínio do token (mesma construção do painel, AD-003).
+- Parâmetro de domínio divergente do token: não aceito — a rota não recebe `domainId` e usa o do token (mesma construção do painel, AD-003).
 - P95 acima de 2 s: regressão, atacada por índice e nunca por cache.
 
 ## User Scenarios & Testing
 
 ### User Story 1 - Achar em segundos (Priority: P1)
 
-Como gestor, busco por contrato, fornecedor ou conteúdo e combino filtros de status, prioridade, prestador, finalidade e prazo até o resultado certo aparecer, sem abrir outra ferramenta.
+Como gestor, busco por contrato, fornecedor ou conteúdo e combino filtros de status, prioridade, prestador, finalidade e prazo até o resultado certo, sem abrir outra ferramenta.
 
-**Why this priority**: "ache rápido sem abrir planilha" é um dos seis trabalhos do usuário no PRD; sem ele o produto perde para a busca do Excel e a CAP-006 fica sem entrega.
+**Why this priority**: "ache rápido sem abrir planilha" é um dos seis trabalhos do PRD; sem ele o produto perde para a busca do Excel e a CAP-006 fica sem entrega.
 
-**Independent Test**: combinando três filtros sobre uma base com contratos de finalidades e statuses distintos e conferindo o conjunto exato retornado pela API.
+**Independent Test**: três filtros combinados sobre uma base com finalidades e statuses distintos, conferindo o conjunto exato da API.
 
 **Acceptance Scenarios**:
 
-1. **Given** contratos com statuses e finalidades distintos no mesmo domínio, **When** o gestor combina filtro de status com finalidade, **Then** só os contratos que satisfazem ambos aparecem, e cada um dos seis filtros isolados devolve o subconjunto esperado.
-2. **Given** busca cuja combinação de filtros não corresponde a nenhum registro, **When** a requisição chega, **Then** a lista vazia é retornada sem erro e a paginação permanece consistente.
-3. **Given** uma consulta paginada com total conhecido, **When** o cliente pede uma página além do total, **Then** a resposta vem vazia, sem erro e com o total correto.
+1. **Given** statuses e finalidades distintos no mesmo domínio, **When** o gestor combina filtro de status com finalidade, **Then** só os contratos que satisfazem ambos aparecem; cada um dos seis filtros isolados devolve o subconjunto esperado.
+2. **Given** combinação de filtros sem correspondência, **When** a requisição chega, **Then** lista vazia sem erro e paginação consistente.
+3. **Given** consulta paginada com total conhecido, **When** o cliente pede página além do total, **Then** resposta vazia, sem erro, com o total correto.
 
 ### User Story 2 - Busca respeita o escopo do papel (Priority: P1)
 
-Como prestador, busco nas minhas tarefas e não enxergo contrato ou tarefa de outro domínio ou de outro prestador; o gestor e o admin do domínio enxergam o domínio inteiro.
+Como prestador, busco nas minhas tarefas e não enxergo contrato ou tarefa de outro domínio ou prestador; gestor e admin veem o domínio inteiro.
 
-**Why this priority**: isolamento por domínio é inegociável e vale para leitura tanto quanto para escrita — a mesma restrição que protege a escrita protege a busca.
+**Why this priority**: isolamento por domínio é inegociável e vale para leitura como para escrita — a mesma restrição que protege a escrita protege a busca.
 
-**Independent Test**: mesma busca executada por papéis e domínios diferentes, comparando os conjuntos retornados e confirmando que a regressão das listagens de contrato e tarefa permanece verde.
+**Independent Test**: mesma busca por papéis e domínios diferentes, comparando os conjuntos e mantendo verde a regressão das listagens de contrato e tarefa.
 
 **Acceptance Scenarios**:
 
-1. **Given** prestador autenticado no domínio A com tarefas atribuídas, **When** ele busca tarefas, **Then** vê apenas as próprias do domínio A, nunca as de outro prestador nem de outro domínio.
-2. **Given** requisição autenticada no domínio A, **When** o cliente tenta passar um domínio divergente por parâmetro, **Then** a rota ignora o parâmetro e responde só com o domínio do token — nenhum dado de outro domínio aparece.
-3. **Given** qualquer mudança de índice ou filtro feita nesta épica, **When** a suíte de regressão roda, **Then** as listagens de contrato e tarefa de E002/E003 continuam verdes, sem efeito colateral.
+1. **Given** prestador autenticado no domínio A com tarefas atribuídas, **When** ele busca tarefas, **Then** vê apenas as próprias do domínio A, nunca de outro prestador nem domínio.
+2. **Given** requisição autenticada no domínio A, **When** tenta passar domínio divergente por parâmetro, **Then** a rota ignora o parâmetro e responde só com o do token — nenhum dado de outro domínio aparece.
+3. **Given** mudança de índice ou filtro nesta épica, **When** a suíte de regressão roda, **Then** as listagens de contrato e tarefa de E002/E003 seguem verdes, sem efeito colateral.
 
 ## Requirements
 
@@ -81,9 +81,9 @@ Como prestador, busco nas minhas tarefas e não enxergo contrato ou tarefa de ou
 
 ### Assumptions
 - Os seis filtros do PRD correspondem aos parâmetros já implementados em `/api/search` (`q`, `status`, `priority`, `prestador_id`, `finalidade_id`, `due_after`/`due_before`, `contract_id`).
-- O volume de teste local (milhares de contratos) é representativo para a medição de p95.
+- O volume de teste local (milhares de contratos) é representativo para o p95.
 - A superfície `backend/src/config/database.js` não muda salvo correção de índice apontada pela medição.
-- A rota de busca não recebe parâmetro `domainId` — o domínio vem sempre do token, como já construído no painel (AD-003).
+- A rota de busca não recebe `domainId` — o domínio vem do token, como no painel (AD-003).
 
 ### Risks
 - **Regressão por índice** *(likelihood: low, impact: medium)*: índice novo altera o plano de consulta das listagens de E002/E003. Mitigação: regressão de listagem junto com a medição.
@@ -91,7 +91,7 @@ Como prestador, busco nas minhas tarefas e não enxergo contrato ou tarefa de ou
 
 ## Implementation Signals
 
-- `MIGRATION` (condicional): índice aditivo preguiçoso em `ensureIndexes()` apenas se a medição de p95 apontar lacuna — `CREATE INDEX IF NOT EXISTS` é idempotente e não exige `migrateSchema()`.
+- `MIGRATION` (condicional): índice aditivo preguiçoso em `ensureIndexes()` só se a medição de p95 apontar lacuna — `CREATE INDEX IF NOT EXISTS` é idempotente e não exige `migrateSchema()`.
 - Nenhum sinal novo de API, entidade ou UI — busca, rota e filtros já entregues sob FR-016.
 
 ## Success Criteria
@@ -111,9 +111,9 @@ SC-005 [US2]: A bateria completa (unit 107+, smoke 118+, flutter 16+) permanece 
 
 ## Clarifications
 
-- **Q1 — Filtro de prazo: `due_after`, `due_before` ou ambos?** Ambos opcionais e combináveis: `due_after` filtra `due_date >= valor`, `due_before` filtra `due_date <= valor`; janela aberta com só um, fechada com os dois. (Recomendado; código existente em `search.js`.)
-- **Q2 — Medição de p95: como medir em ambiente local?** Semeia volume representativo (milhares de contratos/tarefas via fixtures), executa N requisições sequenciais cronometradas em `/api/search/tasks` com filtros combinados, calcula p95. Cache proibido; medição no servidor local. (Recomendado.)
-- **Q3 — Filtro "contrato" do PRD: o que cobre?** `contract_id` em `/api/search/tasks`. Descoberta de contrato por nome/objeto é o texto livre `q` em `/api/search/contracts`. (Recomendado; mapeia os seis filtros do PRD aos parâmetros implementados.)
+- **Q1 — Filtro de prazo: `due_after`, `due_before` ou ambos?** Ambos opcionais e combináveis: `due_after` filtra `due_date >= valor`, `due_before` `<= valor`; janela aberta com um só, fechada com os dois. (Recomendado; código em `search.js`.)
+- **Q2 — Medição de p95: como medir em ambiente local?** Semeia volume representativo (milhares de contratos/tarefas via fixtures), cronometra N requisições sequenciais em `/api/search/tasks` com filtros combinados e calcula p95. Cache proibido; medição no servidor local. (Recomendado.)
+- **Q3 — Filtro "contrato" do PRD: o que cobre?** `contract_id` em `/api/search/tasks`. Descoberta de contrato por nome/objeto é o texto livre `q` em `/api/search/contracts`. (Recomendado; mapeia os seis filtros do PRD aos parâmetros.)
 
 ## Stress-Test Findings
 
