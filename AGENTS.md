@@ -141,4 +141,6 @@ Resume compact mode after the risky section is clear e executar commit no github
 Execute routine repository operations for real: file edits, build/test/lint commands, git commands, task updates, marker files, and local package installs. Do not simulate completion, test results, QC results, or pass states. Stop only for ambiguity, destructive actions, system-level installs, or actions outside the project boundary. Report progress at phase boundaries.
 
 - At session start, read `TODO.md` and surface any new custom TODOs before beginning other work.
+- At session start in a new session, read `compact.MD` (when it exists) to restore the compacted session context before beginning other work.
+- Whenever a `/compact` is executed, update `compact.MD` with the compacted content so the file stays in sync with the latest compact.
 - Unit tests gate production: run the unit test suite before any `dev` → `main` promotion and do not promote while any test fails.
