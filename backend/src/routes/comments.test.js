@@ -7,12 +7,15 @@ process.env.UPLOAD_DIR = require('path').join(
 
 const test = require('node:test');
 const assert = require('node:assert');
+const fs = require('fs');
+const path = require('path');
 const request = require('supertest');
 const { setupDataDir, initTestDb } = require('../support/testenv');
 
 setupDataDir();
 const { app } = require('../server');
 const { getDomainDb } = require('../config/database');
+const { UPLOAD_DIR } = require('../middleware/upload');
 
 const SYS_EMAIL = process.env.PLATFORM_ADMIN_EMAIL || 'admin@platform.local';
 const SYS_PASSWORD = process.env.PLATFORM_ADMIN_PASSWORD || 'Admin@123';
@@ -221,4 +224,113 @@ test('FR-004 comentário e anexo com autor e data', async () => {
   );
   assert.strictEqual(storedAtt.uploaded_by, movId, 'autor do anexo persistido');
   assert.ok(storedAtt.created_at, 'data do anexo persistida');
+});
+
+// ---- 00014 (FR-036/FR-037): categoria do anexo + gate do prestador ---------
+// Upload aceita evidence (default, 00005 intocado) e documentation; prestador
+// é bloqueado em Concluída com 403 antes de gravar; gestor/admin anexam em
+// qualquer estado; o detalhe segue expondo autor e data.
+test('FR-036 anexo com category e gate do prestador em Concluída', async () => {
+  const db = getDomainDb(domainId);
+
+  const created = await request(app)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
+    .set(as(gestorToken))
+    .send({ title: 'FR-036 documentação', assignee_id: movId });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.body));
+  const taskId = created.body.task.id;
+
+  // prestador anexa documentação em execução → 201 com a categoria
+  const doc = await request(app)
+    .post(`/api/v2/tasks/${taskId}/attachments`)
+    .set(as(movToken))
+    .send({ filename: 'como-fazer.pdf', dataBase64: TINY_PNG, kind: 'file', category: 'documentation' });
+  assert.strictEqual(doc.status, 201, JSON.stringify(doc.body));
+  assert.strictEqual(doc.body.attachment.category, 'documentation', 'categoria gravada');
+  assert.match(doc.body.attachment.path, /^uploads\//, 'arquivo antes da referência');
+  assert.ok(fs.existsSync(path.join(UPLOAD_DIR, path.basename(doc.body.attachment.path))), 'no disco');
+
+  // sem categoria → default evidence (evidência de 00005 inalterada)
+  const evidence = await request(app)
+    .post(`/api/v2/tasks/${taskId}/attachments`)
+    .set(as(movToken))
+    .send({ filename: 'foto-execucao.png', dataBase64: TINY_PNG, kind: 'photo' });
+  assert.strictEqual(evidence.status, 201, JSON.stringify(evidence.body));
+  assert.strictEqual(evidence.body.attachment.category, 'evidence', 'default evidence');
+
+  // categoria desconhecida → 400 sem gravação (disco e banco intactos)
+  const rowsBefore = db.get('SELECT COUNT(*) AS n FROM attachments WHERE task_id = ?', [taskId]).n;
+  const filesBefore = fs.readdirSync(UPLOAD_DIR).length;
+  const badCategory = await request(app)
+    .post(`/api/v2/tasks/${taskId}/attachments`)
+    .set(as(movToken))
+    .send({ filename: 'x.png', dataBase64: TINY_PNG, category: 'folha-de-obra' });
+  assert.strictEqual(badCategory.status, 400, JSON.stringify(badCategory.body));
+  assert.strictEqual(badCategory.body.code, 'TASK_ATTACHMENT_CATEGORY_INVALID');
+  assert.strictEqual(
+    db.get('SELECT COUNT(*) AS n FROM attachments WHERE task_id = ?', [taskId]).n,
+    rowsBefore,
+    'recusa sem registro'
+  );
+  assert.strictEqual(fs.readdirSync(UPLOAD_DIR).length, filesBefore, 'recusa sem arquivo');
+
+  // leva a tarefa até Concluída pelo fluxo do prestador (00005)
+  for (const status of ['Em Progresso', 'Revisão']) {
+    const move = await request(app)
+      .patch(`/api/v2/tasks/${taskId}/status`)
+      .set(as(movToken))
+      .send({ status });
+    assert.strictEqual(move.status, 200, JSON.stringify(move.body));
+  }
+  const done = await request(app)
+    .post(`/api/v2/tasks/${taskId}/complete`)
+    .set(as(movToken))
+    .send({ text: 'FR-036 concluída' });
+  assert.strictEqual(done.status, 200, JSON.stringify(done.body));
+  assert.strictEqual(done.body.task.status, 'Concluída');
+
+  // prestador em Concluída → 403 com code estável, antes de gravar
+  const gateRows = db.get('SELECT COUNT(*) AS n FROM attachments WHERE task_id = ?', [taskId]).n;
+  const gateFiles = fs.readdirSync(UPLOAD_DIR).length;
+  const blocked = await request(app)
+    .post(`/api/v2/tasks/${taskId}/attachments`)
+    .set(as(movToken))
+    .send({ filename: 'tarja.png', dataBase64: TINY_PNG, category: 'documentation' });
+  assert.strictEqual(blocked.status, 403, JSON.stringify(blocked.body));
+  assert.strictEqual(blocked.body.code, 'TASK_ATTACHMENT_STATUS_FORBIDDEN');
+  assert.strictEqual(
+    db.get('SELECT COUNT(*) AS n FROM attachments WHERE task_id = ?', [taskId]).n,
+    gateRows,
+    '403 sem registro'
+  );
+  assert.strictEqual(fs.readdirSync(UPLOAD_DIR).length, gateFiles, '403 sem arquivo');
+
+  // gestor e admin anexam em qualquer estado (Concluída inclusive)
+  const byGestor = await request(app)
+    .post(`/api/v2/tasks/${taskId}/attachments`)
+    .set(as(gestorToken))
+    .send({ filename: 'manual-gestor.pdf', dataBase64: TINY_PNG, kind: 'file', category: 'documentation' });
+  assert.strictEqual(byGestor.status, 201, JSON.stringify(byGestor.body));
+  assert.strictEqual(byGestor.body.attachment.category, 'documentation');
+  const byAdmin = await request(app)
+    .post(`/api/v2/tasks/${taskId}/attachments`)
+    .set(as(adminToken))
+    .send({ filename: 'laudo-admin.pdf', dataBase64: TINY_PNG, kind: 'file' });
+  assert.strictEqual(byAdmin.status, 201, JSON.stringify(byAdmin.body));
+  assert.strictEqual(byAdmin.body.attachment.category, 'evidence');
+
+  // FR-037: o detalhe expõe os anexos com autor, data e categoria
+  const list = await request(app)
+    .get(`/api/v2/tasks/${taskId}/attachments`)
+    .set(as(gestorToken));
+  assert.strictEqual(list.status, 200, JSON.stringify(list.body));
+  assert.strictEqual(list.body.attachments.length, 4, 'todos os anexos no detalhe');
+  assert.ok(
+    list.body.attachments.every((a) => a.uploaded_by_name && a.created_at),
+    'autor e data em cada anexo'
+  );
+  assert.ok(
+    list.body.attachments.some((a) => a.category === 'documentation'),
+    'categoria exposta no detalhe'
+  );
 });

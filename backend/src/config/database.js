@@ -269,6 +269,7 @@ const DOMAIN_SCHEMA = [
     path TEXT NOT NULL,
     original_name TEXT,
     uploaded_by INTEGER,
+    category TEXT NOT NULL DEFAULT 'evidence' CHECK (category IN ('evidence','documentation')),
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
   // --- 00003: Workflow Assistido OpenCode (7 tabelas novas) ---
@@ -520,6 +521,20 @@ function migrateSchema(wrapper) {
       if (!taskColumns.includes(name)) {
         wrapper.run(`ALTER TABLE tasks ADD COLUMN ${name} ${type}`);
       }
+    }
+  }
+
+  // 00014 (FR-036, AD-004): attachments.category arrives as a lazy additive
+  // column — same PRAGMA guard as `username`/workflow columns, one ALTER per
+  // file, second open a no-op. Legacy rows land on the 'evidence' default
+  // (conclusion photo, 00005); 'documentation' is opt-in through the route
+  // (HINT-004: route validation alongside the constraint below).
+  if (tableExists(wrapper, 'attachments')) {
+    const attachmentColumns = wrapper.all('PRAGMA table_info(attachments)').map((column) => column.name);
+    if (!attachmentColumns.includes('category')) {
+      wrapper.run(
+        `ALTER TABLE attachments ADD COLUMN category TEXT NOT NULL DEFAULT 'evidence' CHECK (category IN ('evidence','documentation'))`
+      );
     }
   }
 

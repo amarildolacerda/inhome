@@ -796,3 +796,105 @@ test('fase 3: enums de dado TEXT → INTEGER (rebuild preguiçoso)', async () =>
     .reduce((acc, row) => Object.assign(acc, { [row.name]: row.sql }), {});
   assert.match(againIndexes.uq_task_suggestions_analisando, /WHERE status = 2$/);
 });
+
+// 00014 (FR-036, AD-004, T011/T012): attachments.category arrives as a lazy
+// additive column — legacy rows keep the 'evidence' default, counts survive,
+// a reopen does not duplicate the column, and fresh DDL carries the CHECK.
+test('00014 category migration: additive column, counts preserved, idempotent', async () => {
+  const SQL = await database.initSqlDriver();
+  const platform = database.getPlatformDb();
+
+  // legacy domain file: attachments table frozen before the category column
+  platform.run('INSERT INTO domains(name, slug) VALUES (?, ?)', ['LegacyAttach', 'legacy-attach']);
+  const legacy = platform.get('SELECT id FROM domains WHERE slug = ?', ['legacy-attach']);
+  const file = path.join(dataDir, 'domains', `${legacy.id}.db`);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const raw = new SQL.Database();
+  raw.run(`CREATE TABLE attachments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER NOT NULL,
+    comment_id INTEGER,
+    kind TEXT NOT NULL DEFAULT 'file' CHECK (kind IN ('photo','file')),
+    path TEXT NOT NULL,
+    original_name TEXT,
+    uploaded_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  raw.run(
+    `INSERT INTO attachments(task_id, kind, path, original_name) VALUES
+      (1, 'file', 'uploads/a.pdf', 'a.pdf'),
+      (2, 'photo', 'uploads/b.png', 'b.png')`
+  );
+  fs.writeFileSync(file, Buffer.from(raw.export()));
+  raw.close();
+
+  // opening through the app path migrates the column in, once
+  const db = database.getDomainDb(legacy.id);
+  const columns = db.all('PRAGMA table_info(attachments)').map((column) => column.name);
+  assert.strictEqual(
+    columns.filter((name) => name === 'category').length,
+    1,
+    'category migrated exactly once'
+  );
+  assert.strictEqual(db.get('SELECT COUNT(*) AS c FROM attachments').c, 2, 'contagens preservadas');
+  const migrated = db.all('SELECT category FROM attachments ORDER BY id');
+  assert.deepStrictEqual(
+    migrated.map((row) => row.category),
+    ['evidence', 'evidence'],
+    'legacy rows default to evidence'
+  );
+  const ddl = db.get(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'attachments'"
+  ).sql;
+  assert.ok(
+    ddl.includes("CHECK (category IN ('evidence','documentation'))"),
+    `CHECK lands on the migrated column: ${ddl}`
+  );
+
+  // reopen: no duplicate column, no data change
+  database.resetDatabaseCache();
+  await database.initSqlDriver();
+  const again = database.getDomainDb(legacy.id);
+  const againColumns = again.all('PRAGMA table_info(attachments)').map((column) => column.name);
+  assert.strictEqual(
+    againColumns.filter((name) => name === 'category').length,
+    1,
+    'reabertura não duplica a coluna'
+  );
+  assert.strictEqual(again.get('SELECT COUNT(*) AS c FROM attachments').c, 2, 'contagens na reabertura');
+  assert.strictEqual(
+    again.get('SELECT category FROM attachments WHERE id = 1').category,
+    'evidence',
+    'valor legado estável'
+  );
+
+  // the constraint holds on migrated files
+  assert.throws(
+    () =>
+      again.run(
+        `INSERT INTO attachments(task_id, path, category) VALUES (3, 'uploads/c.png', 'other')`
+      ),
+    /CHECK/i,
+    'categoria fora da lista recusada'
+  );
+
+  // fresh domain: born with the column and the constraint
+  platform.run('INSERT INTO domains(name, slug) VALUES (?, ?)', ['FreshAttach', 'fresh-attach']);
+  const fresh = platform.get('SELECT id FROM domains WHERE slug = ?', ['fresh-attach']);
+  const freshDb = database.createDomainDb(fresh.id);
+  const freshColumns = freshDb.all('PRAGMA table_info(attachments)').map((column) => column.name);
+  assert.ok(freshColumns.includes('category'), 'fresh DDL carrega category');
+  freshDb.run(
+    `INSERT INTO attachments(task_id, path, category) VALUES (1, 'uploads/d.pdf', 'documentation')`
+  );
+  assert.strictEqual(
+    freshDb.get('SELECT category FROM attachments').category,
+    'documentation',
+    'documentação gravável no banco novo'
+  );
+  assert.throws(
+    () => freshDb.run(`INSERT INTO attachments(task_id, path, category) VALUES (2, 'uploads/e.png', 'x')`),
+    /CHECK/i,
+    'fresh DDL também valida'
+  );
+});

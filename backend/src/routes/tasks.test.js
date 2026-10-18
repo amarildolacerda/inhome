@@ -942,3 +942,341 @@ test('E010 FR-004: rotas de tarefa respondem 200/201 sem SMTP_* (zero conexões)
     smtp.server.close();
   }
 });
+
+// ---- 00014: manutenção de tarefas e aprovação do gestor ---------------------
+// Acceptance tests — plan.md §Acceptance Test Stubs (T005/T006/T008/T009).
+test('FR-030 aprovação do gestor fecha Revisão', async () => {
+  // aprovação: Revisão → Concluída
+  const taskId = await createTaskToRevisao('FR-030 aprovação');
+  const approved = await request(app)
+    .post(`/api/v2/tasks/${taskId}/approve`)
+    .set(as(gestorToken));
+  assert.strictEqual(approved.status, 200, JSON.stringify(approved.body));
+  assert.strictEqual(approved.body.task.status, 'Concluída');
+
+  // decisão fora de Revisão → 400 sem escrita
+  const again = await request(app)
+    .post(`/api/v2/tasks/${taskId}/approve`)
+    .set(as(gestorToken));
+  assert.strictEqual(again.status, 400, JSON.stringify(again.body));
+  assert.strictEqual(again.body.code, 'TASK_DECISION_STATUS_REQUIRED');
+  const db = getDomainDb(domainId);
+  assert.strictEqual(
+    db.get('SELECT status FROM tasks WHERE id = ?', [taskId]).status,
+    code('tasks.status', 'Concluída'),
+    'status intacto no 400'
+  );
+
+  // auto-conclusão do prestador (00005 FR-001) permanece inalterada
+  const own = await createTaskToRevisao('FR-030 auto-conclusão');
+  const done = await request(app)
+    .post(`/api/v2/tasks/${own}/complete`)
+    .set(as(movToken))
+    .send({ text: 'concluída pelo prestador' });
+  assert.strictEqual(done.status, 200, JSON.stringify(done.body));
+  assert.strictEqual(done.body.task.status, 'Concluída');
+});
+
+test('FR-031 decisão registra autor/tipo/motivo/data', async () => {
+  const db = getDomainDb(domainId);
+  const gestorId = db.get("SELECT id FROM users WHERE email = 'guto@zeta.test'").id;
+
+  // aprovação: autor, data e tipo no histórico (exposto por GET /tasks/:id)
+  const t1 = await createTaskToRevisao('FR-031 aprovação');
+  const approved = await request(app)
+    .post(`/api/v2/tasks/${t1}/approve`)
+    .set(as(gestorToken));
+  assert.strictEqual(approved.status, 200, JSON.stringify(approved.body));
+  const view1 = await request(app).get(`/api/v2/tasks/${t1}`).set(as(gestorToken));
+  assert.strictEqual(view1.status, 200);
+  const approveEntry = view1.body.history.find((h) => h.action === 'approve');
+  assert.ok(approveEntry, 'aprovação no histórico');
+  assert.strictEqual(approveEntry.user_id, gestorId, 'autor da aprovação');
+  assert.match(approveEntry.user_name, /Guto/, 'nome do autor exposto');
+  assert.ok(approveEntry.created_at, 'data da aprovação');
+
+  // rejeição: volta a Em Progresso e o prestador lê motivo + autor no detalhe
+  const t2 = await createTaskToRevisao('FR-031 rejeição');
+  const rejected = await request(app)
+    .post(`/api/v2/tasks/${t2}/reject`)
+    .set(as(gestorToken))
+    .send({ motivo: 'acabamento abaixo do padrão' });
+  assert.strictEqual(rejected.status, 200, JSON.stringify(rejected.body));
+  assert.strictEqual(rejected.body.task.status, 'Em Progresso');
+
+  const view2 = await request(app).get(`/api/v2/tasks/${t2}`).set(as(movToken));
+  assert.strictEqual(view2.status, 200, 'prestador vê o detalhe da própria tarefa');
+  const rejectEntry = view2.body.history.find((h) => h.action === 'reject');
+  assert.ok(rejectEntry, 'rejeição no histórico');
+  assert.strictEqual(rejectEntry.user_id, gestorId, 'autor da rejeição');
+  assert.match(rejectEntry.user_name, /Guto/, 'nome do autor exposto');
+  assert.strictEqual(rejectEntry.note, 'acabamento abaixo do padrão', 'motivo registrado');
+  assert.ok(rejectEntry.created_at, 'data da rejeição');
+});
+
+test('FR-032 rejeição sem motivo 400; papel 403', async () => {
+  const db = getDomainDb(domainId);
+
+  // rejeição sem motivo → 400 e nada muda (status e histórico intactos)
+  const taskId = await createTaskToRevisao('FR-032 sem motivo');
+  const before = db.get('SELECT COUNT(*) AS n FROM task_history WHERE task_id = ?', [taskId]).n;
+  for (const body of [{ motivo: '' }, { motivo: '   ' }, {}]) {
+    const res = await request(app)
+      .post(`/api/v2/tasks/${taskId}/reject`)
+      .set(as(gestorToken))
+      .send(body);
+    assert.strictEqual(res.status, 400, JSON.stringify(body));
+    assert.strictEqual(res.body.code, 'TASK_REJECT_REASON_REQUIRED');
+  }
+  assert.strictEqual(
+    db.get('SELECT status FROM tasks WHERE id = ?', [taskId]).status,
+    code('tasks.status', 'Revisão'),
+    'status preservado'
+  );
+  const after = db.get('SELECT COUNT(*) AS n FROM task_history WHERE task_id = ?', [taskId]).n;
+  assert.strictEqual(after, before, 'sem linha nova no histórico');
+
+  // papel diverso do gestor → 403 (admin também não decide)
+  const sys = await request(app)
+    .post('/api/v2/auth/login')
+    .send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  assert.strictEqual(sys.status, 200, JSON.stringify(sys.body));
+  for (const [token, who] of [
+    [movToken, 'prestador'],
+    [adminToken, 'admin'],
+    [sys.body.token, 'system_admin'],
+  ]) {
+    const approve = await request(app)
+      .post(`/api/v2/tasks/${taskId}/approve`)
+      .set(as(token));
+    assert.strictEqual(approve.status, 403, `approve/${who}`);
+    const reject = await request(app)
+      .post(`/api/v2/tasks/${taskId}/reject`)
+      .set(as(token))
+      .send({ motivo: 'não decidido' });
+    assert.strictEqual(reject.status, 403, `reject/${who}`);
+  }
+
+  // decisão fora de Revisão → 400 sem escrita, nos dois endpoints
+  const outside = await createTaskToRevisao('FR-032 fora de revisão');
+  db.run('UPDATE tasks SET status = ? WHERE id = ?', [code('tasks.status', 'Em Progresso'), outside]);
+  const approveOut = await request(app)
+    .post(`/api/v2/tasks/${outside}/approve`)
+    .set(as(gestorToken));
+  assert.strictEqual(approveOut.status, 400, JSON.stringify(approveOut.body));
+  assert.strictEqual(approveOut.body.code, 'TASK_DECISION_STATUS_REQUIRED');
+  const rejectOut = await request(app)
+    .post(`/api/v2/tasks/${outside}/reject`)
+    .set(as(gestorToken))
+    .send({ motivo: 'fora de revisão' });
+  assert.strictEqual(rejectOut.status, 400, JSON.stringify(rejectOut.body));
+  assert.strictEqual(rejectOut.body.code, 'TASK_DECISION_STATUS_REQUIRED');
+  assert.strictEqual(
+    db.get('SELECT status FROM tasks WHERE id = ?', [outside]).status,
+    code('tasks.status', 'Em Progresso'),
+    'decisão recusada não escreve'
+  );
+});
+
+test('FR-033 manutenção admin/gestor; prestador 403', async () => {
+  const taskId = await createTaskToRevisao('FR-033 manutenção');
+  const db = getDomainDb(domainId);
+
+  // prestador e system_admin não têm manutenção → 403 sem alteração
+  const sys = await request(app)
+    .post('/api/v2/auth/login')
+    .send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  assert.strictEqual(sys.status, 200);
+  for (const [token, who] of [
+    [movToken, 'prestador'],
+    [sys.body.token, 'system_admin'],
+  ]) {
+    const res = await request(app)
+      .post(`/api/v2/tasks/${taskId}/maintenance`)
+      .set(as(token))
+      .send({ status: 'A Fazer', motivo: 'sem permissão' });
+    assert.strictEqual(res.status, 403, who);
+  }
+  assert.strictEqual(
+    db.get('SELECT status FROM tasks WHERE id = ?', [taskId]).status,
+    code('tasks.status', 'Revisão'),
+    '403 sem alteração'
+  );
+
+  // status fora dos quatro → 400
+  const badStatus = await request(app)
+    .post(`/api/v2/tasks/${taskId}/maintenance`)
+    .set(as(gestorToken))
+    .send({ status: 'Bloqueada', motivo: 'x' });
+  assert.strictEqual(badStatus.status, 400, JSON.stringify(badStatus.body));
+  assert.strictEqual(badStatus.body.code, 'TASK_MAINTENANCE_STATUS_REQUIRED');
+
+  // sem motivo → 400 antes de qualquer escrita
+  const noMotivo = await request(app)
+    .post(`/api/v2/tasks/${taskId}/maintenance`)
+    .set(as(adminToken))
+    .send({ status: 'A Fazer' });
+  assert.strictEqual(noMotivo.status, 400, JSON.stringify(noMotivo.body));
+  assert.strictEqual(noMotivo.body.code, 'TASK_MAINTENANCE_REASON_REQUIRED');
+
+  // repetido (igual ao estado atual) → 400
+  const noop = await request(app)
+    .post(`/api/v2/tasks/${taskId}/maintenance`)
+    .set(as(adminToken))
+    .send({ status: 'Revisão', motivo: 'mesmo estado' });
+  assert.strictEqual(noop.status, 400, JSON.stringify(noop.body));
+  assert.strictEqual(noop.body.code, 'TASK_MAINTENANCE_NOOP');
+  assert.strictEqual(
+    db.get('SELECT status FROM tasks WHERE id = ?', [taskId]).status,
+    code('tasks.status', 'Revisão'),
+    '400 sem alteração'
+  );
+
+  // admin muda fora da sequência nominal: Revisão → A Fazer
+  const byAdmin = await request(app)
+    .post(`/api/v2/tasks/${taskId}/maintenance`)
+    .set(as(adminToken))
+    .send({ status: 'A Fazer', motivo: 'reabrir escopo' });
+  assert.strictEqual(byAdmin.status, 200, JSON.stringify(byAdmin.body));
+  assert.strictEqual(byAdmin.body.task.status, 'A Fazer');
+
+  // gestor salta direto: A Fazer → Concluída
+  const byGestor = await request(app)
+    .post(`/api/v2/tasks/${taskId}/maintenance`)
+    .set(as(gestorToken))
+    .send({ status: 'Concluída', motivo: 'correção de estado' });
+  assert.strictEqual(byGestor.status, 200, JSON.stringify(byGestor.body));
+  assert.strictEqual(byGestor.body.task.status, 'Concluída');
+});
+
+test('FR-034 manutenção registra autor/estados/motivo', async () => {
+  const db = getDomainDb(domainId);
+  const gestorId = db.get("SELECT id FROM users WHERE email = 'guto@zeta.test'").id;
+  const taskId = await createTaskToRevisao('FR-034 histórico');
+
+  const res = await request(app)
+    .post(`/api/v2/tasks/${taskId}/maintenance`)
+    .set(as(gestorToken))
+    .send({ status: 'Em Progresso', motivo: 'estado errado após a visita' });
+  assert.strictEqual(res.status, 200, JSON.stringify(res.body));
+  assert.strictEqual(res.body.task.status, 'Em Progresso');
+
+  const entry = db.get(
+    `SELECT action, user_id, note, created_at FROM task_history
+     WHERE task_id = ? AND action = 'maintain'`,
+    [taskId]
+  );
+  assert.ok(entry, 'manutenção no histórico');
+  assert.strictEqual(entry.user_id, gestorId, 'autor da manutenção');
+  assert.strictEqual(
+    entry.note,
+    'Revisão → Em Progresso: estado errado após a visita',
+    'estado anterior, novo estado e motivo'
+  );
+  assert.ok(entry.created_at, 'data da manutenção');
+
+  // saída de Concluída espelha reopenTask e limpa completed_* (HINT-003)
+  const doneTask = await createTaskToRevisao('FR-034 saindo de Concluída');
+  const done = await request(app)
+    .post(`/api/v2/tasks/${doneTask}/complete`)
+    .set(as(movToken))
+    .send({ text: 'concluída para corrigir' });
+  assert.strictEqual(done.status, 200, JSON.stringify(done.body));
+  const back = await request(app)
+    .post(`/api/v2/tasks/${doneTask}/maintenance`)
+    .set(as(adminToken))
+    .send({ status: 'Em Progresso', motivo: 'classificação indevida' });
+  assert.strictEqual(back.status, 200, JSON.stringify(back.body));
+  const row = db.get(
+    'SELECT status, completed_text, completed_at, completed_by FROM tasks WHERE id = ?',
+    [doneTask]
+  );
+  assert.strictEqual(row.status, code('tasks.status', 'Em Progresso'));
+  assert.strictEqual(row.completed_text, null, 'completed_text limpo na saída');
+  assert.strictEqual(row.completed_at, null, 'completed_at limpo na saída');
+  assert.strictEqual(row.completed_by, null, 'completed_by limpo na saída');
+});
+
+test('FR-035 domínio estrangeiro/suspenso 403', async () => {
+  const db = getDomainDb(domainId);
+  const taskId = await createTaskToRevisao('FR-035 guards');
+  const foreign = domainId + 1000;
+
+  // domainId estrangeiro → 403 do scopeDomain antes de qualquer consulta
+  for (const [route, body] of [
+    ['approve', {}],
+    ['reject', { motivo: 'não deve gravar' }],
+    ['maintenance', { status: 'A Fazer', motivo: 'não deve gravar' }],
+  ]) {
+    const res = await request(app)
+      .post(`/api/v2/tasks/${taskId}/${route}?domainId=${foreign}`)
+      .set(as(gestorToken))
+      .send(body);
+    assert.strictEqual(res.status, 403, `${route}: ${JSON.stringify(res.body)}`);
+    assert.match(res.body.error, /forbidden/i);
+  }
+  assert.strictEqual(
+    db.get('SELECT status FROM tasks WHERE id = ?', [taskId]).status,
+    code('tasks.status', 'Revisão'),
+    '403 estrangeiro sem escrita'
+  );
+  const decided = db.get(
+    `SELECT COUNT(*) AS n FROM task_history
+     WHERE task_id = ? AND action IN ('approve','reject','maintain')`,
+    [taskId]
+  ).n;
+  assert.strictEqual(decided, 0, 'nenhuma decisão gravada');
+
+  // domínio suspenso → 403 na autenticação, antes do handler
+  const sys = await request(app)
+    .post('/api/v2/auth/login')
+    .send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  assert.strictEqual(sys.status, 200);
+  const enabled = await request(app)
+    .post('/api/v2/domains/enable')
+    .set(as(sys.body.token))
+    .send({
+      name: 'Zeta Suspenso',
+      adminName: 'Zuleica',
+      adminEmail: 'zuleica@suspenso.test',
+      adminPassword: 'Secret1!',
+    });
+  assert.strictEqual(enabled.status, 201, JSON.stringify(enabled.body));
+  const suspId = enabled.body.domain.id;
+  const suspAdmin = await login('zuleica@suspenso.test', 'Secret1!', suspId);
+
+  const suspDb = getDomainDb(suspId);
+  suspDb.run(
+    "INSERT INTO contracts(name, start_date, forecast_date) VALUES ('C suspenso', '2026-01-01', '2026-12-31')"
+  );
+  suspDb.run("INSERT INTO tasks(contract_id, title) VALUES (1, 'Tarefa suspensa')");
+  const suspTask = suspDb.get('SELECT id, status FROM tasks WHERE title = ?', ['Tarefa suspensa']);
+
+  const suspended = await request(app)
+    .post(`/api/v2/domains/${suspId}/suspend`)
+    .set(as(sys.body.token));
+  assert.strictEqual(suspended.status, 200, JSON.stringify(suspended.body));
+
+  for (const [route, body] of [
+    ['approve', {}],
+    ['reject', { motivo: 'não deve gravar' }],
+    ['maintenance', { status: 'A Fazer', motivo: 'não deve gravar' }],
+  ]) {
+    const res = await request(app)
+      .post(`/api/v2/tasks/${suspTask.id}/${route}`)
+      .set(as(suspAdmin))
+      .send(body);
+    assert.strictEqual(res.status, 403, `suspenso ${route}: ${JSON.stringify(res.body)}`);
+    assert.match(res.body.error, /suspended/i);
+  }
+  assert.strictEqual(
+    suspDb.get('SELECT status FROM tasks WHERE id = ?', [suspTask.id]).status,
+    suspTask.status,
+    'tarefa intata no domínio suspenso'
+  );
+  assert.strictEqual(
+    suspDb.get('SELECT COUNT(*) AS n FROM task_history WHERE task_id = ?', [suspTask.id]).n,
+    0,
+    'sem histórico novo'
+  );
+});

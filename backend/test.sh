@@ -618,6 +618,105 @@ check_http "POST /api/contracts/:id/prorrogar (PT removida)" 404
 api POST "/api/contracts/$CONTRACT_ID/providers" "" "$ADMIN_TOKEN"
 check_http "POST /api/contracts/:id/providers (v1)" 404
 
+# --- 21. Manutenção e aprovação do gestor (00014) ----------------------------
+echo ""
+echo "=== 21. Manutenção e Aprovação do Gestor (00014) ==="
+
+# setup: prestador já vinculado ao contrato (seção 18), USER_TOKEN = gestor
+api POST "/api/v2/contracts/$CONTRACT_ID/tasks" "{\"title\":\"Smoke Aprovação\",\"assignee_id\":$PRESTADOR_ID}" "$ADMIN_TOKEN"
+check_http "POST tasks (aprovação)" 201
+APPROVE_ID="$(jget task.id)"
+for ST in "Em Progresso" "Revisão"; do
+  api PATCH "/api/v2/tasks/$APPROVE_ID/status" "{\"status\":\"$ST\"}" "$PRESTADOR_TOKEN"
+  check_http "PATCH /api/v2/tasks/:id/status ($ST)" 200
+done
+
+# aprovação do gestor: Revisão → Concluída, registrada no histórico
+api POST "/api/v2/tasks/$APPROVE_ID/approve" "" "$USER_TOKEN"
+check_http "POST /api/v2/tasks/:id/approve (gestor)" 200
+check_val "aprovação fecha em Concluída" "Concluída" "$(jget task.status)"
+api GET "/api/v2/tasks/$APPROVE_ID" "" "$USER_TOKEN"
+check_val "histórico registra approve" "1" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const h=JSON.parse(d).history||[];process.stdout.write(String(h.filter(x=>x.action==="approve").length));})')"
+
+# decisão fora de Revisão → 400 sem escrita
+api POST "/api/v2/tasks/$APPROVE_ID/approve" "" "$USER_TOKEN"
+check_http "aprovação fora de Revisão" 400
+check_val "code estável da decisão" "TASK_DECISION_STATUS_REQUIRED" "$(jget code)"
+api GET "/api/v2/tasks/$APPROVE_ID" "" "$USER_TOKEN"
+check_val "segunda aprovação não reescreve" "Concluída" "$(jget task.status)"
+
+# papel diverso do gestor → 403 (prestador e admin decidem nada)
+api POST "/api/v2/tasks/$APPROVE_ID/approve" "" "$PRESTADOR_TOKEN"
+check_http "aprovação pelo prestador" 403
+api POST "/api/v2/tasks/$APPROVE_ID/reject" '{"motivo":"não decide"}' "$ADMIN_TOKEN"
+check_http "rejeição pelo admin" 403
+
+# rejeição: sem motivo → 400 sem escrita; com motivo → Em Progresso
+api POST "/api/v2/contracts/$CONTRACT_ID/tasks" "{\"title\":\"Smoke Rejeição\",\"assignee_id\":$PRESTADOR_ID}" "$ADMIN_TOKEN"
+check_http "POST tasks (rejeição)" 201
+REJECT_ID="$(jget task.id)"
+for ST in "Em Progresso" "Revisão"; do
+  api PATCH "/api/v2/tasks/$REJECT_ID/status" "{\"status\":\"$ST\"}" "$PRESTADOR_TOKEN"
+  check_http "PATCH /api/v2/tasks/:id/status ($ST)" 200
+done
+
+api POST "/api/v2/tasks/$REJECT_ID/reject" '{"motivo":"  "}' "$USER_TOKEN"
+check_http "rejeição sem motivo" 400
+check_val "code estável do motivo da rejeição" "TASK_REJECT_REASON_REQUIRED" "$(jget code)"
+api GET "/api/v2/tasks/$REJECT_ID" "" "$USER_TOKEN"
+check_val "rejeição sem motivo não escreve" "Revisão" "$(jget task.status)"
+
+api POST "/api/v2/tasks/$REJECT_ID/reject" '{"motivo":"acabamento abaixo do padrão"}' "$USER_TOKEN"
+check_http "rejeição com motivo" 200
+check_val "rejeição volta a Em Progresso" "Em Progresso" "$(jget task.status)"
+api GET "/api/v2/tasks/$REJECT_ID" "" "$USER_TOKEN"
+check_val "histórico registra reject" "1" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const h=JSON.parse(d).history||[];process.stdout.write(String(h.filter(x=>x.action==="reject").length));})')"
+check_val "motivo da rejeição no histórico" "acabamento abaixo do padrão" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const h=JSON.parse(d).history||[];const r=h.find(x=>x.action==="reject");process.stdout.write(r&&r.note?String(r.note):"");})')"
+
+# manutenção: admin/gestor mudam fora da sequência; papéis sem permissão 403
+api POST "/api/v2/tasks/$REJECT_ID/maintenance" '{"status":"Concluída","motivo":"correção de estado pelo admin"}' "$ADMIN_TOKEN"
+check_http "manutenção (admin)" 200
+check_val "manutenção admin fora do fluxo" "Concluída" "$(jget task.status)"
+api POST "/api/v2/tasks/$REJECT_ID/maintenance" '{"status":"A Fazer","motivo":"devolvida ao planejamento"}' "$USER_TOKEN"
+check_http "manutenção (gestor)" 200
+check_val "manutenção gestor salta estado" "A Fazer" "$(jget task.status)"
+api GET "/api/v2/tasks/$REJECT_ID" "" "$USER_TOKEN"
+check_val "histórico registra maintain" "2" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const h=JSON.parse(d).history||[];process.stdout.write(String(h.filter(x=>x.action==="maintain").length));})')"
+api POST "/api/v2/tasks/$REJECT_ID/maintenance" '{"status":"Em Progresso","motivo":"prestador não mantém estado"}' "$PRESTADOR_TOKEN"
+check_http "manutenção (prestador)" 403
+api POST "/api/v2/tasks/$REJECT_ID/maintenance" '{"status":"Em Progresso"}' "$ADMIN_TOKEN"
+check_http "manutenção sem motivo" 400
+check_val "code estável do motivo de manutenção" "TASK_MAINTENANCE_REASON_REQUIRED" "$(jget code)"
+api POST "/api/v2/tasks/$REJECT_ID/maintenance" '{"status":"A Fazer","motivo":"estado repetido"}' "$ADMIN_TOKEN"
+check_http "manutenção repetida" 400
+check_val "code estável do no-op" "TASK_MAINTENANCE_NOOP" "$(jget code)"
+
+# anexo com category: gestor/grava documentation, default segue evidence
+api POST "/api/v2/tasks/$REJECT_ID/attachments" "{\"filename\":\"como-fazer.pdf\",\"dataBase64\":\"$TINY_PNG\",\"kind\":\"file\",\"category\":\"documentation\"}" "$USER_TOKEN"
+check_http "anexo category documentation (gestor)" 201
+check_val "categoria documentation persistida" "documentation" "$(jget attachment.category)"
+api POST "/api/v2/tasks/$REJECT_ID/attachments" "{\"filename\":\"foto-execucao.png\",\"dataBase64\":\"$TINY_PNG\"}" "$PRESTADOR_TOKEN"
+check_http "anexo sem category (prestador, A Fazer)" 201
+check_val "categoria default evidence" "evidence" "$(jget attachment.category)"
+api POST "/api/v2/tasks/$REJECT_ID/attachments" "{\"filename\":\"x.png\",\"dataBase64\":\"$TINY_PNG\",\"category\":\"obra\"}" "$USER_TOKEN"
+check_http "anexo com category inválida" 400
+check_val "code estável da categoria" "TASK_ATTACHMENT_CATEGORY_INVALID" "$(jget code)"
+
+# gate: prestador bloqueado em Concluída, gestor livre em qualquer estado
+api POST "/api/v2/tasks/$REJECT_ID/maintenance" '{"status":"Revisão","motivo":"reabrir para conclusão"}' "$ADMIN_TOKEN"
+check_http "manutenção de volta a Revisão" 200
+api POST "/api/v2/tasks/$REJECT_ID/complete" '{"text":"concluída pelo prestador"}' "$PRESTADOR_TOKEN"
+check_http "conclusão do prestador (00005)" 200
+BEFORE_GATE="$(ls -1 "$UPLOAD_DIR" 2>/dev/null | wc -l | tr -d ' ')"
+api POST "/api/v2/tasks/$REJECT_ID/attachments" "{\"filename\":\"tarja.png\",\"dataBase64\":\"$TINY_PNG\",\"category\":\"documentation\"}" "$PRESTADOR_TOKEN"
+check_http "anexo do prestador em Concluída" 403
+check_val "code estável do gate" "TASK_ATTACHMENT_STATUS_FORBIDDEN" "$(jget code)"
+AFTER_GATE="$(ls -1 "$UPLOAD_DIR" 2>/dev/null | wc -l | tr -d ' ')"
+check_val "403 do gate sem arquivo residual" "$BEFORE_GATE" "$AFTER_GATE"
+api POST "/api/v2/tasks/$REJECT_ID/attachments" "{\"filename\":\"manual-final.pdf\",\"dataBase64\":\"$TINY_PNG\",\"category\":\"documentation\"}" "$USER_TOKEN"
+check_http "anexo do gestor em Concluída" 201
+check_val "documentação do gestor em Concluída" "documentation" "$(jget attachment.category)"
+
 # --- summary ----------------------------------------------------------------
 echo ""
 if [ "$FAIL" -eq 0 ]; then

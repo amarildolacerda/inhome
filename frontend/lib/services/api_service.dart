@@ -523,6 +523,74 @@ class ApiService {
     return base64Encode(bytes);
   }
 
+  // ---- Manutenção e aprovação de tarefas (00014, FR-030..037) --------------
+
+  /// [FR-030]: POST /tasks/:id/approve — só o gestor, só em Revisão; a tarefa
+  /// vai a Concluída. Erros chegam como ApiException com `code` (ex.:
+  /// TASK_DECISION_STATUS_REQUIRED) e statusCode 400/403.
+  Future<Map<String, dynamic>> approveTask(int taskId) async {
+    final result = await post('/tasks/$taskId/approve');
+    return _asMap(result['task']);
+  }
+
+  /// [FR-030]: POST /tasks/:id/reject — volta a Em Progresso; motivo
+  /// obrigatório (400 TASK_REJECT_REASON_REQUIRED quando vazio).
+  Future<Map<String, dynamic>> rejectTask(
+    int taskId, {
+    required String motivo,
+  }) async {
+    final result = await post(
+      '/tasks/$taskId/reject',
+      body: {'motivo': motivo},
+    );
+    return _asMap(result['task']);
+  }
+
+  /// [FR-033]: POST /tasks/:id/maintenance — gestor/admin mudam o estado para
+  /// qualquer um dos quatro fora do fluxo nominal, com motivo obrigatório.
+  /// `status` sai no mesmo texto PT do PATCH /tasks/:id/status (Task.flow).
+  Future<Map<String, dynamic>> maintainTask(
+    int taskId, {
+    required String status,
+    required String motivo,
+  }) async {
+    final result = await post(
+      '/tasks/$taskId/maintenance',
+      body: {'status': status, 'motivo': motivo},
+    );
+    return _asMap(result['task']);
+  }
+
+  /// [FR-037]: GET /tasks/:id — detalhe com histórico ({task, history}).
+  Future<Map<String, dynamic>> getTaskDetail(int taskId) {
+    return get('/tasks/$taskId');
+  }
+
+  /// [FR-036]: POST /tasks/:id/attachments — JSON {filename, dataBase64};
+  /// `category` ('evidence' | 'documentation') é aditivo, default 'evidence'.
+  Future<Map<String, dynamic>> uploadAttachment(
+    int taskId, {
+    required String filename,
+    required String dataBase64,
+    String category = 'evidence',
+  }) async {
+    final result = await post(
+      '/tasks/$taskId/attachments',
+      body: {
+        'filename': filename,
+        'dataBase64': dataBase64,
+        'category': category,
+      },
+    );
+    return _asMap(result['attachment']);
+  }
+
+  /// [FR-037]: GET /tasks/:id/attachments — anexos com categoria, autor e data.
+  Future<List<Map<String, dynamic>>> listTaskAttachments(int taskId) async {
+    final result = await get('/tasks/$taskId/attachments');
+    return _mapList(result['attachments']);
+  }
+
   /// [FR-020]: conecta ao Socket.io e entra na sala do domínio. Sem domínio
   /// não conecta; falha de rede não derruba o app (o cliente tenta de novo).
   Future<void> connectSocket(int domainId) async {

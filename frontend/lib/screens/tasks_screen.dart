@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/task.dart';
+import '../widgets/task_detail_sheet.dart';
 import '../widgets/task_list_tile.dart';
 
 /// [FR-010] [FR-013]: fila pessoal do prestador — visão cross-contrato do
@@ -159,11 +160,22 @@ class _TasksScreenState extends State<TasksScreen> {
                         ),
                         itemCount: _filteredTasks.length,
                         // Linha compartilhada com o canal do contrato: status em
-                        // português e avanço de etapa via PATCH (FR-010).
-                        itemBuilder: (context, index) => TaskListTile(
-                          task: _filteredTasks[index],
-                          onChanged: _loadTasks,
-                        ),
+                        // português e avanço de etapa via PATCH (FR-010). O toque
+                        // na linha abre o detalhe (00014: decisão, manutenção,
+                        // anexos com categoria e histórico).
+                        itemBuilder: (context, index) {
+                          final task = _filteredTasks[index];
+                          return TaskListTile(
+                            task: task,
+                            onChanged: _loadTasks,
+                            onTap: () => TaskDetailSheet.showFor(
+                              context,
+                              taskId: task.id,
+                              api: api,
+                              onChanged: _loadTasks,
+                            ),
+                          );
+                        },
                       ),
             ),
           ],

@@ -356,6 +356,129 @@ async function completeTask(req, res) {
   }
 }
 
+// AD-001 (FR-030/FR-032): the gestor decides on tasks sitting in Revisão —
+// approve closes as Concluída, reject sends it back to Em Progresso with a
+// required motivo. Additive supervision: the prestador's own conclusion
+// (00005 FR-001) keeps working exactly as before. Both answers are fail-fast:
+// a decision outside Revisão is a 400 with no write.
+function approveTask(req, res) {
+  try {
+    const db = getDomainDb(req.user.domainId);
+    const task = getTaskOr404(db, req.params.id);
+    if (task.status !== 'Revisão') {
+      return res.status(400).json({
+        error: 'Decision requires status Revisão',
+        code: 'TASK_DECISION_STATUS_REQUIRED',
+      });
+    }
+    db.run('UPDATE tasks SET status = ?, updated_at = datetime(\'now\') WHERE id = ?', [
+      code('tasks.status', 'Concluída'),
+      task.id,
+    ]);
+    // AD-003: the decision lands in the task history (author + date come
+    // from task_history itself; approval carries no motivo).
+    Task.addHistory(db, task.id, 'approve', req.user.id, null);
+    emitDomainEvent('task:updated', req.user.domainId, {
+      taskId: task.id,
+      contractId: task.contract_id,
+      action: 'approved',
+      status: 'Concluída',
+    });
+    res.json({ task: Task.findById(db, task.id) });
+  } catch (error) {
+    res.status(error.status || 500).json(errorPayload(error));
+  }
+}
+
+// FR-030/FR-031: rejection requires a motivo (400 before any write) and
+// records it in history so the prestador reads who rejected and why.
+function rejectTask(req, res) {
+  try {
+    const db = getDomainDb(req.user.domainId);
+    const task = getTaskOr404(db, req.params.id);
+    if (task.status !== 'Revisão') {
+      return res.status(400).json({
+        error: 'Decision requires status Revisão',
+        code: 'TASK_DECISION_STATUS_REQUIRED',
+      });
+    }
+    const motivo = (req.body || {}).motivo;
+    if (!motivo || !String(motivo).trim()) {
+      return res.status(400).json({ error: 'motivo is required', code: 'TASK_REJECT_REASON_REQUIRED' });
+    }
+    db.run('UPDATE tasks SET status = ?, updated_at = datetime(\'now\') WHERE id = ?', [
+      code('tasks.status', 'Em Progresso'),
+      task.id,
+    ]);
+    Task.addHistory(db, task.id, 'reject', req.user.id, String(motivo).trim());
+    emitDomainEvent('task:updated', req.user.domainId, {
+      taskId: task.id,
+      contractId: task.contract_id,
+      action: 'rejected',
+      status: 'Em Progresso',
+    });
+    res.json({ task: Task.findById(db, task.id) });
+  } catch (error) {
+    res.status(error.status || 500).json(errorPayload(error));
+  }
+}
+
+// AD-002 (FR-033/FR-034): admin/gestor move a task to any of the four states
+// outside the nominal sequence, always with a motivo. The maintain row stores
+// `old → new: motivo`; leaving Concluída clears completed_* (mirrors reopenTask).
+function maintainTaskStatus(req, res) {
+  try {
+    const db = getDomainDb(req.user.domainId);
+    const task = getTaskOr404(db, req.params.id);
+    const body = req.body || {};
+    const next = body.status;
+    if (!next || !Task.FLOW.includes(next)) {
+      return res.status(400).json({
+        error: `status must be one of ${Task.FLOW.join(', ')}`,
+        code: 'TASK_MAINTENANCE_STATUS_REQUIRED',
+      });
+    }
+    const motivo = body.motivo;
+    if (!motivo || !String(motivo).trim()) {
+      return res.status(400).json({ error: 'motivo is required', code: 'TASK_MAINTENANCE_REASON_REQUIRED' });
+    }
+    if (next === task.status) {
+      return res.status(400).json({
+        error: `Task is already in status ${next}`,
+        code: 'TASK_MAINTENANCE_NOOP',
+      });
+    }
+    if (task.status === 'Concluída') {
+      db.run(
+        `UPDATE tasks SET status = ?, completed_text = NULL, completed_at = NULL,
+         completed_by = NULL, updated_at = datetime('now') WHERE id = ?`,
+        [code('tasks.status', next), task.id]
+      );
+    } else {
+      db.run('UPDATE tasks SET status = ?, updated_at = datetime(\'now\') WHERE id = ?', [
+        code('tasks.status', next),
+        task.id,
+      ]);
+    }
+    Task.addHistory(
+      db,
+      task.id,
+      'maintain',
+      req.user.id,
+      `${task.status} → ${next}: ${String(motivo).trim()}`
+    );
+    emitDomainEvent('task:updated', req.user.domainId, {
+      taskId: task.id,
+      contractId: task.contract_id,
+      action: 'maintained',
+      status: next,
+    });
+    res.json({ task: Task.findById(db, task.id) });
+  } catch (error) {
+    res.status(error.status || 500).json(errorPayload(error));
+  }
+}
+
 // FR-012 / SC-006: gestor/admin reopens a concluded task with a motivo that
 // lands in the history (who/why). Prestador cannot reopen.
 // Trigger 3/4: reopening mail to management.
@@ -408,11 +531,20 @@ router.put('/:id', requireRole('admin', 'gestor'), updateTaskFields);
 router.patch('/:id/status', requireRole('admin', 'gestor', 'prestador'), updateTaskStatus);
 router.post('/:id/complete', requireRole('admin', 'gestor', 'prestador'), completeTask);
 router.post('/:id/reopen', requireRole('admin', 'gestor', 'prestador'), reopenTask);
+// 00014 (AD-001/AD-002): decisions are gestor-only; maintenance is admin/gestor.
+// Registered after router.use(scopeDomain()) — the FR-035 guards run before
+// any query, same as every other task route above.
+router.post('/:id/approve', requireRole('gestor'), approveTask);
+router.post('/:id/reject', requireRole('gestor'), rejectTask);
+router.post('/:id/maintenance', requireRole('admin', 'gestor'), maintainTaskStatus);
 
 router.createTask = createTask;
 router.completeTask = completeTask;
 router.reopenTask = reopenTask;
 router.updateTaskStatus = updateTaskStatus;
+router.approveTask = approveTask;
+router.rejectTask = rejectTask;
+router.maintainTaskStatus = maintainTaskStatus;
 router.assertLinkedPrestador = assertLinkedPrestador;
 router.listTasks = listTasks;
 router.markCompleted = markCompleted;

@@ -11,12 +11,22 @@ import '../services/api_service.dart';
 /// termina em 403 (FR-009). Avançar até [Task.done] coleta o texto de
 /// conclusão em diálogo, que o backend exige junto com o PATCH.
 class TaskListTile extends StatefulWidget {
-  const TaskListTile({super.key, required this.task, this.onChanged, this.api});
+  const TaskListTile({
+    super.key,
+    required this.task,
+    this.onChanged,
+    this.onTap,
+    this.api,
+  });
 
   final Task task;
 
   /// Chamado após um avanço de status aceito — a tela recarrega a lista.
   final VoidCallback? onChanged;
+
+  /// Abre o detalhe da tarefa (00014): a tela de fila passa a abertura do
+  /// TaskDetailSheet; sem callback a linha continua sem alça de toque.
+  final VoidCallback? onTap;
 
   /// Sessão usada na leitura de papel e no PATCH — as telas passam o
   /// singleton; os testes injetam uma fachada.
@@ -179,6 +189,7 @@ class _TaskListTileState extends State<TaskListTile> {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         contentPadding: const EdgeInsets.all(12),
+        onTap: widget.onTap,
         // Botão só para quem o backend aceita mover; os outros papéis veem o
         // ícone de status puro, sem alça de toque que termine em 403.
         leading: canAdvance
