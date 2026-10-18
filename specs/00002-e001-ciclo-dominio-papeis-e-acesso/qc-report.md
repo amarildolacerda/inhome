@@ -196,7 +196,7 @@ QC check outcome: PASS. The human browser attestation landed (`manual-test.md`, 
 | specs/00002-e001-ciclo-dominio-papeis-e-acesso/checklists/CHL003-testing.md | 6f0122a25096060f6378494d8b2a0e42eb4b028df28ea6ff3d5ad5a18ecd7ab4 |
 | specs/00002-e001-ciclo-dominio-papeis-e-acesso/manual-test.md | 3320db5bf4ba54df7cc86605f698f23bace07d89202a5e2a925160827a1fa581 |
 | specs/00002-e001-ciclo-dominio-papeis-e-acesso/plan.md | 8cc00b65f45c6545b15b1942c548756bc1f9a8516feca8ffd78d58dadba2e027 |
-| specs/00002-e001-ciclo-dominio-papeis-e-acesso/spec.md | 8e53f45f7f2301433d7ea7aedb362522a71692cae2b5246c76bbc806be7e962b |
+| specs/00002-e001-ciclo-dominio-papeis-e-acesso/spec.md | 782cd1f2e1b1f85bcbdcb1923df80463634ec309ae661d76eba6f4d29c801699 |
 | specs/00002-e001-ciclo-dominio-papeis-e-acesso/tasks.md | 4315edc94865b6fcfcf8c401e8d62f37050b8db314d8aec6219e2c73ee8edfa1 |
 
 ## Tool Recommendations

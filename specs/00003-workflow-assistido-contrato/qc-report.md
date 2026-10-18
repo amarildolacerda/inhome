@@ -302,7 +302,7 @@ Nenhuma falha nova. Correções das runs anteriores permanecem verificadas:
 | specs/00003-workflow-assistido-contrato/manual-test.md | 88deb5ec2e37f3d3ec945525e933c067d582b02e13d3b34ba13feb1bbd79b0da |
 | specs/00003-workflow-assistido-contrato/plan.md | b26852fe8f7352a5871acf995d903d029f9352da7a5cb26d5b5eb6170c0e8b87 |
 | specs/00003-workflow-assistido-contrato/research.md | 3f3094a1134167ceedaedfa81a47f7a3e371c91f61c9e40ac437d088f2f3e6ca |
-| specs/00003-workflow-assistido-contrato/spec.md | 4ee88726795f41e429e5251a319b8b78287e41b4496d9bf627831e823a154570 |
+| specs/00003-workflow-assistido-contrato/spec.md | 90be24eafe9cae7fbff7bb94efb0f000a47076a5469ed58a52807e4c1df1ec6d |
 | specs/00003-workflow-assistido-contrato/tasks.md | 54897e71fca024ed70a91da8d9c9769fc132220914b20d0566373b3b244b202b |
 
 ## Tool Recommendations

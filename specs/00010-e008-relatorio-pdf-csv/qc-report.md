@@ -108,7 +108,7 @@
 | specs/00010-e008-relatorio-pdf-csv/checklists/CHL003-regression.md | 1326c661b37d795f373cd9f8253f6c51f9f641cc0aba67229793d153c20343df |
 | specs/00010-e008-relatorio-pdf-csv/manual-test.md | 59b8f8b4e9cf71aced7390d671ad27a64cf3c5c273ebcacecd12ca1b6a094b71 |
 | specs/00010-e008-relatorio-pdf-csv/plan.md | 0770f966b9ce443be0f867b8b32a4a8c60b4d0ce9f1a5bb2489ea91cb59be477 |
-| specs/00010-e008-relatorio-pdf-csv/spec.md | 30d00311692d87b5da360dae728865608d73de794ab9b6acf42bcd669bfebb68 |
+| specs/00010-e008-relatorio-pdf-csv/spec.md | 99ba0f7a08d0bdd267c81a9e09eed0b71bde9884af5b97c17c1a1a62dac2bc40 |
 | specs/00010-e008-relatorio-pdf-csv/tasks.md | a8ae41e3df14954be3ccefd1fc7ee8f176b05c04262f30f0df72425f196e39e8 |
 
 ## Tool Recommendations

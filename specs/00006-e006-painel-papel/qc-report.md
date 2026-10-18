@@ -105,7 +105,7 @@
 | specs/00006-e006-painel-papel/checklists/CHL003-ux.md | 73e35aa6311cbb1776acd9f9484b4ec3ad47ddeedb8a59669aa815757fc56e23 |
 | specs/00006-e006-painel-papel/manual-test.md | 5b16d1b7c4e28453e54c7dfc592ef94137e01127a6b833dc65318772b287c865 |
 | specs/00006-e006-painel-papel/plan.md | b177ee59a5cd94d45cabbd5baac2ce6c63515974f40b48d221ab3d182a742ffa |
-| specs/00006-e006-painel-papel/spec.md | 280cd0c9c9aad4e179a2a20c3c8c338050c16f87cbb0fe78afdb0bb62e79f5cb |
+| specs/00006-e006-painel-papel/spec.md | 91d5d1fbe68f818911066ff648238aed6af73ac151489e7f6486ba7c222172d4 |
 | specs/00006-e006-painel-papel/tasks.md | 2cba3791f3867b6cec53a7d2eb5ce67154ba1241605378f360b55dcb352ee45f |
 
 ## Tool Recommendations

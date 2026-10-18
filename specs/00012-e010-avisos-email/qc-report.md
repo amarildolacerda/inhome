@@ -122,7 +122,7 @@
 | specs/00012-e010-avisos-email/checklists/CHL003-testing.md | 1a1a4dc61a11560ab4602538d6ca879f938fe545e7bd21f8cd7e936c7acf4bb8 |
 | specs/00012-e010-avisos-email/manual-test.md | 0da03ac586eb401ab7c1b4f485ddd9ef91e617a4c6d485e59c2c26976b2adef0 |
 | specs/00012-e010-avisos-email/plan.md | d52ce3b89c0d9b0e73752775ee880de7236db35fd52238ea8e428dc0e73e680d |
-| specs/00012-e010-avisos-email/spec.md | fb4ff694974075a6b55e9443a6cc5cdb991e375125e49c4a9f4dc462b8b075a2 |
+| specs/00012-e010-avisos-email/spec.md | 23cb5af33bfeb5b056730cce07dc99da7c69b236a7e0cfc2699fed5705a9c5f9 |
 | specs/00012-e010-avisos-email/tasks.md | 5ff57fc3d04225151311e49a0d7035f5dd5291f3ed4d8c442b33d77f85b257f9 |
 
 ## Tool Recommendations

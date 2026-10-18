@@ -192,7 +192,7 @@
 | scripts/validate-sad.mjs | 3127bd132df33ad807f90d8d8ef9dade218a3331c34b54cdc807b60853724885 |
 | specs/00001-contratos-mvp/manual-test.md | 69e971501ff8a12ae7defd67c5fded1e434800178272f57fd1ad05bdb1d5f9e7 |
 | specs/00001-contratos-mvp/plan.md | c62ceeec155974afb229ddbf3e5f663a9b97d77d88a929e13767196defae1b98 |
-| specs/00001-contratos-mvp/spec.md | 3a4c3449eafb019a9c4d7afd247dcf4c5b42e4ff3b107a9cadf95814e075e4e8 |
+| specs/00001-contratos-mvp/spec.md | de9c3170b69bff062408eac6d79f4100cef4f66a53635a7e74dc1275df963290 |
 | specs/00001-contratos-mvp/tasks.md | d33422b2243ebc7ff3b6d0e448b79874bd009079c253948f592be652f0ea0c19 |
 
 ## Tool Recommendations

@@ -112,7 +112,7 @@
 | specs/00005-e003-execucao-tarefas-evidencia/checklists/CHL003-data-integrity.md | 66dc1b89fdc238b018dcf92f534b5b30a556f397eda4546c54c910217b115682 |
 | specs/00005-e003-execucao-tarefas-evidencia/manual-test.md | 310ce7a948d68b30a8b5d8a59a2d6a671a55396a031811defae3964af4d22546 |
 | specs/00005-e003-execucao-tarefas-evidencia/plan.md | b92dd565dd8fd2c9a0db9e169a64d2943937891f45b5aa64fed99a378d46cb8f |
-| specs/00005-e003-execucao-tarefas-evidencia/spec.md | 32fe089319f126f76851ab757941b9c12dda8f23d4bc66e1c2bc8e3453626481 |
+| specs/00005-e003-execucao-tarefas-evidencia/spec.md | 5dd84fe7715b3161052aee26c082452f706e93de480a5897c0d2196c879bdb60 |
 | specs/00005-e003-execucao-tarefas-evidencia/tasks.md | 263b347d385e2c9967fc9bb9d91631aaea8ce6f8ba55d3488da7c0fe5214651f |
 
 ## Tool Recommendations

@@ -99,7 +99,7 @@
 | specs/00007-e007-busca-filtros/checklists/CHL003-performance.md | b5d9f7164de5b8464672a65e10adb03ee7def59f9f8f473b666a8eebdbbaccae |
 | specs/00007-e007-busca-filtros/manual-test.md | 61662ff7b85eb615c81adf60821df9245f8894d014ef3e7901651c6ba7e5b8c7 |
 | specs/00007-e007-busca-filtros/plan.md | 6e4dc2fb5bd4fe78189c9029c10aff70de6ad2dc4a56f2884bf19e8a617bdcd7 |
-| specs/00007-e007-busca-filtros/spec.md | 960826466786eef25fe7ba9a3c580c506acd2c1503750b875fba2b4cf24970a2 |
+| specs/00007-e007-busca-filtros/spec.md | 0adc3d55611b4ab533d4c842d25575262916abf8f1c0850519bf83b24fe68713 |
 | specs/00007-e007-busca-filtros/tasks.md | 139cd7f736819300e0b0848af24a2ba2eaa2cf82a20484f0a73ac4de27ede6ec |
 
 ## Tool Recommendations

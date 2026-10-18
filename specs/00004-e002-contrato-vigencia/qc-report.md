@@ -109,7 +109,7 @@
 | specs/00004-e002-contrato-vigencia/contracts/openapi.yaml | e05958bc2cd8625c0e90525c02784ef9361fbcc74727aad126740e9fce4ed2a4 |
 | specs/00004-e002-contrato-vigencia/manual-test.md | c1d15315e4bb6ddb88df1693561ac66aadb65b3527b7b7551ebf11d6c6576290 |
 | specs/00004-e002-contrato-vigencia/plan.md | bea294e79ca2ffcf07d39ce07e6ea86252ebf4b67ed8105b6e640594f9ca2424 |
-| specs/00004-e002-contrato-vigencia/spec.md | 53a3ffd5a7d4579cb463abf1a850f68b4217e77b6d2d1c6fde52be3022e8942d |
+| specs/00004-e002-contrato-vigencia/spec.md | ac3d5aa1c107fa24a1499b3e02407f88aa6ef41bf20efe54747e5519c8aa75f2 |
 | specs/00004-e002-contrato-vigencia/tasks.md | 93b1beef0f2c6ab6bda9a711c9a1b747cf30442c5d4ace7d04b2fd150f51c551 |
 
 ## Tool Recommendations

@@ -131,7 +131,7 @@
 | specs/00013-e011-auditoria-classificacao/manual-test.md | d7267b1c0c783d68ddfd20c14556fa07760e1d661ea89f351d729e1b1f2464dc |
 | specs/00013-e011-auditoria-classificacao/plan.md | d7adffd6d0ecf68f993aa3850a4dbd2e691a75ee87e0a04183644ffd33adc4dc |
 | specs/00013-e011-auditoria-classificacao/research.md | 9b05ffb8e8f2379f67691557702626306e1cbaff9bf21d061eba77a52ad261d4 |
-| specs/00013-e011-auditoria-classificacao/spec.md | d4a6d838c0370c306f537c80a87c10d7fc63a69d12ceb179f12fe7c67e15600f |
+| specs/00013-e011-auditoria-classificacao/spec.md | 69ee9e5027508e6c37c102a921c222e9b9267e72a128e8ed13f8839fd3cd02f0 |
 | specs/00013-e011-auditoria-classificacao/tasks.md | 3d78960534d832da337d569a636baee6b23a7647365e86d7b61cdf5932537f11 |
 
 ## Tool Recommendations

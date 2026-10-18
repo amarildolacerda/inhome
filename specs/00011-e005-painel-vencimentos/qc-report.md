@@ -127,7 +127,7 @@
 | specs/00011-e005-painel-vencimentos/checklists/CHL003-performance.md | 5de16c8864bf669a0cb05821ba2dc976930f4bd28c52a1873fdc327eb12d194c |
 | specs/00011-e005-painel-vencimentos/manual-test.md | 35c05952d7d124a1a5c904522be261f2d58b960df78441ec12b4bb0e129c6376 |
 | specs/00011-e005-painel-vencimentos/plan.md | 5be42bfbfe927eb51f2d723e9405efecf811236476bc488ba25d00481f119e21 |
-| specs/00011-e005-painel-vencimentos/spec.md | 891b9227128aa8a3c07245d3157ef18a7f8ca78f2d2898b454cbaf7e06339abe |
+| specs/00011-e005-painel-vencimentos/spec.md | 58e52d53072d03cb77f53d8f04e6a7cbe704341439c3872a2d815c1ca3713653 |
 | specs/00011-e005-painel-vencimentos/tasks.md | 5cadde9728ea2780fd6bad27e01c8baefeb8cec500f66f7e879efa920b95a282 |
 
 ## Tool Recommendations

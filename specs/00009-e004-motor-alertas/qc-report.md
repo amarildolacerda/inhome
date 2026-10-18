@@ -107,7 +107,7 @@
 | specs/00009-e004-motor-alertas/checklists/CHL003-resilience.md | d25dffa59a60ec98c8d8925a486e812d0945f296fa983a9172f90af0e2d3f126 |
 | specs/00009-e004-motor-alertas/manual-test.md | 19d5cf5d0481cdc4bed54d4120c613b884cc320493317ce3feed215c0e709288 |
 | specs/00009-e004-motor-alertas/plan.md | 5cdd8f8ce7cac37b559a94f7a8708858d117af12bdb40232f76bd21117627e34 |
-| specs/00009-e004-motor-alertas/spec.md | e1dd339103c737a95435d78361b2954367f6b108b6bbea12324c3cc6f23495f9 |
+| specs/00009-e004-motor-alertas/spec.md | 59817962269ea9d06733d2f679bfdeda26a1aebca87be9a5afccccaa6f30ae34 |
 | specs/00009-e004-motor-alertas/tasks.md | 07a6649641c166fc7ba01857cd9d63545f49cdc853c0073f47068cea86c5e41c |
 
 ## Next Actions

@@ -105,7 +105,7 @@
 | specs/00008-e009-tempo-real/checklists/CHL003-regression.md | 4932dd17c3729af3b6a9387e6db4d0ba177e0a40548bcff2d0ab90646f4618c9 |
 | specs/00008-e009-tempo-real/manual-test.md | 52573fe6481278dcf38fefa77d66305671183727abd1320f1e7d4933678be68e |
 | specs/00008-e009-tempo-real/plan.md | 99813384d7ea40de76b4b29677b21b1898015f3edafb028c681d4af2850539c6 |
-| specs/00008-e009-tempo-real/spec.md | e2f2f007c3c4f2b970ba63e9f954b061db5a27bfd5471bc74b4e03fa58a71db9 |
+| specs/00008-e009-tempo-real/spec.md | bbb1377170d5460a266d2441463aba4e3c872ae75bdc58ca3e0d3bb5cc0dbf7f |
 | specs/00008-e009-tempo-real/tasks.md | faeb5ac88f743014e65155aa688f268db9eb3d476dae1395a226016d22d395b0 |
 
 ## Tool Recommendations
