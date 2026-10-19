@@ -179,7 +179,7 @@ QC check outcome: PASS. The human browser attestation landed (`manual-test.md`, 
 | docs/approved-scope-draft.md | beba604f22eb78e0a1afbd47ff2b8b6f6e552371051a01a7be68c210dfe321a2 |
 | frontend/analysis_options.yaml | cc88073dea00345c800bf1f94021d3295cdd7fbd8b45a595a502a893304a5244 |
 | frontend/lib/main.dart | 396fa7a21cd1aedbe1bae19a01dda2eec76d1c0f4b126da1292f06b927cc223b |
-| frontend/lib/screens/contract_detail_screen.dart | 231b90584a19ae8e0df43506e44cb61b60483b652ef0538a4a225eabf3235d8e |
+| frontend/lib/screens/contract_detail_screen.dart | 86a2cffeddff1a7fefe098b14e5e9e01dc31938fa03acdfbd993781b870bbabc |
 | frontend/lib/screens/finalidades_screen.dart | 4dec9e410c2425e901b4ae0303cea920c57698c043ee6e0ae5e96e094bbf1a8c |
 | frontend/lib/screens/login_screen.dart | 6249ee56b1aea6565c1eaa1f593ab1a044b27fb8d286c17769f5fe85baeef2ec |
 | frontend/lib/screens/projects_screen.dart | 5d5c18113324992ccef5ed2f5cd39c0e997152ddd12487b4e79a203290831ef6 |

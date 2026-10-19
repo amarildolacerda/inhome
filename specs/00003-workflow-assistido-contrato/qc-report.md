@@ -272,7 +272,7 @@ Nenhuma falha nova. Correções das runs anteriores permanecem verificadas:
 | frontend/lib/models/project.dart | 9568f3033c682b1704dd046dc675ae5885058321edf90a9c3aef0c476af756a8 |
 | frontend/lib/models/task.dart | 808d230aa47c53227825f7dd6eae5128bf4fcedb45892514a8956aa6ea1583a7 |
 | frontend/lib/models/user.dart | dbfc8d897f31bb375b17124f8cff8b575b2d176d1098f43adbd1a20ba9933719 |
-| frontend/lib/screens/contract_detail_screen.dart | 231b90584a19ae8e0df43506e44cb61b60483b652ef0538a4a225eabf3235d8e |
+| frontend/lib/screens/contract_detail_screen.dart | 86a2cffeddff1a7fefe098b14e5e9e01dc31938fa03acdfbd993781b870bbabc |
 | frontend/lib/screens/dashboard_screen.dart | 5d1a74658b716b186f8d206e2994abfa50abf425b4407ea85e5a765493ad0689 |
 | frontend/lib/screens/domains_screen.dart | 84187efce1a3886888ac57de3489132426353c6ceeca1dad191958c1f67268d4 |
 | frontend/lib/screens/finalidades_screen.dart | 4dec9e410c2425e901b4ae0303cea920c57698c043ee6e0ae5e96e094bbf1a8c |
