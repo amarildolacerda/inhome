@@ -95,8 +95,8 @@
 ## QC Evidence Manifest
 | Path | SHA-256 |
 |------|---------|
-| backend/src/config/database.js | dd8eb160af618f6ee17247a92f8cd3db4041825599c1dd7e3ff235a8e99e20e3 |
-| backend/src/config/database.test.js | 849a804f0f4168fa33d412272bbebcf9a4a9e1d400493b3ec15abf517f07ead0 |
+| backend/src/config/database.js | 3a512b503312e7b487a5430f7c3e76f3ef64a342c3fd4c815590e1b6f57abbcf |
+| backend/src/config/database.test.js | d60def5adba046bafb65744b630783f46ad48c322a9a13f595e4be7b5f9c0733 |
 | backend/src/routes/alerts.js | 0bd126ebced5da06e3ea1d8e902b6f5edc3aa0a8ab30b1b7fd1faa0120ed1d8d |
 | backend/src/routes/alerts.test.js | 7cbb94324076fc409e0a34248b8db8fce82a05f042fb16da0f62a06c52a4fde6 |
 | backend/src/server.js | c3d963494f21ba84ec433f513f2230d36d245b4e4b5833003b58248d0a55d6ce |

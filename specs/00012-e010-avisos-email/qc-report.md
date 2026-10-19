@@ -108,12 +108,12 @@
 | backend/package.json | f950a727452adc8da4a5c5742714091bd0ed55623f200cd66a6c9392c23c4629 |
 | backend/src/routes/alerts.js | 0bd126ebced5da06e3ea1d8e902b6f5edc3aa0a8ab30b1b7fd1faa0120ed1d8d |
 | backend/src/routes/alerts.test.js | 7cbb94324076fc409e0a34248b8db8fce82a05f042fb16da0f62a06c52a4fde6 |
-| backend/src/routes/tasks.js | 2bd797870279ee96b6a9b67509066506ad845c53573398e7cc0e2f4e3d1cf01c |
-| backend/src/routes/tasks.test.js | e9e2bd4f22b4b0f0872b362d08cf8fa49d5c6fcb56cccbd60a5a90c9c9160780 |
+| backend/src/routes/tasks.js | e194c4919a5df5db15e5d4e16597b521ff589b35c7a59f93409f53fb27bd7f3e |
+| backend/src/routes/tasks.test.js | c719a699ea89b0464541a16b05d58f486744d0ed0b5dea32e5fd4db22e2fb64c |
 | backend/src/services/alerts.js | 29fcbcf52a5b68c480613898fe095ef266d674dcde667738bb202422e2000127 |
 | backend/src/services/email.js | 488dae58d5d7d58cdfa72a221aef2a1c1ca5b11c060d3317043e03f7fd47f2e9 |
 | backend/src/services/email.test.js | 79303466e5ccf1b02e1c202b841ba5340e1358f3423ecfcfa20bd8d4185624c1 |
-| backend/test.sh | e5928ae8afcda22d3fc632339ddff56e33367c819e4bc908d81ce7b5734878b1 |
+| backend/test.sh | e24235e13668608788b1111ee530e936223a2da04a4676e094a1015771c9f5f0 |
 | frontend/lib/screens/vencimentos_screen.dart | 3c5bb4e88da901d945c6a4ecff6092183083214bb6f9b63d9362268ed1db2d8e |
 | frontend/test/vencimentos_screen_test.dart | d66485b65e2a5a340a0728d33d45b8d0840d3be71909e040ff6071f3ad25bef6 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |

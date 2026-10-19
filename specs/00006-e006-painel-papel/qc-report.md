@@ -96,7 +96,7 @@
 | frontend/lib/main.dart | 396fa7a21cd1aedbe1bae19a01dda2eec76d1c0f4b126da1292f06b927cc223b |
 | frontend/lib/screens/dashboard_screen.dart | 5d1a74658b716b186f8d206e2994abfa50abf425b4407ea85e5a765493ad0689 |
 | frontend/lib/screens/projects_screen.dart | 5d5c18113324992ccef5ed2f5cd39c0e997152ddd12487b4e79a203290831ef6 |
-| frontend/lib/screens/tasks_screen.dart | 5a7f3004f1a83779f457b020ce6083664e57bebdcd330ce3a8c11edc0c784a14 |
+| frontend/lib/screens/tasks_screen.dart | 4dfcdc63264e2fd7c66b2afa6b4289f0b4bd39c5598f6a244299b180c72b3f5c |
 | frontend/test/a11y_labels_test.dart | 14fb00a05e93deb256e3d749c831b9efc316be9c93bf4c1351724acfe77d793b |
 | frontend/test/web_browsers_test.dart | e850291f82c407e81a6c04b96ac293579199133f6fcf22d372ae2cdcb9743890 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |

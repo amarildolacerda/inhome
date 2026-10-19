@@ -91,16 +91,16 @@
 | Path | SHA-256 |
 |------|---------|
 | backend/package.json | f950a727452adc8da4a5c5742714091bd0ed55623f200cd66a6c9392c23c4629 |
-| backend/src/config/database.js | dd8eb160af618f6ee17247a92f8cd3db4041825599c1dd7e3ff235a8e99e20e3 |
+| backend/src/config/database.js | 3a512b503312e7b487a5430f7c3e76f3ef64a342c3fd4c815590e1b6f57abbcf |
 | backend/src/middleware/auth.js | 34f61d0cd063ce68d69d2559299fe740f8175ee8fb166a0247f3f9156f46a561 |
 | backend/src/models/Contract.js | 3a1d41203c218de9950c1d0161eb73cee671b84507b02ed545400a07364be17c |
 | backend/src/models/Contract.test.js | 6db636d09582521eac546743fcd33efd2796e937e43718bef1a9757d94340497 |
 | backend/src/routes/contracts.js | 8402af134728216e79f89d0e293c5afb07d42425d686f623ce4356db895538d2 |
 | backend/src/routes/contracts.test.js | 96a7c15ab8f3987478ea8837140444d2a8d60c9fb39b9732dd4fdc060d8a8f7f |
 | backend/src/routes/domains.js | 212b3de98afcbdc5eb32fdd12da67729ce07dcebecefea278c040dd2c203f334 |
-| backend/src/routes/tasks.js | 2bd797870279ee96b6a9b67509066506ad845c53573398e7cc0e2f4e3d1cf01c |
-| backend/src/routes/tasks.test.js | e9e2bd4f22b4b0f0872b362d08cf8fa49d5c6fcb56cccbd60a5a90c9c9160780 |
-| backend/test.sh | e5928ae8afcda22d3fc632339ddff56e33367c819e4bc908d81ce7b5734878b1 |
+| backend/src/routes/tasks.js | e194c4919a5df5db15e5d4e16597b521ff589b35c7a59f93409f53fb27bd7f3e |
+| backend/src/routes/tasks.test.js | c719a699ea89b0464541a16b05d58f486744d0ed0b5dea32e5fd4db22e2fb64c |
+| backend/test.sh | e24235e13668608788b1111ee530e936223a2da04a4676e094a1015771c9f5f0 |
 | frontend/pubspec.yaml | 15495b09cdbf0286f2f1bdef52652e2f4246f254f6394f881e7515e4a3e843b8 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00004-e002-contrato-vigencia/checklists/CHL001-security.md | 391ca2a1b210d7d70af01d2dd2d4a2d1d327dd0fa2a70f756f9839be4bb89745 |
