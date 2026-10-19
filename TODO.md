@@ -3,10 +3,11 @@
 Custom project TODOs. Agents read this file at session start.
 
 ## Pending
-- implementar manutenção das tarefas com pemissão para mudar o estado da tarefa e tambem poder anexar documento relativo a tarefa como documentaçao de como fazer, foto do realizado ... — **spec criada: `specs/00014-manutencao-tarefas-aprovacao` (2026-10-17), 3 NEEDS CLARIFICATION a responder antes do Plan**
-- pensar: permitir que uma tarefas permita marcar que foi iniciado a execução e concluida; na revisão do gestor poder mudar o estado de acordo com a forma de aprovação ou rejeição; — mesmo spec 00014, aguardando Clarify
+- Épica E012 (Wave 5): amendar `specs/project-plan.md` com a recomendação registrada em `specs/00014-manutencao-tarefas-aprovacao/plan.md` (estende CAP-003)
 
 ## Done
+
+- [X] Manutenção de tarefas + aprovação/rejeição (00014) — feature fechada de ponta a ponta: spec clarificada, plan, tasks 18/18 `[X]`, implementação backend (`approve`/`reject`/`maintenance`, migração `attachments.category`, stage gate 403) + frontend (sheet de detalhe com histórico, decisão do gestor, manutenção admin/gestor, upload com categoria), QC PASS (`qc-report.md` + `.qc-passed`), bateria unit 165/165 · smoke 178/178 · flutter 37/37 · audit 0; re-sigilo full 14/14 + mini, push `3f2bde2..3908f04` (2026-10-19, `specs/00014-manutencao-tarefas-aprovacao`)
 
 - [X] Nome do usuário logado junto ao "Sair" — identificação (nome + papel) no NavigationRail acima de `Text('Sair')`, com tooltip em rail estreito; sessão legada sem `auth_user` mantém só o botão (2026-10-17, `frontend/lib/main.dart`)
 - [X] Dashboard submetido ao design — reescrita de `dashboard_screen.dart`: KPIs (Taxa de conclusão em destaque + Urgentes), grade de contagens, tarefas por status ordenada pelo fluxo, projetos recentes com chips de status, estados de loading/erro/vazio com retry; só tokens do `ColorScheme`, sem dependências novas; flutter analyze 0 issues + 25/25 (2026-10-17)
