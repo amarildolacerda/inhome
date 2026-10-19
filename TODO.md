@@ -3,9 +3,12 @@
 Custom project TODOs. Agents read this file at session start.
 
 ## Pending
-- Épica E012 (Wave 5): amendar `specs/project-plan.md` com a recomendação registrada em `specs/00014-manutencao-tarefas-aprovacao/plan.md` (estende CAP-003)
+
+_(sem pendências — todas as pendências do TODO original foram entregues)_
 
 ## Done
+
+- [X] Épica E012 (Wave 5) — `specs/project-plan.md` amendado: 12 épicas, 5 ondas, Wave 5 `[X]` com E012 {PRD:CAP-003}, arestas E011/E012 no diagrama, summary/guidance/coverage/superfície compartilhada atualizados; `specs/plan/E012.md` criado no padrão E011 (2026-10-19)
 
 - [X] Manutenção de tarefas + aprovação/rejeição (00014) — feature fechada de ponta a ponta: spec clarificada, plan, tasks 18/18 `[X]`, implementação backend (`approve`/`reject`/`maintenance`, migração `attachments.category`, stage gate 403) + frontend (sheet de detalhe com histórico, decisão do gestor, manutenção admin/gestor, upload com categoria), QC PASS (`qc-report.md` + `.qc-passed`), bateria unit 165/165 · smoke 178/178 · flutter 37/37 · audit 0; re-sigilo full 14/14 + mini, push `3f2bde2..3908f04` (2026-10-19, `specs/00014-manutencao-tarefas-aprovacao`)
 

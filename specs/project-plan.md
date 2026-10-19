@@ -13,10 +13,10 @@ dod_source: none
 | **Product** | Gestão de Contratos de Terceiros |
 | **Created** | 2026-09-27 |
 | **Status** | active |
-| **Epics** | 11 — 9 × P1, 2 × P2 |
-| **Categories** | 11 PRODUCT, 0 TECHNICAL, 0 OPERATIONAL |
+| **Epics** | 12 — 10 × P1, 2 × P2 |
+| **Categories** | 12 PRODUCT, 0 TECHNICAL, 0 OPERATIONAL |
 | **Author** | Amarildo de Lacerda |
-| **Waves** | 4 |
+| **Waves** | 5 |
 
 ## Epic Checklist
 
@@ -51,6 +51,12 @@ dod_source: none
 
 - [X] E011 [P1] [PRODUCT] [P] {PRD:CAP-003} Acesso de auditoria e classificação de tarefas executadas [→ Details](plan/E011.md)
 
+### Wave 5 — Manutenção e aprovação de tarefas
+
+> Fecha as pendências do TODO de 2026-10-17 sobre CAP-003, sem reescrever o PRD: aprovação/rejeição do gestor na revisão, manutenção do estado por admin/gestor com motivo e anexos com categoria (`evidence`/`documentation`). Entregue na feature workspace `specs/00014-manutencao-tarefas-aprovacao` (QC PASS, 2026-10-19).
+
+- [X] E012 [P1] [PRODUCT] [P] {PRD:CAP-003} Manutenção de tarefas e aprovação do gestor — decisão na revisão, manutenção com motivo e anexos categorizados [→ Details](plan/E012.md)
+
 ## Dependency Diagram
 
 ```mermaid
@@ -65,9 +71,11 @@ graph LR
   D -->|"E008"| I["Relatório PDF/CSV<br>por contrato"]
   H -->|"E005"| J["Painel de próximos<br>vencimentos"]
   H -->|"E010"| K["E-mail por evento<br>opt-in"]
+  D -->|"E012"| L["Aprovação do gestor<br>e manutenção"]
+  B -->|"E011"| M["Auditoria e<br>classificação"]
 ```
 
-Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_<id>` da infraestrutura já entregue (T033), não a saída de E009 — criar a aresta faria uma capacidade P2 (CAP-008) ser prerequisite de uma P1 e inflaria a prioridade de E009 contra o PRD.
+Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_<id>` da infraestrutura já entregue (T033), não a saída de E009 — criar a aresta faria uma capacidade P2 (CAP-008) ser prerequisite de uma P1 e inflaria a prioridade de E009 contra o PRD. E011 e E012 apontam das entregas de base que consomem (E001 guards/papéis, E003 `tasks`/`task_history`/anexos), não da infraestrutura de tempo real.
 
 ## Execution Wave Summary
 
@@ -77,12 +85,13 @@ Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_
 | 2 | E004, E008 | Sim | E004 escreve a migração de `alert_events`; E008 é leitura pura sobre `services/report.js` |
 | 3 | E005, E010 | Sim | E005 só consome a API de alertas de E004; E010 só valida gatilhos de envio |
 | 4 | E011 | Sim | Leitura sobre `tasks`/`task_history` já entregues (E003); classificação é coluna aditiva |
+| 5 | E012 | Sim | Decide e mantém `tasks` de E003 sob os guards de E001; `category` é coluna aditiva em anexos já entregues |
 
 ## Parallel Execution Guidance
 
-- **Independent Epics**: Wave 1 — E001, E002, E003, E006, E009 em paralelo; E007 entra depois de E002/E003 na mesma onda. Wave 2 — E004 e E008 sem contato. Wave 3 — E005 e E010 sem contato.
-- **Integration Risks**: E007 pode mexer em índices usados pelas listagens de contrato/tarefa (E002/E003). E006 altera `frontend/lib/main.dart` e `frontend/lib/theme/app_theme.dart`, importados por todas as telas — qualquer épica de tela da onda deve rebaixar sobre esses arquivos. E004 e E007 escrevem em `config/database.js` (migração × índices), mas estão em ondas diferentes.
-- **Shared Resource Conflicts**: `backend/src/config/database.js` (E004 migração, E007 índices — ondas distintas); `frontend/lib/main.dart` e `app_theme.dart` (E006, compartilhado com qualquer trabalho de tela); `frontend/nginx.conf` (só E003); salas Socket.io `domain_<id>` (leitura por E004/E005, escrita já entregue).
+- **Independent Epics**: Wave 1 — E001, E002, E003, E006, E009 em paralelo; E007 entra depois de E002/E003 na mesma onda. Wave 2 — E004 e E008 sem contato. Wave 3 — E005 e E010 sem contato. Wave 5 — E012 sozinha, estende CAP-003 sem tocar em E011.
+- **Integration Risks**: E007 pode mexer em índices usados pelas listagens de contrato/tarefa (E002/E003). E006 altera `frontend/lib/main.dart` e `frontend/lib/theme/app_theme.dart`, importados por todas as telas — qualquer épica de tela da onda deve rebaixar sobre esses arquivos. E004 e E007 escrevem em `config/database.js` (migração × índices), mas estão em ondas diferentes. E012 adiciona coluna em `attachments` e ações em `tasks.js` — superfície já entregue por E003, em onda posterior.
+- **Shared Resource Conflicts**: `backend/src/config/database.js` (E004 migração, E007 índices — ondas distintas); `frontend/lib/main.dart` e `app_theme.dart` (E006, compartilhado com qualquer trabalho de tela); `frontend/nginx.conf` (só E003); salas Socket.io `domain_<id>` (leitura por E004/E005, escrita já entregue); `backend/src/routes/tasks.js` e `frontend/lib/screens/tasks_screen.dart` (E003 origem, E012 extensão na onda 5).
 
 ## Coverage Validation
 
@@ -92,7 +101,7 @@ Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_
 |------------|-------|----------|-------|
 | CAP-001 | Ciclo de domínio, papéis e acesso | P1 | E001 |
 | CAP-002 | Contrato e vigência | P1 | E002 |
-| CAP-003 | Execução de tarefas com evidência | P1 | E003, E011 |
+| CAP-003 | Execução de tarefas com evidência | P1 | E003, E011, E012 |
 | CAP-004 | Alertas de vigência e painel de próximos vencimentos | P1 | E004, E005 |
 | CAP-005 | Painel por papel | P1 | E006 |
 | CAP-006 | Busca e filtros | P1 | E007 |
@@ -134,7 +143,8 @@ Sem DOD: extração de épicas operacionais pulada; subida do stack, cópia de s
 |--------|---------------|-------------|
 | `domains`, `system_users` (`data/platform.db`) | E001 | E004, E005 (seleção de tenant) |
 | `contratos` (status, previsão de finalização) | E002 | E004, E005, E007, E008 |
-| `tasks`, `task_history`, anexos de tarefa | E003 | E007, E008 |
+| `tasks`, `task_history`, anexos de tarefa | E003 | E007, E008, E011, E012 |
+| Coluna `attachments.category` (`evidence`/`documentation`) | E012 | — (leitura no detalhe da tarefa) |
 | `alert_events`, janelas de alerta 90/60/30/15 | E004 | E005, E010 |
 | Arquivos em `backend/uploads/` | E003 | E008 (fotos no PDF) |
 
@@ -145,6 +155,7 @@ Sem DOD: extração de épicas operacionais pulada; subida do stack, cópia de s
 | `/api/domains`, `/api/auth`, `/api/users` | E001 | E004, E005 |
 | `/api/contracts` (CRUD, prorrogação, encerramento) | E002 | E004, E005, E007, E008 |
 | `/api/tasks/:id/complete`, `/api/tasks/:id/reopen`, rota `/uploads` no Edge | E003 | E008 |
+| `/api/v2/tasks/:id/approve`, `/reject`, `/maintenance`, `category` no upload de anexo | E012 | — |
 | Varredura `runDueSweep` + endpoints de alertas e janelas | E004 | E005, E010 |
 | `/api/search` (contratos e tarefas) | E007 | — |
 | `/api/reports` (PDF/CSV por contrato) | E008 | — |
