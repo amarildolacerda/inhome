@@ -5,6 +5,7 @@ import '../models/contract.dart';
 import '../models/task.dart';
 import '../services/api_service.dart';
 import '../widgets/suggestion_panel.dart';
+import '../widgets/task_detail_sheet.dart';
 import '../widgets/task_list_tile.dart';
 
 /// Detalhe de contrato: o "canal" de tarefas do contrato escolhido em
@@ -222,10 +223,21 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
                     : ListView.builder(
                         padding: const EdgeInsets.fromLTRB(24, 16, 24, 88),
                         itemCount: _tasks.length,
-                        itemBuilder: (context, index) => TaskListTile(
-                          task: _tasks[index],
-                          onChanged: _loadTasks,
-                        ),
+                        itemBuilder: (context, index) {
+                          final task = _tasks[index];
+                          // Toque na linha abre o detalhe (00014): decisão,
+                          // manutenção, anexos com categoria e histórico.
+                          return TaskListTile(
+                            task: task,
+                            onChanged: _loadTasks,
+                            onTap: () => TaskDetailSheet.showFor(
+                              context,
+                              taskId: task.id,
+                              api: api,
+                              onChanged: _loadTasks,
+                            ),
+                          );
+                        },
                       ),
           ),
         ],
