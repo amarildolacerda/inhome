@@ -4,7 +4,7 @@ Custom project TODOs. Agents read this file at session start.
 
 ## Pending
 
-_(sem pendências — todas as pendências do TODO original foram entregues)_
+- [ ] `users` CHECK — alinhar a prosa do spec com o rebuild da tabela (`WARNING` não-bloqueante do QC de 00013, `specs/00013-e011-auditoria-classificacao`); decidido adiar em 2026-10-11. Pendência técnica, não pedida pelo usuário (2026-10-23)
 
 ## Done
 
