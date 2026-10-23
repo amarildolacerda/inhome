@@ -18,6 +18,7 @@ class ContractDetailScreen extends StatefulWidget {
     super.key,
     required this.contract,
     required this.onBack,
+    this.api,
   });
 
   final Contract contract;
@@ -25,12 +26,17 @@ class ContractDetailScreen extends StatefulWidget {
   /// Volta para a lista de contratos (ProjectsScreen).
   final VoidCallback onBack;
 
+  /// Fachada de API injetável — testes passam um fake; produção usa a
+  /// instância padrão.
+  final ApiService? api;
+
   @override
   State<ContractDetailScreen> createState() => _ContractDetailScreenState();
 }
 
 class _ContractDetailScreenState extends State<ContractDetailScreen> {
-  final api = ApiService();
+  late final ApiService api = widget.api ?? ApiService();
+  late Contract _contract;
   List<Task> _tasks = const [];
   bool _loading = true;
   String? _role;
@@ -39,9 +45,20 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _contract = widget.contract;
     _loadTasks();
     _resolveRole();
     _listenDomainEvents();
+  }
+
+  /// Contrato novo na mesma rota (outra origem) → estado local acompanha.
+  @override
+  void didUpdateWidget(covariant ContractDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.contract.id != widget.contract.id) {
+      setState(() => _contract = widget.contract);
+      _loadTasks();
+    }
   }
 
   /// [FR-020]: o stream só repassa 'task:updated' (payload do backend:
@@ -86,13 +103,13 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
 
   Future<void> _loadTasks() async {
     try {
-      final result = await api.get('/tasks?contract_id=${widget.contract.id}');
+      final result = await api.get('/tasks?contract_id=${_contract.id}');
       final items = (result['tasks'] as List? ?? const []);
       final tasks = items
           .map((item) => Task.fromJson(Map<String, dynamic>.from(item as Map)))
           // Para prestador o backend ignora contract_id e devolve só as
           // tarefas dele — filtra aqui para o canal não misturar contratos.
-          .where((task) => task.contractId == widget.contract.id)
+          .where((task) => task.contractId == _contract.id)
           .toList();
       if (!mounted) return;
       setState(() {
@@ -109,13 +126,15 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
   Future<void> _showCreateDialog() async {
     final task = await showDialog<Task>(
       context: context,
-      builder: (context) => const _CreateTaskDialog(),
+      builder: (context) => _CreateTaskDialog(
+        prestadores: _contract.prestadores,
+      ),
     );
     if (task == null || !mounted) return;
 
     try {
       await api.post(
-        '/contracts/${widget.contract.id}/tasks',
+        '/contracts/${_contract.id}/tasks',
         body: task.toJson(),
       );
       _snack('Tarefa criada');
@@ -127,6 +146,55 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
         _snack('Prestador não está vinculado ao contrato');
       } else {
         _snack(_errorText(e, 'Falha ao salvar'));
+      }
+    }
+  }
+
+  /// Dialog de vínculo → POST; o contrato decorado que volta da mutation
+  /// vira o estado local (mesmo seam do refresh, sem GET extra).
+  Future<void> _showLinkProviderDialog() async {
+    final userId = await showDialog<int>(
+      context: context,
+      builder: (context) => _LinkProviderDialog(
+        api: api,
+        linkedIds: _contract.prestadorIds,
+      ),
+    );
+    if (userId == null || !mounted) return;
+    try {
+      final contract = await api.linkContractProvider(_contract.id, userId);
+      if (!mounted) return;
+      setState(() => _contract = Contract.fromJson(contract));
+      _snack('Prestador vinculado');
+    } catch (e) {
+      // 409 chega sem `code` — o status identifica o conflito de vínculo.
+      if (e is ApiException && e.statusCode == 409) {
+        _snack('Prestador já está vinculado ao contrato');
+      } else {
+        _snack(_errorText(e, 'Falha ao vincular'));
+      }
+    }
+  }
+
+  Future<void> _unlinkProvider(ContractPrestador prestador) async {
+    try {
+      final contract =
+          await api.unlinkContractProvider(_contract.id, prestador.id);
+      if (!mounted) return;
+      setState(() => _contract = Contract.fromJson(contract));
+      _snack('Prestador desvinculado');
+    } catch (e) {
+      if (e is ApiException && e.code == 'OPEN_TASKS_BLOCK_UNLINK') {
+        final open = (e.details?['open_tasks'] as num?)?.toInt();
+        _snack(open == null
+            ? 'Há tarefas em aberto que impedem o desvincular'
+            : open == 1
+                ? '1 tarefa em aberto impede desvincular'
+                : '$open tarefas em aberto impedem desvincular');
+      } else if (e is ApiException && e.statusCode == 404) {
+        _snack('Prestador não está vinculado ao contrato');
+      } else {
+        _snack(_errorText(e, 'Falha ao desvincular'));
       }
     }
   }
@@ -159,9 +227,91 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  /// Seção "Prestadores": os vinculados (nome/email) com desvincular por
+  /// linha e o controle de vínculo com o restante do roster do domínio.
+  Widget _buildProvidersCard(BuildContext context) {
+    final linked = _contract.prestadores;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Prestadores',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(width: 8),
+                Chip(
+                  label: Text('${linked.length}'),
+                  visualDensity: VisualDensity.compact,
+                ),
+                const Spacer(),
+                FilledButton.icon(
+                  onPressed: _showLinkProviderDialog,
+                  icon: const Icon(Icons.link),
+                  label: const Text('Vincular prestador'),
+                ),
+              ],
+            ),
+            if (linked.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'Nenhum prestador vinculado',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              )
+            else
+              for (final prestador in linked)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.person_outline, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Semantics(
+                          container: true,
+                          label: 'Prestador vinculado ${prestador.name}',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                prestador.name,
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                              if (prestador.email != null)
+                                Text(
+                                  prestador.email!,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => _unlinkProvider(prestador),
+                        icon: const Icon(Icons.link_off),
+                        label: const Text('Desvincular'),
+                      ),
+                    ],
+                  ),
+                ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final contract = widget.contract;
+    final contract = _contract;
+    final canManageProviders =
+        _role == 'admin' || _role == 'gestor';
     return Scaffold(
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -209,6 +359,13 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
               ],
             ),
           ),
+          // Vínculo contrato ↔ prestador: admin/gestor linkam/deslinkam;
+          // prestador não vê a seção (a API recusaria a mutação).
+          if (canManageProviders)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+              child: _buildProvidersCard(context),
+            ),
           const Divider(height: 1),
           Expanded(
             child: _loading
@@ -255,10 +412,15 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
 }
 
 /// Diálogo de criação de tarefa no contrato: mesmos campos do
-/// POST /contracts/:id/tasks (TASK_SCHEMA) — título, descrição e prioridade.
-/// O status nasce em 'A Fazer'; criação não aceita outro.
+/// POST /contracts/:id/tasks (TASK_SCHEMA) — título, descrição, prioridade e
+/// responsável opcional entre os prestadores vinculados ao contrato. O status
+/// nasce em 'A Fazer'; criação não aceita outro.
 class _CreateTaskDialog extends StatefulWidget {
-  const _CreateTaskDialog();
+  const _CreateTaskDialog({required this.prestadores});
+
+  /// Vinculados ao contrato — única fonte válida de responsável (o backend
+  /// recusa assignee_id fora do vínculo).
+  final List<ContractPrestador> prestadores;
 
   @override
   State<_CreateTaskDialog> createState() => _CreateTaskDialogState();
@@ -268,6 +430,7 @@ class _CreateTaskDialogState extends State<_CreateTaskDialog> {
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
   String _priority = 'medium';
+  int? _assigneeId;
   String? _titleError;
 
   @override
@@ -286,12 +449,15 @@ class _CreateTaskDialogState extends State<_CreateTaskDialog> {
     Navigator.pop(
       context,
       // O contrato vem da rota; id e status existem só depois do POST.
+      // assigneeId null segue como assignee_id null — o schema do backend
+      // trata null como ausente (sem responsável).
       Task(
         id: 0,
         contractId: 0,
         title: title,
         description: description.isEmpty ? null : description,
         priority: _priority,
+        assigneeId: _assigneeId,
       ),
     );
   }
@@ -340,6 +506,29 @@ class _CreateTaskDialogState extends State<_CreateTaskDialog> {
                 onChanged: (value) =>
                     setState(() => _priority = value ?? 'medium'),
               ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int?>(
+                initialValue: _assigneeId,
+                decoration: const InputDecoration(
+                  labelText: 'Responsável',
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  const DropdownMenuItem<int?>(
+                    value: null,
+                    child: Text('Sem responsável'),
+                  ),
+                  for (final prestador in widget.prestadores)
+                    DropdownMenuItem<int?>(
+                      value: prestador.id,
+                      child: Text(
+                        prestador.name,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+                onChanged: (value) => setState(() => _assigneeId = value),
+              ),
             ],
           ),
         ),
@@ -350,6 +539,117 @@ class _CreateTaskDialogState extends State<_CreateTaskDialog> {
           child: const Text('Cancelar'),
         ),
         FilledButton(onPressed: _submit, child: const Text('Criar')),
+      ],
+    );
+  }
+}
+
+/// Diálogo de vínculo: busca o roster do domínio (GET /users), mantém só os
+/// prestadores ainda não vinculados e devolve o id escolhido.
+class _LinkProviderDialog extends StatefulWidget {
+  const _LinkProviderDialog({required this.api, required this.linkedIds});
+
+  final ApiService api;
+  final List<int> linkedIds;
+
+  @override
+  State<_LinkProviderDialog> createState() => _LinkProviderDialogState();
+}
+
+class _LinkProviderDialogState extends State<_LinkProviderDialog> {
+  List<Map<String, dynamic>>? _candidates;
+  String? _error;
+  int? _selectedId;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final users = await widget.api.listUsers();
+      if (!mounted) return;
+      final linked = widget.linkedIds.toSet();
+      setState(() {
+        _candidates = users
+            .where((user) =>
+                user['role'] == 'prestador' &&
+                !linked.contains((user['id'] as num?)?.toInt()))
+            .toList();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _candidates = const [];
+        _error = _errorText(e, 'Falha ao carregar prestadores');
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final candidates = _candidates;
+    return AlertDialog(
+      title: const Text('Vincular prestador'),
+      content: SizedBox(
+        width: 360,
+        child: candidates == null
+            ? const SizedBox(
+                height: 48,
+                child: Center(child: CircularProgressIndicator()),
+              )
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_error != null)
+                    Text(
+                      _error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    )
+                  else if (candidates.isEmpty)
+                    const Text('Nenhum prestador disponível para vínculo')
+                  else
+                    DropdownButtonFormField<int>(
+                      initialValue: _selectedId,
+                      hint: const Text('Escolha o prestador'),
+                      decoration: const InputDecoration(
+                        labelText: 'Prestador',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: [
+                        for (final user in candidates)
+                          DropdownMenuItem(
+                            value: (user['id'] as num).toInt(),
+                            child: Text(
+                              user['name']?.toString() ?? '',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
+                      onChanged: (value) =>
+                          setState(() => _selectedId = value),
+                    ),
+                ],
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: candidates == null ||
+                  candidates.isEmpty ||
+                  _selectedId == null
+              ? null
+              : () => Navigator.pop(context, _selectedId),
+          child: const Text('Vincular'),
+        ),
       ],
     );
   }

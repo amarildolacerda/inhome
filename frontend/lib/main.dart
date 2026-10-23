@@ -374,106 +374,146 @@ class _MainShellState extends State<MainShell> {
     if (_selectedIndex >= _entries.length) _selectedIndex = 0;
 
     return Scaffold(
-      body: Row(
+      body: Column(
         children: [
-          // FR-028: named navigation region for screen readers; each
-          // destination exposes its Text label for semantics + keyboard use.
-          Semantics(
-            container: true,
-            label: 'Navegação principal',
-            child: NavigationRail(
-              selectedIndex: _entries.isEmpty ? null : _selectedIndex,
-              onDestinationSelected: (index) {
-                setState(() => _selectedIndex = index);
-              },
-              leading: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Icon(Icons.dashboard_rounded, size: 32),
-              ),
-              labelType: NavigationRailLabelType.all,
-              // Ação de sessão — bottom-pinned, fora da lista de destinos.
-              trailingAtBottom: true,
-              trailing: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Sessão corrente em texto pequeno — identifica quem está
-                    // logado sem competir com a ação de sair. O rail é estreito,
-                    // então o nome pode cortar com reticências; o tooltip
-                    // mostra nome e papel completos.
-                    if (_userName != null || _userRoleLabel != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Tooltip(
-                          message: [
-                            if (_userName != null) _userName,
-                            if (_userRoleLabel != null) _userRoleLabel,
-                          ].join(' · '),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (_userName != null)
-                                Text(
-                                  _userName!,
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelSmall
-                                      ?.copyWith(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
-                                      ),
-                                ),
-                              if (_userRoleLabel != null)
-                                Text(
-                                  _userRoleLabel!,
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelSmall
-                                      ?.copyWith(
-                                        fontSize: 10,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .outline,
-                                      ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    TextButton(
-                      onPressed: _logout,
-                      child: const Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.logout_outlined),
-                          SizedBox(height: 4),
-                          Text('Sair'),
-                        ],
-                      ),
+          // Identificação da sessão + sair — barra full-width acima da
+          // navegação, densidade compacta para não roubar altura das telas.
+          _SessionToolbar(
+            userName: _userName,
+            roleLabel: _userRoleLabel,
+            onLogout: _logout,
+          ),
+          const Divider(height: 1, thickness: 1),
+          Expanded(
+            child: Row(
+              children: [
+                // FR-028: named navigation region for screen readers; each
+                // destination exposes its Text label for semantics + keyboard use.
+                Semantics(
+                  container: true,
+                  label: 'Navegação principal',
+                  child: NavigationRail(
+                    selectedIndex: _entries.isEmpty ? null : _selectedIndex,
+                    onDestinationSelected: (index) {
+                      setState(() => _selectedIndex = index);
+                    },
+                    leading: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Icon(Icons.dashboard_rounded, size: 32),
                     ),
-                  ],
+                    labelType: NavigationRailLabelType.all,
+                    destinations: [
+                      for (final entry in _entries) entry.toDestination(),
+                    ],
+                  ),
                 ),
-              ),
-              destinations: [
-                for (final entry in _entries) entry.toDestination(),
+                const VerticalDivider(width: 1),
+                Expanded(
+                  child: _entries.isEmpty
+                      ? const SizedBox.shrink()
+                      : _entries[_selectedIndex].screen,
+                ),
               ],
             ),
           ),
-          const VerticalDivider(width: 1),
-          Expanded(
-            child: _entries.isEmpty
-                ? const SizedBox.shrink()
-                : _entries[_selectedIndex].screen,
-          ),
         ],
+      ),
+    );
+  }
+}
+
+/// Barra superior do shell: nome + papel da sessão à esquerda e a ação de
+/// sair à direita — a sessão saiu do trailing do rail para ficar visível em
+/// qualquer largura. Sessão legada sem `auth_user` mostra só o papel (ou só
+/// o botão Sair, quando nem o papel tem nome).
+class _SessionToolbar extends StatelessWidget {
+  const _SessionToolbar({
+    required this.userName,
+    required this.roleLabel,
+    required this.onLogout,
+  });
+
+  final String? userName;
+  final String? roleLabel;
+  final VoidCallback onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final fullIdentity = [
+      if (userName != null) userName,
+      if (roleLabel != null) roleLabel,
+    ].join(' · ');
+
+    return Material(
+      color: scheme.surfaceContainerLow,
+      child: Semantics(
+        container: true,
+        label: 'Sessão',
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            children: [
+              Icon(
+                Icons.account_circle_outlined,
+                size: 24,
+                color: scheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+              // Identificação visível (não só tooltip); em largura estreita o
+              // nome corta com elipse e o tooltip mostra a identidade completa.
+              if (fullIdentity.isNotEmpty)
+                Flexible(
+                  child: Tooltip(
+                    message: fullIdentity,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (userName != null)
+                          Flexible(
+                            child: Text(
+                              userName!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: scheme.onSurface,
+                              ),
+                            ),
+                          ),
+                        if (userName != null && roleLabel != null) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            '·',
+                            style: theme.textTheme.labelLarge
+                                ?.copyWith(color: scheme.outline),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        if (roleLabel != null)
+                          Text(
+                            roleLabel!,
+                            maxLines: 1,
+                            style: theme.textTheme.labelLarge
+                                ?.copyWith(color: scheme.onSurfaceVariant),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 8),
+              Tooltip(
+                message: 'Encerrar sessão',
+                child: TextButton.icon(
+                  onPressed: onLogout,
+                  icon: const Icon(Icons.logout_outlined, size: 20),
+                  label: const Text('Sair'),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

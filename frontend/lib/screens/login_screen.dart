@@ -1,59 +1,80 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import '../services/credentials_store.dart';
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback onLogin;
 
-  const LoginScreen({super.key, required this.onLogin});
+  /// Loja de credenciais injetável — testes usam um fake sem MethodChannel.
+  final CredentialsStore credentialsStore;
+
+  /// Fachada de API injetável — testes estendem [ApiService] sem rede.
+  final ApiService? api;
+
+  const LoginScreen({
+    super.key,
+    required this.onLogin,
+    CredentialsStore? credentialsStore,
+    this.api,
+  }) : credentialsStore = credentialsStore ?? const SecureCredentialsStore();
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  /// Preferência 'Lembrar meu e-mail' — só o email é gravado, nunca a senha.
-  static const _rememberKey = 'remember_email';
-
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final api = ApiService();
+  late final api = widget.api ?? ApiService();
   bool _loading = false;
   bool _obscurePassword = true;
-  bool _rememberEmail = false;
+  bool _rememberLogin = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadRememberedEmail();
+    _loadRememberedCredentials();
   }
 
-  /// Com email salvo, pré-preenche o campo e marca a opção de lembrar.
-  Future<void> _loadRememberedEmail() async {
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  /// Com par salvo, pré-preenche email e senha e marca "Lembrar meu login".
+  /// Sem auto-login: o usuário segue e clica em "Entrar" normalmente.
+  Future<void> _loadRememberedCredentials() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final email = prefs.getString(_rememberKey);
-      if (email == null || email.isEmpty || !mounted) return;
+      final credential = await widget.credentialsStore.load();
+      if (credential == null || !mounted) return;
       setState(() {
-        _emailController.text = email;
-        _rememberEmail = true;
+        _emailController.text = credential.email;
+        if (credential.password.isNotEmpty) {
+          _passwordController.text = credential.password;
+        }
+        _rememberLogin = true;
       });
     } catch (_) {
-      // Sem preferência gravada o formulário abre vazio — o login segue.
+      // Sem credencial salva o formulário abre vazio — o login segue.
     }
   }
 
-  /// Após login bem-sucedido: marca grava o email; desmarca apaga a chave.
-  /// Conveniência — falha de preferência nunca derruba o login.
-  Future<void> _persistRememberedEmail() async {
+  /// Após login bem-sucedido: marcado grava o par no armazenamento seguro;
+  /// desmarcado apaga. Conveniência — falha de preferência nunca derruba o
+  /// login.
+  Future<void> _persistRememberedLogin() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      if (_rememberEmail) {
-        await prefs.setString(_rememberKey, _emailController.text.trim());
+      if (_rememberLogin) {
+        await widget.credentialsStore.save(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
       } else {
-        await prefs.remove(_rememberKey);
+        await widget.credentialsStore.clear();
       }
     } catch (_) {
       // Preferência não gravada: o próximo login pede o email de novo.
@@ -75,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text,
         password: _passwordController.text,
       );
-      await _persistRememberedEmail();
+      await _persistRememberedLogin();
       widget.onLogin();
     } catch (e) {
       setState(() => _error = e.toString());
@@ -156,10 +177,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: CheckboxListTile(
-                        value: _rememberEmail,
+                        value: _rememberLogin,
                         onChanged: (value) =>
-                            setState(() => _rememberEmail = value ?? false),
-                        title: const Text('Lembrar meu e-mail'),
+                            setState(() => _rememberLogin = value ?? false),
+                        title: const Text('Lembrar meu login'),
                         controlAffinity: ListTileControlAffinity.leading,
                         contentPadding: EdgeInsets.zero,
                         dense: true,

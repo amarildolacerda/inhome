@@ -25,7 +25,10 @@ const io = new Server(server, {
 
 // Middleware
 app.use(cors({ origin: CORS_ORIGINS, credentials: true }));
-app.use(express.json({ limit: '2mb' }),
+// 4mb: o teto autorizado é 2 MB por arquivo (upload.js), mas o payload chega
+// como JSON base64 (~+33%). Com folga no envelope, a recusa de tamanho vira o
+// 400 explícito do backend e não um 413 opaco do parser.
+app.use(express.json({ limit: '4mb' }),
   //debugging middleware to log incoming requests
   (req, res, next) => {
     console.log(`${req.method} ${req.url}`);

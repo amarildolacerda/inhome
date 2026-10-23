@@ -12,7 +12,10 @@ import '../utils/picked_file.dart';
 /// GET /tasks/:id/attachments), mais as ações novas por papel:
 ///
 /// - gestor em Revisão: aprovar (Concluída) ou rejeitar com motivo;
-/// - gestor/admin: manutenção do estado (4 estados + motivo obrigatório);
+/// - gestor/admin: manutenção do estado (4 estados + motivo obrigatório),
+///   fechando o sheet no sucesso e devolvendo o usuário para a tela de origem;
+/// - admin/gestor: reatribuição da tarefa a um prestador vinculado ao
+///   contrato (PUT /tasks/:id {assignee_id});
 /// - upload de anexo com seletor de categoria (evidência/documentação),
 ///   oculto para o prestador em Concluída (AD-005, gate do backend).
 ///
@@ -33,8 +36,8 @@ class TaskDetailSheet extends StatefulWidget {
   /// testes injetam uma fachada.
   final ApiService? api;
 
-  /// Chamado após cada ação aceita (aprovação, rejeição, manutenção, upload)
-  /// — a tela que abriu o sheet recarrega a lista.
+  /// Chamado após cada ação aceita (aprovação, rejeição, manutenção,
+  /// reatribuição, upload) — a tela que abriu o sheet recarrega a lista.
   final VoidCallback? onChanged;
 
   /// Seletor de arquivo injetável para teste; sem injeção usa o seletor da
@@ -72,6 +75,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
 
   Task? _task;
   List<Map<String, dynamic>> _attachments = const [];
+  List<Map<String, dynamic>> _prestadores = const [];
   String? _role;
   bool _loading = true;
   String? _error;
@@ -79,6 +83,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
 
   String _category = _categoryEvidence;
   String? _maintenanceStatus;
+  String? _reassignId;
   final _maintenanceController = TextEditingController();
 
   @override
@@ -102,11 +107,27 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
       final role = await api.role;
       final detail = await api.getTaskDetail(widget.taskId);
       final attachments = await api.listTaskAttachments(widget.taskId);
+      final task = Task.fromDetail(detail);
+      // Reatribuição é gestor/admin (mesmo gate da manutenção); para os
+      // demais papéis a lista nem é buscada.
+      final prestadores = (role == 'gestor' || role == 'admin')
+          ? await _loadPrestadores(task.contractId)
+          : const <Map<String, dynamic>>[];
       if (!mounted) return;
+      final statusChanged = _task?.status != task.status;
       setState(() {
         _role = role;
-        _task = Task.fromDetail(detail);
+        _task = task;
         _attachments = attachments;
+        _prestadores = prestadores;
+        // Pré-marca a manutenção com o estado corrente (toda _load() em que o
+        // status mudou resincroniza o dropdown via key); a reatribuição só
+        // inicializa — a escolha pendente do usuário não é apagada por um
+        // reload de outra ação.
+        if (statusChanged || _maintenanceStatus == null) {
+          _maintenanceStatus = task.status;
+        }
+        _reassignId ??= task.assigneeId?.toString();
         _loading = false;
       });
     } catch (error) {
@@ -118,12 +139,32 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
     }
   }
 
+  /// Prestadores vinculados ao contrato da tarefa (GET /contracts/:id —
+  /// contrato decorado). Falha não derruba o sheet: sem lista o controle de
+  /// reatribuição some e a leitura do responsável permanece.
+  Future<List<Map<String, dynamic>>> _loadPrestadores(int contractId) async {
+    try {
+      final contract = await api.get('/contracts/$contractId');
+      final raw = contract['prestadores'];
+      if (raw is! List) return const [];
+      return raw
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
   /// [FR-030]: decisão é do gestor (admin fica de fora) e só em Revisão.
   bool get _canDecide => _role == 'gestor' && _task?.status == Task.review;
 
   /// [FR-033]: manutenção é gestor/admin; prestador, auditor e system_admin
   /// não veem a seção.
   bool get _canMaintain => _role == 'gestor' || _role == 'admin';
+
+  /// Reatribuição usa o mesmo gate da manutenção (admin/gestor).
+  bool get _canReassign => _canMaintain;
 
   /// [FR-036]/AD-005: gestor/admin anexam em qualquer estado; prestador até
   /// Revisão (Concluída é 403 no backend).
@@ -140,22 +181,34 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _run(
+  /// Executa uma ação do sheet: no sucesso mostra o SnackBar, notifica o
+  /// parent ([onChanged]) e recarrega o detalhe. Com [closeOnSuccess]
+  /// (manutenção) o sheet é fechado no sucesso em vez de recarregar — o
+  /// usuário volta para a tela de origem e o SnackBar root sobrevive ao pop.
+  /// Devolve `true` quando a ação teve sucesso.
+  Future<bool> _run(
     Future<Map<String, dynamic>> Function() action, {
     required String fallback,
     required String success,
+    bool closeOnSuccess = false,
   }) async {
-    if (_busy) return;
+    if (_busy) return false;
     setState(() => _busy = true);
     try {
       await action();
-      if (!mounted) return;
+      if (!mounted) return false;
       _snack(success);
       widget.onChanged?.call();
+      if (closeOnSuccess) {
+        Navigator.of(context).pop();
+        return true;
+      }
       await _load();
+      return true;
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) return false;
       _snack(_errorText(error, fallback));
+      return false;
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -183,19 +236,41 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
     );
   }
 
-  /// [FR-033]: manutenção do estado com motivo obrigatório.
+  /// [FR-033]: manutenção do estado com motivo obrigatório. O seletor já
+  /// abre com o estado atual e o botão fica inerte enquanto a escolha for
+  /// igual ao atual (o backend recusa com TASK_MAINTENANCE_NOOP). No sucesso
+  /// o sheet fecha e o usuário volta para a tela de origem (o parent
+  /// recarrega via onChanged; o SnackBar root sobrevive ao pop). Na falha o
+  /// sheet permanece aberto com o SnackBar de erro — a escolha e o motivo
+  /// ficam para o usuário corrigir e tentar de novo.
   Future<void> _maintain() async {
     final status = _maintenanceStatus;
     final motivo = _maintenanceController.text.trim();
-    if (status == null || motivo.isEmpty) return;
-    await _run(
+    if (status == null || status == _task?.status || motivo.isEmpty) return;
+    final closed = await _run(
       () => api.maintainTask(widget.taskId, status: status, motivo: motivo),
       fallback: 'Falha na manutenção',
       success: 'Estado atualizado por manutenção',
+      closeOnSuccess: true,
     );
-    if (!mounted) return;
-    _maintenanceController.clear();
-    setState(() => _maintenanceStatus = null);
+    if (closed) return;
+    // Falha: mantém estado e motivo no formulário para o retry.
+  }
+
+  /// Reatribuição (admin/gestor): PUT /tasks/:id {assignee_id} com um
+  /// prestador vinculado ao contrato. Sucesso mostra o SnackBar e recarrega
+  /// a tarefa (o backend grava a ação 'assign'); o sheet permanece aberto.
+  Future<void> _reassign() async {
+    final assigneeId = int.tryParse(_reassignId ?? '');
+    if (assigneeId == null || assigneeId == _task?.assigneeId) return;
+    await _run(
+      () => api.put(
+        '/tasks/${widget.taskId}',
+        body: {'assignee_id': assigneeId},
+      ),
+      fallback: 'Falha ao atualizar responsável',
+      success: 'Responsável atualizado',
+    );
   }
 
   /// [FR-036]: upload com a categoria escolhida; o seletor cancelado não
@@ -278,6 +353,10 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
+          // Reatribuição: admin/gestor trocam o responsável pela lista de
+          // prestadores vinculados ao contrato; os demais papéis só leem.
+          if (_canReassign && _prestadores.isNotEmpty)
+            _buildReassignSection(task),
           if (task.dueDate != null) ...[
             const SizedBox(height: 4),
             Text(
@@ -326,9 +405,12 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
     );
   }
 
-  /// [FR-033]: quatro estados do Task.flow + motivo obrigatório.
+  /// [FR-033]: quatro estados do Task.flow + motivo obrigatório. O seletor
+  /// abre com o estado atual da tarefa; aplicar igual ao atual é sempre
+  /// recusado pelo backend (NOOP), então o botão fica inerte até a troca.
   Widget _buildMaintenanceSection() {
     final canApply = _maintenanceStatus != null &&
+        _maintenanceStatus != _task?.status &&
         _maintenanceController.text.trim().isNotEmpty &&
         !_busy;
     return Column(
@@ -338,6 +420,9 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
         Text('Manutenção', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
+          // Key pelo status: um reload que muda o estado ressincroniza o
+          //FormField (initialValue só vale no primeiro build).
+          key: ValueKey('maintenance-status-${_task?.status}'),
           initialValue: _maintenanceStatus,
           decoration: const InputDecoration(labelText: 'Novo estado'),
           items: Task.flow
@@ -368,6 +453,56 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
           child: const Text('Aplicar manutenção'),
         ),
       ],
+    );
+  }
+
+  /// Reatribuição entre os prestadores vinculados ao contrato. O seletor já
+  /// abre com o responsável atual; aplicar igual a ele é inerte (o PUT só
+  /// faz sentido para troca). `assignee_id: null` não é oferecido — o
+  /// backend ignora null e a tarefa fica sem responsável.
+  Widget _buildReassignSection(Task task) {
+    final values = _prestadores
+        .map((prestador) => (prestador['id'] as num?)?.toInt().toString())
+        .whereType<String>()
+        .toList();
+    // O responsável atual pode não estar mais entre os vinculados ao
+    // contrato; nesse caso o dropdown abre vazio em vez de quebrar.
+    final initialValue = values.contains(_reassignId) ? _reassignId : null;
+    final canUpdate = _reassignId != null &&
+        values.contains(_reassignId) &&
+        _reassignId != task.assigneeId?.toString() &&
+        !_busy;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              key: ValueKey('reassign-${task.assigneeId}'),
+              initialValue: initialValue,
+              decoration: const InputDecoration(labelText: 'Novo responsável'),
+              items: _prestadores.map((prestador) {
+                final id = (prestador['id'] as num?)?.toInt();
+                return DropdownMenuItem<String>(
+                  value: id?.toString(),
+                  child: Text(
+                    (prestador['name'] ?? 'Prestador #$id').toString(),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                );
+              }).toList(),
+              onChanged: _busy
+                  ? null
+                  : (value) => setState(() => _reassignId = value),
+            ),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: canUpdate ? _reassign : null,
+            child: const Text('Atualizar responsável'),
+          ),
+        ],
+      ),
     );
   }
 

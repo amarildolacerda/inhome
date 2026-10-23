@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../models/contract.dart';
 import '../services/api_service.dart';
+import 'contract_detail_screen.dart';
 
 /// Painel do domínio (admin/gestor) ou da fila pessoal (prestador) — mesmos
 /// dados de GET /dashboard/stats, com hierarquia nova:
@@ -10,22 +12,45 @@ import '../services/api_service.dart';
 ///  3. composição das tarefas por status;
 ///  4. projetos recentes como cartões com progresso e status.
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  const DashboardScreen({super.key, this.api});
+
+  /// Seam de injeção para teste — produção usa o ApiService singleton.
+  final ApiService? api;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  final api = ApiService();
+  late final api = widget.api ?? ApiService();
   Map<String, dynamic>? _data;
   bool _loading = true;
   String? _error;
 
+  /// Gate de permissão do card "Projetos recentes": resolvido uma vez na
+  /// abertura do painel; a afordância de navegação só aparece para papel de
+  /// domínio. Falha na resolução deixa false (sem link — defesa em
+  /// profundidade; o backend já só devolve recentProjects nesse escopo).
+  bool _canOpenProject = false;
+
+  /// Papéis com acesso ao canal de tarefas do contrato.
+  static const _openProjectRoles = {'admin', 'gestor', 'system_admin'};
+
   @override
   void initState() {
     super.initState();
+    _resolveOpenPermission();
     _loadDashboard();
+  }
+
+  Future<void> _resolveOpenPermission() async {
+    try {
+      final role = await api.role;
+      if (!mounted) return;
+      setState(() => _canOpenProject = _openProjectRoles.contains(role));
+    } catch (_) {
+      // Sem papel resolvido não há afordância — o card segue informativo.
+    }
   }
 
   Future<void> _loadDashboard() async {
@@ -117,11 +142,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
       label: 'Painel do domínio',
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _Header(onRefresh: _loadDashboard, refreshing: _loading),
-            const SizedBox(height: 24),
+        // Foco autofirst dentro do scrollable: sem foco no interior, o
+        // Scrollable ignora os atalhos de rolagem do teclado (no web, setas
+        // puras; em desktop, Ctrl+seta e PageUp/PageDown — o mouse rola em
+        // todos). skipTraversal mantém o Tab indo direto para os controles
+        // (InkWell dos cards segue focável pelo teclado).
+        child: Focus(
+          autofocus: true,
+          skipTraversal: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Header(onRefresh: _loadDashboard, refreshing: _loading),
+              const SizedBox(height: 24),
 
             // 1) KPIs principais — taxa de conclusão em destaque e urgentes
             //    como alerta; larguras vêm do LayoutBuilder, sem overflow.
@@ -216,13 +249,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
             if (recentProjects.isEmpty)
               _EmptyProjectsCard()
             else
-              ...recentProjects.map(
-                (project) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _ProjectCard(project: project),
+            ...recentProjects.map(
+              (project) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _ProjectCard(
+                  project: project,
+                  api: api,
+                  canOpen: _canOpenProject,
                 ),
               ),
+            ),
           ],
+          ),
         ),
       ),
     );
@@ -618,16 +656,39 @@ class _StatusRow extends StatelessWidget {
 
 /// Contrato recente: nome, status e progresso de tarefas em um cartão —
 /// substitui o ListTile denso anterior.
-class _ProjectCard extends StatelessWidget {
-  const _ProjectCard({required this.project});
+///
+/// Com papel de domínio o card inteiro vira atalho para a lista de tarefas
+/// do contrato (GET /contracts/:id → ContractDetailScreen): chevron sutil
+/// como sinal de navegação, foco de teclado via InkWell e um spinner no
+/// lugar do chevron enquanto o contrato carrega (bloqueia duplo-tap).
+class _ProjectCard extends StatefulWidget {
+  const _ProjectCard({
+    required this.project,
+    required this.api,
+    required this.canOpen,
+  });
 
   final Map<String, dynamic> project;
+
+  /// Seam de injeção para teste — igual ao do painel.
+  final ApiService api;
+
+  /// Gate de permissão já resolvido pelo painel (papel de domínio).
+  final bool canOpen;
+
+  @override
+  State<_ProjectCard> createState() => _ProjectCardState();
+}
+
+class _ProjectCardState extends State<_ProjectCard> {
+  bool _opening = false;
 
   ({String label, Color background, Color foreground}) _statusStyle(
       ThemeData theme) {
     // effective_status vem do backend ('vigente' | 'atrasado' | 'encerrado');
     // status é o label persistido ('vigente' | 'encerrado').
-    final status = '${project['effective_status'] ?? project['status']}';
+    final status =
+        '${widget.project['effective_status'] ?? widget.project['status']}';
     final scheme = theme.colorScheme;
     switch (status) {
       case 'vigente':
@@ -657,11 +718,95 @@ class _ProjectCard extends StatelessWidget {
     }
   }
 
+  /// Abre o canal de tarefas do contrato: busca o contrato completo e
+  /// empurra ContractDetailScreen. Erro de rede/403/404 vira SnackBar sem
+  /// derrubar o painel; [_opening] bloqueia toque repetido durante o voo.
+  Future<void> _openTasks() async {
+    if (_opening) return;
+    final id = widget.project['id'];
+    if (id is! num) return;
+    setState(() => _opening = true);
+    try {
+      final result = await widget.api.get('/contracts/${id.toInt()}');
+      final payload = result['contract'];
+      if (payload is! Map) {
+        throw ApiException('Contrato indisponível');
+      }
+      final contract =
+          Contract.fromJson(Map<String, dynamic>.from(payload));
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ContractDetailScreen(
+            contract: contract,
+            onBack: () => Navigator.pop(context),
+          ),
+        ),
+      );
+    } catch (e) {
+      _snack(_errorText(e, 'Falha ao abrir o projeto'));
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
+  }
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Remove o invólucro 'Exception: ...' (ou 'Exception(...)') do erro.
+  String _errorText(Object error, String fallback) {
+    var text = error.toString().trim();
+    if (text.startsWith('Exception(') && text.endsWith(')')) {
+      text = text.substring('Exception('.length, text.length - 1);
+    } else if (text.startsWith('Exception: ')) {
+      text = text.substring('Exception: '.length);
+    }
+    text = text.trim();
+    return text.isEmpty ? fallback : text;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final name = '${widget.project['name'] ?? ''}';
+    // Sem id não há rota — o card permanece apenas informativo.
+    final openable = widget.canOpen && widget.project['id'] is num;
+
+    final card = Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: openable
+          ? InkWell(
+              onTap: _opening ? null : _openTasks,
+              child: _content(context, name: name),
+            )
+          : _content(context, name: name),
+    );
+
+    if (!openable) return card;
+
+    // Semântica anuncia a ação de navegação; MouseRegion dá o cursor de
+    // clique no web enquanto o card não está carregando. container: true
+    // mantém o nó de botão independente — sem isso o label se funde ao do
+    // cabeçalho vizinho e leitores de tela anunciam texto cruzado.
+    return Semantics(
+      container: true,
+      button: true,
+      label: 'Abrir tarefas do projeto $name',
+      child: MouseRegion(
+        cursor:
+            _opening ? SystemMouseCursors.wait : SystemMouseCursors.click,
+        child: card,
+      ),
+    );
+  }
+
+  Widget _content(BuildContext context, {required String name}) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final name = '${project['name'] ?? ''}';
+    final project = widget.project;
     final taskCount = project['task_count'] is num
         ? (project['task_count'] as num).toInt()
         : 0;
@@ -671,79 +816,95 @@ class _ProjectCard extends StatelessWidget {
     final progress =
         taskCount > 0 ? (completedCount / taskCount).clamp(0.0, 1.0) : 0.0;
     final status = _statusStyle(theme);
+    // Sem id não há rota — o card permanece apenas informativo.
+    final openable = widget.canOpen && project['id'] is num;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Color.alphaBlend(
-                  scheme.primary.withValues(alpha: 0.12),
-                  scheme.surfaceContainerLow,
-                ),
-                borderRadius: BorderRadius.circular(10),
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Color.alphaBlend(
+                scheme.primary.withValues(alpha: 0.12),
+                scheme.surfaceContainerLow,
               ),
-              child: Icon(Icons.folder_open, size: 20, color: scheme.primary),
+              borderRadius: BorderRadius.circular(10),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          name,
-                          style: theme.textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                        ),
+            child: Icon(Icons.folder_open, size: 20, color: scheme.primary),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        name,
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
-                      const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: status.background,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          status.label,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: status.foreground,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(3),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 6,
-                      color: scheme.primary,
-                      backgroundColor: scheme.surfaceContainerHighest,
                     ),
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: status.background,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        status.label,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: status.foreground,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    if (openable) ...[
+                      const SizedBox(width: 4),
+                      // Sinal de navegação: chevron em repouso, spinner
+                      // discreto durante o carregamento do contrato.
+                      _opening
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2),
+                            )
+                          : Icon(
+                              Icons.chevron_right,
+                              size: 20,
+                              color: scheme.outline,
+                            ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(3),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 6,
+                    color: scheme.primary,
+                    backgroundColor: scheme.surfaceContainerHighest,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '$completedCount de $taskCount tarefas concluídas',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: scheme.onSurfaceVariant),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '$completedCount de $taskCount tarefas concluídas',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -12,11 +12,15 @@ import 'package:socket_io_client/socket_io_client.dart' show Socket;
 /// envia. `toString()` devolve só a mensagem: os tratamentos existentes de
 /// `Exception: ...` e os `contains(...)` de mensagem seguem funcionando.
 class ApiException implements Exception {
-  ApiException(this.message, {this.code, this.statusCode});
+  ApiException(this.message, {this.code, this.statusCode, this.details});
 
   final String message;
   final String? code;
   final int? statusCode;
+
+  /// Payload de erro completo do backend — campos aditivos (ex.:
+  /// `open_tasks` do OPEN_TASKS_BLOCK_UNLINK) vivem aqui.
+  final Map<String, dynamic>? details;
 
   @override
   String toString() => message;
@@ -147,6 +151,7 @@ class ApiService {
       (body?['error'] ?? 'Request failed').toString(),
       code: body?['code']?.toString(),
       statusCode: response.statusCode,
+      details: body,
     );
   }
 
@@ -589,6 +594,34 @@ class ApiService {
   Future<List<Map<String, dynamic>>> listTaskAttachments(int taskId) async {
     final result = await get('/tasks/$taskId/attachments');
     return _mapList(result['attachments']);
+  }
+
+  // ---- Vínculo contrato ↔ prestador (providers) --------------------------
+
+  /// GET /users — admin+gestor; a tela filtra role == 'prestador' para os
+  /// seletores de vínculo e de responsável de tarefa.
+  Future<List<Map<String, dynamic>>> listUsers() async {
+    final result = await get('/users');
+    return _mapList(result['users']);
+  }
+
+  /// POST /contracts/:id/providers — vincula um prestador (201) e devolve o
+  /// contrato decorado. Erros: 400 (user_id/role), 404 (usuário), 409
+  /// ('Prestador already linked').
+  Future<Map<String, dynamic>> linkContractProvider(int contractId, int userId) async {
+    final result = await post(
+      '/contracts/$contractId/providers',
+      body: {'user_id': userId},
+    );
+    return _asMap(result['contract']);
+  }
+
+  /// DELETE /contracts/:id/providers/:userId — devolve o contrato decorado.
+  /// Com tarefas em aberto do prestador o backend responde 400 com
+  /// OPEN_TASKS_BLOCK_UNLINK (a contagem vem em `details.open_tasks`).
+  Future<Map<String, dynamic>> unlinkContractProvider(int contractId, int userId) async {
+    final result = await delete('/contracts/$contractId/providers/$userId');
+    return _asMap(result['contract']);
   }
 
   /// [FR-020]: conecta ao Socket.io e entra na sala do domínio. Sem domínio

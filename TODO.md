@@ -4,9 +4,21 @@ Custom project TODOs. Agents read this file at session start.
 
 ## Pending
 
+- [ ] Épico E014 — Tema escuro por padrão + alternância para claro (SharedPreferences + toggle na toolbar; `main.dart` hoje usa `ThemeMode.system`); registrado no `specs/project-plan.md` Wave 6 (2026-10-23)
+
+- [ ] Épico E013 — Redesign do dashboard no estilo do mockup (dados atuais; restrições: estender `app_theme.dart`, só tokens do ColorScheme, sem dependências novas, filtros no corpo, APIs M3); registrado no `specs/project-plan.md` Wave 6 (2026-10-23)
+
 - [ ] `users` CHECK — alinhar a prosa do spec com o rebuild da tabela (`WARNING` não-bloqueante do QC de 00013, `specs/00013-e011-auditoria-classificacao`); decidido adiar em 2026-10-11. Pendência técnica, não pedida pelo usuário (2026-10-23)
 
 ## Done
+
+- [X] Pacote UX 23/10 — toolbar shell (usuário/papel/domínio + Sair), dashboard com cards clicáveis e rolagem por teclado, seção Prestadores (vínculo/desvincular com bloqueio `OPEN_TASKS_BLOCK_UNLINK`), seletor de Responsável na criação de tarefa e reatribuição no sheet, pré-marcação de manutenção + botão inerte no NOOP, manutenção fecha o sheet, lembrar login (`flutter_secure_storage`), upload >1MB (nginx 4m + express 4mb); flutter 65/65, analyze 0 (2026-10-23)
+
+- [X] Épicos E013/E014 registrados — `specs/project-plan.md` com 14 épicos (12 [X] + E013/E014 [ ] em Wave 6) + `specs/plan/E013.md`/`E014.md`, coverage CAP-004/CAP-005 atualizado (2026-10-23)
+
+- [X] Upload de anexo "fail" — causa: nginx sem `client_max_body_size` (default 1 MB) devolvia 413 em HTML para JSON base64 >~750KB, e o `express.json` de 2mb também estourava o envelope; corrigido 2026-10-23 (nginx 4m + express 4mb), backend continua autoridade com 2 MB/arquivo e 400 explícito (2026-10-23)
+
+- [X] Bug: Dashboard não rola (2026-10-23) — causa era o bundle antigo da aba + mapa de teclas do teste; `Focus(autofocus)` no painel confirmado, testes usam Ctrl+seta/PageDown (atalhos do mapa de teste) e a web rola com setas puras; redeploy na conclusão do ciclo (2026-10-23)
 
 - [X] Épica E012 (Wave 5) — `specs/project-plan.md` amendado: 12 épicas, 5 ondas, Wave 5 `[X]` com E012 {PRD:CAP-003}, arestas E011/E012 no diagrama, summary/guidance/coverage/superfície compartilhada atualizados; `specs/plan/E012.md` criado no padrão E011 (2026-10-19)
 
