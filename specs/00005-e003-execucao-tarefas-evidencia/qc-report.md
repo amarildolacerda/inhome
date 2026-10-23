@@ -102,10 +102,10 @@
 | backend/src/routes/tasks.js | e194c4919a5df5db15e5d4e16597b521ff589b35c7a59f93409f53fb27bd7f3e |
 | backend/src/routes/tasks.test.js | c719a699ea89b0464541a16b05d58f486744d0ed0b5dea32e5fd4db22e2fb64c |
 | backend/src/routes/uploads.test.js | 7d0552d9e75d9b771bfaf9f9d590e5b74fa966c97d9c756f69aa1b85b442a44d |
-| backend/src/server.js | c3d963494f21ba84ec433f513f2230d36d245b4e4b5833003b58248d0a55d6ce |
+| backend/src/server.js | 7b8942860689524319b0f685cebdd5d7a332e2a04b852bb8f968ffae46334379 |
 | backend/test-uploads-proxy.sh | 474a0297ffbf77a463e10206de1da47f2e105c7494882529782eefe258c0f51a |
 | backend/test.sh | e24235e13668608788b1111ee530e936223a2da04a4676e094a1015771c9f5f0 |
-| frontend/nginx.conf | 21e96e61d7a49ae0645a95b1b04ca9497b8e57559e6a82064c5f4809ff888853 |
+| frontend/nginx.conf | b1461d207f6dfdda67908ffeb744f991b9e7816035c7d17ea308d4e75f43614a |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00005-e003-execucao-tarefas-evidencia/checklists/CHL001-security.md | f9f076a73d346ba164e33c805bceef4b44c054bd40d8d28de589713b1d19c3a3 |
 | specs/00005-e003-execucao-tarefas-evidencia/checklists/CHL002-api-quality.md | 9df4deb589ef0d5960c573b66fbaa76bb0fddb34e0fea268566fbc8e5224a7bc |

@@ -123,9 +123,9 @@
 | backend/src/routes/tasks.js | e194c4919a5df5db15e5d4e16597b521ff589b35c7a59f93409f53fb27bd7f3e |
 | backend/src/routes/tasks.test.js | c719a699ea89b0464541a16b05d58f486744d0ed0b5dea32e5fd4db22e2fb64c |
 | backend/test.sh | e24235e13668608788b1111ee530e936223a2da04a4676e094a1015771c9f5f0 |
-| frontend/lib/services/api_service.dart | 0ba38be669983573d26af1cd874c464dee2368f4f71e8acc9d8722076aa64bf9 |
-| frontend/lib/widgets/task_detail_sheet.dart | b06ea148d08b76d85b35e7eaac1709a433bb833ea72d3d3ea5458e7a1567447f |
-| frontend/test/task_detail_sheet_test.dart | f8e187b244cc856850c8ef31096ad823631cb8672268df157eb4b1d300238c35 |
+| frontend/lib/services/api_service.dart | 0d353f0f6e902fa1dc9ee16d8349665a91b4cec2431509549565f3054f95c15c |
+| frontend/lib/widgets/task_detail_sheet.dart | d86e1094ba8b255e71f5e65fd6954b882066c5a5421e224a9e8fb5e8a18f78fa |
+| frontend/test/task_detail_sheet_test.dart | 74f52331f13645c91eddba8e41852c0e2634b852f223ea031d42a358cf629333 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00014-manutencao-tarefas-aprovacao/plan.md | 1cc375921599c6c14b3844467a870b25ba243b92b93fb8b4bbe18ca295eeea6e |
 | specs/00014-manutencao-tarefas-aprovacao/spec.md | b4ea768f100a9ed1ab7c3ad603e919e77dc757dbbea0b11b49faa1d877177d50 |

@@ -170,7 +170,7 @@ QC check outcome: PASS. The human browser attestation landed (`manual-test.md`, 
 | backend/src/routes/tasks.js | e194c4919a5df5db15e5d4e16597b521ff589b35c7a59f93409f53fb27bd7f3e |
 | backend/src/routes/users.js | c876001662f18f280c4eafb6ffb839d852cb1656fe4ce963d51aedea85fa205b |
 | backend/src/routes/users.test.js | 805f337700e508e44a89d215094856dd577cf6887368746da659ac4d9e81578a |
-| backend/src/server.js | c3d963494f21ba84ec433f513f2230d36d245b4e4b5833003b58248d0a55d6ce |
+| backend/src/server.js | 7b8942860689524319b0f685cebdd5d7a332e2a04b852bb8f968ffae46334379 |
 | backend/src/server.socket.test.js | ec1d61fa2f7d1e89c382d24e376a13d3848e8fb29b5257c9588aab4be1132478 |
 | backend/src/server.test.js | 362fca1777f92aa76c9b206ca88921b42527d5627ecff022253b9ab5f9cc4582 |
 | backend/src/services/events.js | 4b816bbc42df57f274a21b6aab0671ad091a4ee69475af35fb34c9fcbb992edc |
@@ -178,14 +178,14 @@ QC check outcome: PASS. The human browser attestation landed (`manual-test.md`, 
 | docker-compose.yml | 2d0449dd3e094cfcdddc7c2a361c985c80e64f1f2812d58a03b3f005eb88eec8 |
 | docs/approved-scope-draft.md | beba604f22eb78e0a1afbd47ff2b8b6f6e552371051a01a7be68c210dfe321a2 |
 | frontend/analysis_options.yaml | cc88073dea00345c800bf1f94021d3295cdd7fbd8b45a595a502a893304a5244 |
-| frontend/lib/main.dart | 396fa7a21cd1aedbe1bae19a01dda2eec76d1c0f4b126da1292f06b927cc223b |
-| frontend/lib/screens/contract_detail_screen.dart | 86a2cffeddff1a7fefe098b14e5e9e01dc31938fa03acdfbd993781b870bbabc |
+| frontend/lib/main.dart | 2f758ccde4a33a13782d590bed34f31d38601ed77557b6c03638b1ccdc7cd086 |
+| frontend/lib/screens/contract_detail_screen.dart | fc54b70790d96cf08cfe704cc11d46867238506b2d59dc84a8dca926ff0a0357 |
 | frontend/lib/screens/finalidades_screen.dart | 4dec9e410c2425e901b4ae0303cea920c57698c043ee6e0ae5e96e094bbf1a8c |
-| frontend/lib/screens/login_screen.dart | 6249ee56b1aea6565c1eaa1f593ab1a044b27fb8d286c17769f5fe85baeef2ec |
+| frontend/lib/screens/login_screen.dart | 90105b92304b4f1ab9128920277689b66e1fc3cd0102503e5f40b4bf0956bbc1 |
 | frontend/lib/screens/projects_screen.dart | 5d5c18113324992ccef5ed2f5cd39c0e997152ddd12487b4e79a203290831ef6 |
 | frontend/lib/screens/tasks_screen.dart | 4dfcdc63264e2fd7c66b2afa6b4289f0b4bd39c5598f6a244299b180c72b3f5c |
 | frontend/lib/screens/users_screen.dart | b6cbe8a2bf38f6799bad3352bdc37c928ec8b664787abeabd82731dc71b6498b |
-| frontend/lib/services/api_service.dart | 0ba38be669983573d26af1cd874c464dee2368f4f71e8acc9d8722076aa64bf9 |
+| frontend/lib/services/api_service.dart | 0d353f0f6e902fa1dc9ee16d8349665a91b4cec2431509549565f3054f95c15c |
 | frontend/lib/widgets/task_list_tile.dart | fbd5318d1ab87022e3492a0779e3d303db3f258ae7d0d9cd44772d39f9da6992 |
 | frontend/test/a11y_labels_test.dart | 14fb00a05e93deb256e3d749c831b9efc316be9c93bf4c1351724acfe77d793b |
 | frontend/test/roles_nav_test.dart | 2c36a128d29be3411426d919aa0754c37aa6b3ab4cde0a23b61b10178d1e6576 |

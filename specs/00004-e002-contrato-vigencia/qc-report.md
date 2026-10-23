@@ -101,7 +101,7 @@
 | backend/src/routes/tasks.js | e194c4919a5df5db15e5d4e16597b521ff589b35c7a59f93409f53fb27bd7f3e |
 | backend/src/routes/tasks.test.js | c719a699ea89b0464541a16b05d58f486744d0ed0b5dea32e5fd4db22e2fb64c |
 | backend/test.sh | e24235e13668608788b1111ee530e936223a2da04a4676e094a1015771c9f5f0 |
-| frontend/pubspec.yaml | 15495b09cdbf0286f2f1bdef52652e2f4246f254f6394f881e7515e4a3e843b8 |
+| frontend/pubspec.yaml | 1861f0d113a1a660f4a0ccabe88777d1df9b4f8925defa35b4e14e88800290d4 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00004-e002-contrato-vigencia/checklists/CHL001-security.md | 391ca2a1b210d7d70af01d2dd2d4a2d1d327dd0fa2a70f756f9839be4bb89745 |
 | specs/00004-e002-contrato-vigencia/checklists/CHL002-api-quality.md | 0af7811b7f03cf43ce0cb8381a12104c6ccb154f2a4c4a7ac5e68b89ca36f265 |
