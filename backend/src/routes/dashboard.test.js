@@ -222,3 +222,9 @@ test('FR-003 403 para system_admin', async () => {
   assert.strictEqual(denied.status, 403, JSON.stringify(denied.body));
   assert.strictEqual(denied.body.error, 'Forbidden');
 });
+
+// E013: acceptance stubs for the dashboard redesign (plan.md Acceptance Test Stubs).
+// These stay RED (test.todo) until the backend payload tasks (T003) make them GREEN.
+
+test.todo('FR-039 contractsAVencer segue janelas do domínio');
+test.todo('FR-041 prestador recebe só contratos vinculados');

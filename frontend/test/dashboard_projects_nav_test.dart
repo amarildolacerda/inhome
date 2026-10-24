@@ -62,6 +62,7 @@ class _FakeApi extends ApiService {
 }
 
 Map<String, dynamic> _dashboardPayload() => {
+      'scope': 'domain',
       'stats': {
         'completionRate': 50,
         'totalTasks': 2,
@@ -70,9 +71,12 @@ Map<String, dynamic> _dashboardPayload() => {
         'activeProjects': 1,
         'inProgressTasks': 1,
         'tasksOverdue': 0,
+        'contractsAtrasado': 0,
+        'contractsEncerrado': 0,
+        'contractsAVencer': 0,
       },
       'tasksByStatus': <Map<String, dynamic>>[],
-      'recentProjects': [
+      'contracts': [
         {
           'id': 7,
           'name': 'Reforma da sede',
@@ -80,10 +84,12 @@ Map<String, dynamic> _dashboardPayload() => {
           'effective_status': 'vigente',
           'forecast_date': '2026-12-31',
           'updated_at': '2026-10-20 10:00:00',
+          'responsavel': 'Davi',
           'task_count': 2,
           'completed_count': 1,
         },
       ],
+      'recentProjects': <Map<String, dynamic>>[],
     };
 
 Map<String, dynamic> _contractPayload() => {
@@ -214,7 +220,7 @@ void main() {
     expect(find.text('sem rede'), findsOneWidget,
         reason: 'mensagem de erro no SnackBar');
     expect(find.byType(ContractDetailScreen), findsNothing);
-    expect(find.text('Projetos recentes'), findsOneWidget,
+    expect(find.text('Reforma da sede'), findsOneWidget,
         reason: 'painel continua intacto');
     expect(api.gets, contains('/contracts/7'));
     semantics.dispose();
@@ -280,7 +286,15 @@ void main() {
 
     await _pumpDashboard(tester, api);
 
-    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
+    // Multiple Scrollables exist (dashboard's SingleChildScrollView + internal
+    // Scrollables from DropdownButtonFormField). Target the dashboard's outer
+    // scrollable by finding the SingleChildScrollView ancestor of the
+    // Semantics container labeled "Painel do domínio".
+    final scrollableFinder = find.descendant(
+      of: find.byType(SingleChildScrollView),
+      matching: find.byType(Scrollable),
+    );
+    final scrollable = tester.state<ScrollableState>(scrollableFinder.first);
     expect(scrollable.position.pixels, 0);
 
     // Foco autofirst: o nó focado ao montar o painel fica dentro do
@@ -351,7 +365,15 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
+    // Multiple Scrollables exist (dashboard's SingleChildScrollView + internal
+    // Scrollables from DropdownButtonFormField). Target the dashboard's outer
+    // scrollable by finding the SingleChildScrollView ancestor of the
+    // Semantics container labeled "Painel do domínio".
+    final scrollableFinder = find.descendant(
+      of: find.byType(SingleChildScrollView),
+      matching: find.byType(Scrollable),
+    );
+    final scrollable = tester.state<ScrollableState>(scrollableFinder.first);
     for (var i = 0; i < 10; i++) {
       await scrollByLine(tester);
     }

@@ -234,6 +234,10 @@ git merge dev  # Requer autorização
   - `feat:` → minor (0.0.1 → 0.1.0)
   - Breaking → major (0.0.1 → 1.0.0)
 
+## Plano em progresso
+
+- **00015-redesign-dashboard** (E013 — Redesign visual do dashboard): plano em `specs/00015-redesign-dashboard/plan.md`; payload aditivo de `GET /api/v2/dashboard/stats` (`contracts[]`, `responsavel`, `contractsAVencer` via junção `created_by` → `users` e janelas de E005) + rewrite de `frontend/lib/screens/dashboard_screen.dart` (KPIs, cards, filtros) sobre tokens do `ColorScheme` em `app_theme.dart`. Versão final marcada após a bateria de testes.
+
 ---
 
 **Voltar ao [README](./README.md)**

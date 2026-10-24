@@ -11,6 +11,23 @@ class AppTheme {
   /// Indigo-700 — white text on the primary color passes AA contrast.
   static const Color seedColor = Color(0xFF4338CA);
 
+  /// FR-038/FR-040: Map contract status to ColorScheme tokens.
+  ///
+  /// Backend sends PT literals ('vigente'|'atrasado'|'encerrado') from
+  /// effective_status. Mapping uses only ColorScheme roles — no hardcoded hex.
+  static Color statusColor(ColorScheme scheme, String status) {
+    switch (status) {
+      case 'vigente':
+        return scheme.primary;
+      case 'atrasado':
+        return scheme.error;
+      case 'encerrado':
+        return scheme.outline;
+      default:
+        return scheme.surfaceContainerHighest;
+    }
+  }
+
   static ThemeData get light {
     final scheme = ColorScheme.fromSeed(
       seedColor: seedColor,

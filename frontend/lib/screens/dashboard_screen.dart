@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/contract.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 import 'contract_detail_screen.dart';
 
 /// Painel do domínio (admin/gestor) ou da fila pessoal (prestador) — mesmos
@@ -32,6 +33,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// domínio. Falha na resolução deixa false (sem link — defesa em
   /// profundidade; o backend já só devolve recentProjects nesse escopo).
   bool _canOpenProject = false;
+
+  /// FR-043/AD-004: client-side filter state — persists across payload refreshes (E009).
+  String? _statusFilter;
+  String? _responsavelFilter;
+  String _searchQuery = '';
 
   /// Papéis com acesso ao canal de tarefas do contrato.
   static const _openProjectRoles = {'admin', 'gestor', 'system_admin'};
@@ -76,8 +82,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return text.isEmpty ? 'Não foi possível carregar o painel.' : text;
   }
 
-  int _asInt(dynamic value) =>
-      value is num ? value.toInt() : int.tryParse('$value') ?? 0;
+  /// FR-043: apply client-side filters to contracts (status, responsável, busca).
+  List<Map<String, dynamic>> _applyFilters(List<Map<String, dynamic>> contracts) {
+    return contracts.where((c) {
+      if (_statusFilter != null) {
+        final effective = '${c['effective_status'] ?? c['status'] ?? ''}';
+        if (effective != _statusFilter) return false;
+      }
+      if (_responsavelFilter != null) {
+        final resp = '${c['responsavel'] ?? ''}';
+        if (resp != _responsavelFilter) return false;
+      }
+      if (_searchQuery.isNotEmpty) {
+        final name = '${c['name'] ?? ''}'.toLowerCase();
+        if (!name.contains(_searchQuery.toLowerCase())) return false;
+      }
+      return true;
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -121,32 +143,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final stats = Map<String, dynamic>.from(
       _data?['stats'] is Map ? _data!['stats'] as Map : const {},
     );
-    final recentProjects = _data?['recentProjects'] is List
+    final scope = '${_data?['scope'] ?? 'domain'}';
+    final contracts = _data?['contracts'] is List
         ? List<Map<String, dynamic>>.from(
-            (_data!['recentProjects'] as List).whereType<Map>(),
+            (_data!['contracts'] as List).whereType<Map>(),
           )
         : <Map<String, dynamic>>[];
-    final tasksByStatus = _data?['tasksByStatus'] is List
-        ? List<Map<String, dynamic>>.from(
-            (_data!['tasksByStatus'] as List).whereType<Map>(),
-          )
-        : <Map<String, dynamic>>[];
-
-    final completionRate = _asInt(stats['completionRate']).clamp(0, 100);
-    final totalTasks = _asInt(stats['totalTasks']);
-    final completedTasks = _asInt(stats['completedTasks']);
-    final urgentTasks = _asInt(stats['urgentTasks']);
+    final filteredContracts = _applyFilters(contracts);
+    final responsaveis = contracts
+        .map((c) => '${c['responsavel'] ?? ''}')
+        .where((n) => n.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
 
     return Semantics(
       container: true,
       label: 'Painel do domínio',
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
-        // Foco autofirst dentro do scrollable: sem foco no interior, o
-        // Scrollable ignora os atalhos de rolagem do teclado (no web, setas
-        // puras; em desktop, Ctrl+seta e PageUp/PageDown — o mouse rola em
-        // todos). skipTraversal mantém o Tab indo direto para os controles
-        // (InkWell dos cards segue focável pelo teclado).
         child: Focus(
           autofocus: true,
           skipTraversal: true,
@@ -156,109 +171,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
               _Header(onRefresh: _loadDashboard, refreshing: _loading),
               const SizedBox(height: 24),
 
-            // 1) KPIs principais — taxa de conclusão em destaque e urgentes
-            //    como alerta; larguras vêm do LayoutBuilder, sem overflow.
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final wide = constraints.maxWidth >= 720;
-                final children = <Widget>[
-                  _CompletionCard(
-                    rate: completionRate,
-                    completed: completedTasks,
-                    total: totalTasks,
-                  ),
-                  _UrgentCard(count: urgentTasks),
-                ];
-                if (wide) {
-                  return IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(flex: 3, child: children[0]),
-                        const SizedBox(width: 16),
-                        Expanded(flex: 2, child: children[1]),
-                      ],
-                    ),
-                  );
-                }
-                return Column(
-                  children: [
-                    children[0],
-                    const SizedBox(height: 16),
-                    children[1],
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // 2) Grade secundária de contagens.
-            _StatGrid(cards: [
-              _CompactStatCard(
-                title: 'Projetos ativos',
-                value: '${_asInt(stats['activeProjects'])}',
-                icon: Icons.folder_open,
-                color: scheme.primary,
-              ),
-              _CompactStatCard(
-                title: 'Total de tarefas',
-                value: '$totalTasks',
-                icon: Icons.checklist,
-                color: scheme.secondary,
-              ),
-              _CompactStatCard(
-                title: 'Em andamento',
-                value: '${_asInt(stats['inProgressTasks'])}',
-                icon: Icons.pending_actions,
-                color: scheme.tertiary,
-              ),
-              _CompactStatCard(
-                title: 'Concluídas',
-                value: '$completedTasks',
-                icon: Icons.check_circle_outline,
-                color: scheme.tertiary,
-              ),
-              _CompactStatCard(
-                title: 'Atrasadas',
-                value: '${_asInt(stats['tasksOverdue'])}',
-                icon: Icons.schedule,
-                color: scheme.error,
-              ),
-            ]),
-
-            // 3) Composição das tarefas por status — some sem dados.
-            if (tasksByStatus.isNotEmpty) ...[
+            // FR-038/FR-039: KPI row with status counts + "a vencer" window.
+            // Hidden for prestador (FR-041: no domain KPIs).
+            if (scope != 'own') ...[
+              _KpiRow(stats: stats),
               const SizedBox(height: 24),
-              _StatusBreakdown(items: tasksByStatus),
             ],
 
-            // 4) Projetos recentes.
-            const SizedBox(height: 32),
-            Text(
-              'Projetos recentes',
-              style: theme.textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w600),
+            // FR-043: filters in body, no extra AppBar.
+            _DashboardFilters(
+              statusFilter: _statusFilter,
+              responsavelFilter: _responsavelFilter,
+              searchQuery: _searchQuery,
+              responsaveis: responsaveis,
+              onStatusChanged: (v) => setState(() => _statusFilter = v),
+              onResponsavelChanged: (v) => setState(() => _responsavelFilter = v),
+              onSearchChanged: (v) => setState(() => _searchQuery = v),
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Últimos contratos atualizados no domínio',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 16),
-            if (recentProjects.isEmpty)
-              _EmptyProjectsCard()
-            else
-            ...recentProjects.map(
-              (project) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _ProjectCard(
-                  project: project,
-                  api: api,
-                  canOpen: _canOpenProject,
-                ),
-              ),
-            ),
+            const SizedBox(height: 24),
+
+            // FR-040/FR-042: contract cards ordered by urgency, responsive columns.
+            _ContractCards(contracts: filteredContracts, api: api, canOpen: _canOpenProject),
           ],
           ),
         ),
@@ -307,158 +240,43 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// KPI principal: taxa de conclusão com barra de progresso e contagem
-/// absoluta — o número que orienta a decisão fica no topo e maior.
-class _CompletionCard extends StatelessWidget {
-  const _CompletionCard({
-    required this.rate,
-    required this.completed,
-    required this.total,
-  });
+/// FR-038/FR-039: horizontal KPI row with contract status counts.
+/// Each chip uses AppTheme.statusColor for the ColorScheme token and a
+/// textual label (WCAG 1.4.1 — no color-only communication).
+class _KpiRow extends StatelessWidget {
+  const _KpiRow({required this.stats});
 
-  final int rate;
-  final int completed;
-  final int total;
+  final Map<String, dynamic> stats;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.pie_chart_outline,
-                    size: 20, color: scheme.onSurfaceVariant),
-                const SizedBox(width: 8),
-                Text(
-                  'Taxa de conclusão',
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '$rate%',
-              style: theme.textTheme.displaySmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: scheme.primary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: total > 0 ? rate / 100 : 0,
-                minHeight: 8,
-                backgroundColor: scheme.surfaceContainerHighest,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '$completed de $total tarefas concluídas',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+    int asInt(dynamic v) => v is num ? v.toInt() : int.tryParse('$v') ?? 0;
 
-/// Cartão de alerta: tarefas urgentes abertas — cor de erro reservada só
-/// para isso (e para atrasadas) na grade.
-class _UrgentCard extends StatelessWidget {
-  const _UrgentCard({required this.count});
+    final items = <({String label, int count, String status})>[
+      (label: 'Vigentes', count: asInt(stats['activeProjects']), status: 'vigente'),
+      (label: 'Atrasados', count: asInt(stats['contractsAtrasado']), status: 'atrasado'),
+      (label: 'Encerrados', count: asInt(stats['contractsEncerrado']), status: 'encerrado'),
+      (label: 'A vencer', count: asInt(stats['contractsAVencer']), status: 'vigente'),
+    ];
 
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final attention = count > 0;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  attention ? Icons.warning_amber : Icons.check_circle_outline,
-                  size: 20,
-                  color: attention ? scheme.error : scheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Urgentes',
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(color: scheme.onSurfaceVariant),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '$count',
-              style: theme.textTheme.displaySmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: attention ? scheme.error : scheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              attention
-                  ? 'Tarefas com prioridade urgente em aberto'
-                  : 'Nenhuma tarefa urgente em aberto',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Grade de cartões compactos que se adapta à largura disponível (mesma
-/// lógica de colunas mínimas de 200px usada antes, sem cálculo manual de
-/// largura de linha).
-class _StatGrid extends StatelessWidget {
-  const _StatGrid({required this.cards});
-
-  final List<Widget> cards;
-
-  @override
-  Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        const spacing = 16.0;
-        const minCardWidth = 200.0;
-        final width =
-            constraints.maxWidth.isFinite ? constraints.maxWidth : minCardWidth;
-        int perRow = ((width + spacing) / (minCardWidth + spacing)).floor();
-        if (perRow < 1) perRow = 1;
-        if (perRow > cards.length) perRow = cards.length;
-        final cardWidth = (width - spacing * (perRow - 1)) / perRow;
+        final wide = constraints.maxWidth >= 600;
+        if (wide) {
+          return Row(
+            children: [
+              for (var i = 0; i < items.length; i++) ...[
+                if (i > 0) const SizedBox(width: 12),
+                Expanded(child: _KpiChip(item: items[i])),
+              ],
+            ],
+          );
+        }
         return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
+          spacing: 12,
+          runSpacing: 12,
           children: [
-            for (final card in cards) SizedBox(width: cardWidth, child: card),
+            for (final item in items) SizedBox(width: 160, child: _KpiChip(item: item)),
           ],
         );
       },
@@ -466,40 +284,29 @@ class _StatGrid extends StatelessWidget {
   }
 }
 
-class _CompactStatCard extends StatelessWidget {
-  const _CompactStatCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
+class _KpiChip extends StatelessWidget {
+  const _KpiChip({required this.item});
 
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
+  final ({String label, int count, String status}) item;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final tinted = Color.alphaBlend(
-      color.withValues(alpha: 0.12),
-      scheme.surfaceContainerLow,
-    );
+    final color = AppTheme.statusColor(scheme, item.status);
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              width: 4,
+              height: 36,
               decoration: BoxDecoration(
-                color: tinted,
-                borderRadius: BorderRadius.circular(10),
+                color: color,
+                borderRadius: BorderRadius.circular(2),
               ),
-              child: Icon(icon, size: 20, color: color),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -508,13 +315,14 @@ class _CompactStatCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    value,
-                    style: theme.textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w700),
+                    '${item.count}',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
                   ),
-                  const SizedBox(height: 2),
                   Text(
-                    title,
+                    item.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall
@@ -530,126 +338,159 @@ class _CompactStatCard extends StatelessWidget {
   }
 }
 
-/// Barras horizontais com a composição de tarefas por status, na ordem do
-/// fluxo (A Fazer → Em Progresso → Revisão → Concluída) quando presente.
-class _StatusBreakdown extends StatelessWidget {
-  const _StatusBreakdown({required this.items});
+/// FR-040/FR-042: contract cards ordered by urgency, responsive via LayoutBuilder.
+/// Each card shows forecast, responsavel, and status chip with textual label.
+class _ContractCards extends StatelessWidget {
+  const _ContractCards({
+    required this.contracts,
+    required this.api,
+    required this.canOpen,
+  });
 
-  final List<Map<String, dynamic>> items;
-
-  static const _order = ['A Fazer', 'Em Progresso', 'Revisão', 'Concluída'];
-
-  Color _colorFor(ThemeData theme, String status) {
-    final scheme = theme.colorScheme;
-    switch (status) {
-      case 'Concluída':
-        return scheme.tertiary;
-      case 'Em Progresso':
-        return scheme.primary;
-      case 'Revisão':
-        return scheme.secondary;
-      default:
-        return scheme.outline;
-    }
-  }
+  final List<Map<String, dynamic>> contracts;
+  final ApiService api;
+  final bool canOpen;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final sorted = [...items]..sort((a, b) {
-        final sa = '${a['status']}';
-        final sb = '${b['status']}';
-        final ia = _order.indexOf(sa);
-        final ib = _order.indexOf(sb);
-        return (ia < 0 ? _order.length : ia) - (ib < 0 ? _order.length : ib);
-      });
-    final maxCount = sorted.fold<int>(1, (max, item) {
-      final count = item['count'] is num ? (item['count'] as num).toInt() : 0;
-      return count > max ? count : max;
-    });
+    if (contracts.isEmpty) {
+      return _EmptyProjectsCard();
+    }
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    // FR-040: urgency ordering — atrasados first, then forecast_date ascending;
+    // incomplete (no forecast) last but visible.
+    final sorted = [...contracts]..sort((a, b) {
+        final ea = '${a['effective_status'] ?? ''}';
+        final eb = '${b['effective_status'] ?? ''}';
+        if (ea == 'atrasado' && eb != 'atrasado') return -1;
+        if (eb == 'atrasado' && ea != 'atrasado') return 1;
+        final fa = a['forecast_date'] as String?;
+        final fb = b['forecast_date'] as String?;
+        if (fa == null && fb != null) return 1;
+        if (fb == null && fa != null) return -1;
+        if (fa != null && fb != null) return fa.compareTo(fb);
+        return 0;
+      });
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 840;
+        final medium = constraints.maxWidth >= 600;
+        final perRow = wide ? 2 : (medium ? 1 : 1);
+        final cardWidth = perRow == 2
+            ? (constraints.maxWidth - 16) / 2
+            : constraints.maxWidth;
+        return Wrap(
+          spacing: 16,
+          runSpacing: 16,
           children: [
-            Text(
-              'Tarefas por status',
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 16),
-            for (var i = 0; i < sorted.length; i++) ...[
-              if (i > 0) const SizedBox(height: 12),
-              _StatusRow(
-                status: '${sorted[i]['status']}',
-                count: sorted[i]['count'] is num
-                    ? (sorted[i]['count'] as num).toInt()
-                    : 0,
-                fraction: (sorted[i]['count'] is num
-                        ? (sorted[i]['count'] as num).toInt()
-                        : 0) /
-                    maxCount,
-                color: _colorFor(theme, '${sorted[i]['status']}'),
-                labelStyle: theme.textTheme.bodyMedium,
-                countStyle: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w600),
-                trackColor: scheme.surfaceContainerHighest,
+            for (final contract in sorted)
+              SizedBox(
+                width: cardWidth,
+                child: _ProjectCard(
+                  project: contract,
+                  api: api,
+                  canOpen: canOpen,
+                ),
               ),
-            ],
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 }
 
-class _StatusRow extends StatelessWidget {
-  const _StatusRow({
-    required this.status,
-    required this.count,
-    required this.fraction,
-    required this.color,
-    required this.labelStyle,
-    required this.countStyle,
-    required this.trackColor,
+/// FR-043: filters in the body (status, responsável, busca) — no extra AppBar.
+/// Filters persist across payload refreshes (E009) and apply client-side.
+class _DashboardFilters extends StatelessWidget {
+  const _DashboardFilters({
+    required this.statusFilter,
+    required this.responsavelFilter,
+    required this.searchQuery,
+    required this.responsaveis,
+    required this.onStatusChanged,
+    required this.onResponsavelChanged,
+    required this.onSearchChanged,
   });
 
-  final String status;
-  final int count;
-  final double fraction;
-  final Color color;
-  final TextStyle? labelStyle;
-  final TextStyle? countStyle;
-  final Color trackColor;
+  final String? statusFilter;
+  final String? responsavelFilter;
+  final String searchQuery;
+  final List<String> responsaveis;
+  final ValueChanged<String?> onStatusChanged;
+  final ValueChanged<String?> onResponsavelChanged;
+  final ValueChanged<String> onSearchChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          children: [
-            Expanded(child: Text(status, style: labelStyle)),
-            const SizedBox(width: 8),
-            Text('$count', style: countStyle),
-          ],
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final wide = constraints.maxWidth >= 700;
+            final statusDropdown = Expanded(
+              flex: 2,
+              child: DropdownButtonFormField<String?>(
+                initialValue: statusFilter,
+                decoration: const InputDecoration(labelText: 'Status'),
+                items: const [
+                  DropdownMenuItem(value: null, child: Text('Todos')),
+                  DropdownMenuItem(value: 'vigente', child: Text('Vigente')),
+                  DropdownMenuItem(value: 'atrasado', child: Text('Atrasado')),
+                  DropdownMenuItem(value: 'encerrado', child: Text('Encerrado')),
+                ],
+                onChanged: onStatusChanged,
+              ),
+            );
+            final responsavelDropdown = Expanded(
+              flex: 2,
+              child: DropdownButtonFormField<String?>(
+                initialValue: responsavelFilter,
+                decoration: const InputDecoration(labelText: 'Responsável'),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('Todos')),
+                  for (final name in responsaveis)
+                    DropdownMenuItem(value: name, child: Text(name)),
+                ],
+                onChanged: onResponsavelChanged,
+              ),
+            );
+            final searchField = Expanded(
+              flex: 3,
+              child: TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Buscar por nome',
+                  prefixIcon: Icon(Icons.search),
+                ),
+                onChanged: onSearchChanged,
+              ),
+            );
+            if (wide) {
+              return Row(
+                children: [
+                  statusDropdown,
+                  const SizedBox(width: 12),
+                  responsavelDropdown,
+                  const SizedBox(width: 12),
+                  searchField,
+                ],
+              );
+            }
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                statusDropdown,
+                const SizedBox(height: 12),
+                responsavelDropdown,
+                const SizedBox(height: 12),
+                searchField,
+              ],
+            );
+          },
         ),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(3),
-          child: LinearProgressIndicator(
-            value: fraction.clamp(0.0, 1.0),
-            minHeight: 6,
-            color: color,
-            backgroundColor: trackColor,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

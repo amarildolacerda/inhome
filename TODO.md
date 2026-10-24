@@ -4,11 +4,20 @@ Custom project TODOs. Agents read this file at session start.
 
 ## Pending
 
+### V1
 - [ ] Épico E014 — Tema escuro por padrão + alternância para claro (SharedPreferences + toggle na toolbar; `main.dart` hoje usa `ThemeMode.system`); registrado no `specs/project-plan.md` Wave 6 (2026-10-23)
 
 - [ ] Épico E013 — Redesign do dashboard no estilo do mockup (dados atuais; restrições: estender `app_theme.dart`, só tokens do ColorScheme, sem dependências novas, filtros no corpo, APIs M3); registrado no `specs/project-plan.md` Wave 6 (2026-10-23). Insumo do usuário (pedido de toolbar de 23/10, cancelado como ajuste isolado): avaliar na nova UX usuário/Sair à direita da barra e menu à esquerda abrindo/fechando a sidebar com preferência persistida
 
 - [ ] `users` CHECK — alinhar a prosa do spec com o rebuild da tabela (`WARNING` não-bloqueante do QC de 00013, `specs/00013-e011-auditoria-classificacao`); decidido adiar em 2026-10-11. Pendência técnica, não pedida pelo usuário (2026-10-23)
+
+### V2
+- [ ] (spec `00016-convite-visitante` gerada) permitir que gestor e administradores gerem link de acesso para convidado por tempo determinado (validade temporaria), o convidado ao entrar se cadastra como usuario visitante; a posteriore o gestor/admin pode reavaliar a participação do visitante mudando seu papel ou suspendendo seu acesso
+
+- [ ] a nivel de contrato permitir um chat (estrutura de recursos em `chat/resource.MD` — canal por contrato, anexos, threads por cláusula/tarefa, IA de análise de documentos, menu de tarefas no chat, mobile-first), no chat pode enviar  documentos/anexos para o contrato. Ao receber um documento usar IA para analisar o documento e mapear riscos, multas, seguros, vencimentos, local execução... usar as informações mapeadas para alimentar um sistema de alerta; no chat pode ter algumas opções pre-programdas: ver alertas, ver executados, ver proximas execução;
+
+
+### V3 - avaliar entregas x `specs/plan/canvas_valor_usuario.png`
 
 ## Done
 
