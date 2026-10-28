@@ -73,7 +73,7 @@ N/A — nenhum dado persistente novo; junção já existente `contracts.created_
 
 ## API Surface Summary
 
-N/A — nenhuma rota nova; campos aditivos em `GET /api/v2/dashboard/stats` (AD-001, AD-002): `stats.contractsAVencer`, `contracts[]` (admin/gestor: domínio inteiro; prestador: só vinculados), `recentProjects[].responsavel`.
+N/A — nenhuma rota nova; campos aditivos em `GET /api/v2/dashboard/stats` (AD-001, AD-002): `stats.contractsAVencer`, `contracts[]` (admin/gestor: domínio inteiro; prestador: só vinculados), `contracts[].a_vencer` (flag por janela para filtro client-side), `recentProjects[].responsavel`.
 
 ## Testing Strategy
 
@@ -91,10 +91,10 @@ P1 = FR-038..041 (4); backend `test.todo` (pending), frontend `skip` (RED). SC-0
 
 | Req ID | Test File | Stub Blocks (framework-native) | RED Status |
 |--------|-----------|--------------------------------|------------|
-| FR-038 | frontend/test/dashboard_redesign_test.dart | test('FR-038 KPIs por status com tokens do ColorScheme', skip: 'RED', ...) | skip |
-| FR-039 | backend/src/routes/dashboard.test.js | test.todo('FR-039 contractsAVencer segue janelas do domínio') | pending |
-| FR-040 | frontend/test/dashboard_redesign_test.dart | test('FR-040 cards por urgência com vencimento e responsável', skip: 'RED', ...) | skip |
-| FR-041 | backend/src/routes/dashboard.test.js | test.todo('FR-041 prestador recebe só contratos vinculados') | pending |
+| FR-038 | frontend/test/dashboard_redesign_test.dart | test('FR-038 KPIs por status com tokens do ColorScheme', ...) | active |
+| FR-039 | backend/src/routes/dashboard.test.js | test('FR-039 contractsAVencer segue janelas do domínio', ...) | active |
+| FR-040 | frontend/test/dashboard_redesign_test.dart | test('FR-040 cards por urgência com vencimento e responsável', ...) | active |
+| FR-041 | backend/src/routes/dashboard.test.js | test('FR-041 prestador recebe só contratos vinculados', ...) | active |
 
 ## Error Handling Strategy
 
