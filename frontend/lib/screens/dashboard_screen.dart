@@ -168,7 +168,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Header(onRefresh: _loadDashboard, refreshing: _loading),
+              _Header(onRefresh: _loadDashboard, refreshing: _loading, dailyActivity: _data?['dailyActivity'] is List ? _data!['dailyActivity'] as List : const []),
               const SizedBox(height: 24),
 
             // FR-038/FR-039: KPI row with status counts + "a vencer" window.
@@ -205,11 +205,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
+class _ActivityBars extends StatelessWidget {
+  const _ActivityBars({required this.dailyActivity});
+
+  final List<dynamic> dailyActivity;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final items = dailyActivity.take(7).toList();
+    if (items.isEmpty) return const SizedBox.shrink();
+    final maxCount = items.fold<int>(1, (m, e) {
+      final c = (e['count'] is int) ? e['count'] as int : int.tryParse('${e['count']}') ?? 0;
+      return c > m ? c : m;
+    });
+    return Semantics(
+      label: 'Mapa de atividade do domínio (últimos 7 dias)',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (final e in items)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Tooltip(
+                message: '${e['date']}: ${e['count']} atividade(s)',
+                child: Container(
+                  width: 6,
+                  height: 16 + (( (e['count'] is int) ? e['count'] as int : int.tryParse('${e['count']}') ?? 0) * 14 / maxCount).clamp(0, 28).toDouble(),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _Header extends StatelessWidget {
-  const _Header({required this.onRefresh, required this.refreshing});
+  const _Header({required this.onRefresh, required this.refreshing, this.dailyActivity = const []});
 
   final VoidCallback onRefresh;
   final bool refreshing;
+  final List<dynamic> dailyActivity;
 
   @override
   Widget build(BuildContext context) {
@@ -221,10 +263,17 @@ class _Header extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Dashboard',
-                style: theme.textTheme.headlineMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    'Dashboard',
+                    style: theme.textTheme.headlineMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(width: 16),
+                  Flexible(child: _ActivityBars(dailyActivity: dailyActivity)),
+                ],
               ),
               const SizedBox(height: 4),
               Text(

@@ -52,6 +52,41 @@ function summarizeContracts(rows) {
   return counts;
 }
 
+function summarizeDailyActivity(db, user) {
+  const days = 7;
+  const result = [];
+  const today = new Date();
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - i);
+    const next = new Date(d);
+    next.setDate(next.getDate() + 1);
+    const dayStr = d.toISOString().slice(0, 10);
+    let count = 0;
+    if (user.role === 'prestador') {
+      count += db.get(
+        `SELECT COUNT(*) as c FROM tasks 
+         WHERE assignee_id = ? AND (date(updated_at) = ? OR date(created_at) = ?)`,
+        [user.id, dayStr, dayStr]
+      ).c;
+    } else {
+      count += db.get(
+        `SELECT COUNT(*) as c FROM tasks 
+         WHERE date(updated_at) = ? OR date(created_at) = ?`,
+        [dayStr, dayStr]
+      ).c;
+      count += db.get(
+        `SELECT COUNT(*) as c FROM contracts 
+         WHERE date(updated_at) = ? OR date(created_at) = ?`,
+        [dayStr, dayStr]
+      ).c;
+    }
+    result.push({ date: dayStr, count });
+  }
+  return result;
+}
+
 // FR-039/SC-002: "a vencer" reuses the domain alert windows (E005). Exposing
 // the per-contract flag keeps client-side filters (FR-043) window-correct
 // without leaking the window configuration or refetching on every filter.
@@ -91,6 +126,7 @@ function getDomainMetrics(db, user) {
     const contractsAVencer = linkedContracts.filter((row) => isAVencer(row, windows)).length;
     return {
       scope: 'own',
+      dailyActivity: summarizeDailyActivity(db, user),
       stats: {
         totalProjects: linked,
         activeProjects: contracts.vigente,
@@ -150,6 +186,7 @@ function getDomainMetrics(db, user) {
 
   return {
     scope: 'domain',
+    dailyActivity: summarizeDailyActivity(db, user),
     stats: {
       totalProjects: allContracts.length,
       activeProjects: contracts.vigente,
