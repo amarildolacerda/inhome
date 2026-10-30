@@ -5,7 +5,7 @@ Custom project TODOs. Agents read this file at session start.
 ## Pending
 
 ### V1
-- [ ] Épico E014 — Tema escuro por padrão + alternância para claro (SharedPreferences + toggle na toolbar; `main.dart` hoje usa `ThemeMode.system`); registrado no `specs/project-plan.md` Wave 6 (2026-10-23)
+- [X] Épico E014 — Tema escuro por padrão + alternância para claro (SharedPreferences + toggle na toolbar); feature `00018` com 19/19 tasks, checklists 55/55, QC PASS (`.qc-passed`), flutter 75/75 · backend 167/167 · smoke 182/182 · audit 0, browser headless 22/22 (2026-10-30)
 
 - [ ] Épico E013 — Redesign do dashboard no estilo do mockup (dados atuais; restrições: estender `app_theme.dart`, só tokens do ColorScheme, sem dependências novas, filtros no corpo, APIs M3); registrado no `specs/project-plan.md` Wave 6 (2026-10-23). Insumo do usuário (pedido de toolbar de 23/10, cancelado como ajuste isolado): avaliar na nova UX usuário/Sair à direita da barra e menu à esquerda abrindo/fechando a sidebar com preferência persistida
 

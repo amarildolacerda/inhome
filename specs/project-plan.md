@@ -62,7 +62,7 @@ dod_source: none
 > Pendências do TODO decididas com o usuário em 2026-10-23, sobre a release fechada (E001–E012). E013 redesenha o dashboard no formato do mockup de referência usando só dados que já existem (KPIs por status de E002, janelas de vencimento de E005, cards com vencimento e responsável) — sem capacidade nova de dados. E014 muda o default para tema escuro, persiste a escolha e expõe a alternância na top toolbar do MainShell (construída fora do SDD). Ordem E013 → E014: ambos estendem `app_theme.dart` e `main.dart`, sem tocar backend; a ordem é para rebaixar seguro sobre os arquivos de tema.
 
 - [X] E013 [P2] [PRODUCT] {PRD:CAP-004,CAP-005} Redesign visual do dashboard — KPIs por status, vencimentos, cards e layout em colunas [→ Details](plan/E013.md)
-- [ ] E014 [P2] [PRODUCT] {PRD:CAP-005} Tema escuro por padrão — alternância para claro persistida na top toolbar [→ Details](plan/E014.md)
+- [X] E014 [P2] [PRODUCT] {PRD:CAP-005} Tema escuro por padrão — alternância para claro persistida na top toolbar [→ Details](plan/E014.md)
 
 ## Dependency Diagram
 
