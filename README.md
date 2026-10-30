@@ -33,6 +33,11 @@ Organize contratos de terceiros, acompanhe o trabalho contratado e mantenha a ex
 - Atualizações aparecem na tela dos outros na hora, sem precisar recarregar
 - Avisos por e-mail (opcional) em atribuição, conclusão, reabertura e vencimento
 
+### Tema claro ou escuro, como você preferir
+- O app abre em **tema escuro** por padrão, mesmo com o sistema operacional no modo claro
+- O botão de tema na barra superior alterna para o claro na hora, em todas as telas abertas
+- A escolha fica salva no dispositivo e volta na próxima sessão, sem voltar a seguir o sistema
+
 ## Como funciona na prática
 
 1. O administrador da plataforma habilita o **domínio** (área de cada cliente) e cria o primeiro usuário administrador
@@ -62,3 +67,6 @@ Cada cliente (domínio) tem os dados separados: o que acontece em um domínio n�
 - [Escopo aprovado](docs/approved-scope-draft.md) — regras de negócio em detalhe
 - [Documentação técnica](TECHNICAL.md) — para a equipe de desenvolvimento
 - [Workflow SDD](docs/sdd-pilot.md) — processo de desenvolvimento deste repositório
+
+- **00015-redesign-dashboard** (E013 — Redesign visual do dashboard): redesign visual do dashboard com KPIs por status, cards com vencimento/responsável, escopo por papel e filtros; backend adiciona `contracts[]`, `responsavel`, `a_vencer` e `stats.contractsAVencer` em `GET /api/v2/dashboard/stats`.
+- **00018-tema-escuro-por-padrao-alternancia** (E014 — Tema escuro por padrão): o app nasce em tema escuro, oferece alternância na toolbar e persiste a escolha em SharedPreferences; a preferência é lida antes da primeira renderização e o claro continua utilizável nos tokens de E006/E013.

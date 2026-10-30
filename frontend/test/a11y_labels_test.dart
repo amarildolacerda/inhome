@@ -60,6 +60,71 @@ void main() {
     expect(theme.scaffoldBackgroundColor, isNotNull);
   });
 
+  // E014 FR-068: os mesmos tokens de E006 precisam permanecer legíveis no
+  // claro e no escuro, inclusive no dashboard redesenhado de E013.
+  testWidgets('FR-068 contraste AA nos dois modos', (tester) async {
+    final themes = <String, ThemeData>{
+      'claro': AppTheme.light,
+      'escuro': AppTheme.dark,
+    };
+
+    for (final entry in themes.entries) {
+      final theme = entry.value;
+      final scheme = theme.colorScheme;
+
+      expect(
+        contrast(scheme.onSurface, scheme.surface),
+        greaterThanOrEqualTo(4.5),
+        reason: 'texto principal sobre superfície no modo ${entry.key}',
+      );
+      expect(
+        contrast(scheme.onPrimary, scheme.primary),
+        greaterThanOrEqualTo(4.5),
+        reason: 'texto sobre ação primária no modo ${entry.key}',
+      );
+      expect(
+        contrast(scheme.onError, scheme.error),
+        greaterThanOrEqualTo(4.5),
+        reason: 'texto sobre estado de erro no modo ${entry.key}',
+      );
+      expect(
+        contrast(scheme.onSurface, theme.scaffoldBackgroundColor),
+        greaterThanOrEqualTo(4.5),
+        reason: 'texto sobre o fundo do scaffold no modo ${entry.key}',
+      );
+
+      final statusColors = {
+        AppTheme.statusColor(scheme, 'vigente'),
+        AppTheme.statusColor(scheme, 'atrasado'),
+        AppTheme.statusColor(scheme, 'encerrado'),
+      };
+      expect(statusColors.length, 3,
+          reason: 'status do contrato usa tokens distintos no modo ${entry.key}');
+    }
+
+    // O MaterialApp aplica o brilho correto a uma árvore viva nos dois modos.
+    for (final entry in themes.entries) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: entry.key == 'escuro' ? ThemeMode.dark : ThemeMode.light,
+          home: Scaffold(
+            body: Center(child: Text('Contraste ${entry.key}')),
+          ),
+        ),
+      );
+      // A troca de `themeMode` passa por AnimatedTheme; deixe a animação
+      // de 200 ms terminar antes de ler o brilho efetivo.
+      await tester.pumpAndSettle();
+      final context = tester.element(find.text('Contraste ${entry.key}'));
+      expect(
+        Theme.of(context).brightness,
+        entry.key == 'escuro' ? Brightness.dark : Brightness.light,
+      );
+    }
+  });
+
   // E006 FR-005: rótulos de acessibilidade nas telas principais — os
   // contêineres Semantics com label existem nas telas que consomem o tema
   // (dashboard, tarefas, projetos) e no NavigationRail de main.dart.

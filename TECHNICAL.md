@@ -205,7 +205,8 @@ frontend/lib/
 │   ├── projects_screen.dart
 │   └── tasks_screen.dart
 ├── services/
-│   └── api_service.dart
+│   ├── api_service.dart
+│   └── theme_preference_store.dart  # preferência local de tema
 └── main.dart
 ```
 
@@ -234,9 +235,10 @@ git merge dev  # Requer autorização
   - `feat:` → minor (0.0.1 → 0.1.0)
   - Breaking → major (0.0.1 → 1.0.0)
 
-## Plano em progresso
+## Planos SDD
 
-- **00015-redesign-dashboard** (E013 — Redesign visual do dashboard): plano em `specs/00015-redesign-dashboard/plan.md`; payload aditivo de `GET /api/v2/dashboard/stats` (`contracts[]`, `responsavel`, `contractsAVencer` via junção `created_by` → `users` e janelas de E005) + rewrite de `frontend/lib/screens/dashboard_screen.dart` (KPIs, cards, filtros) sobre tokens do `ColorScheme` em `app_theme.dart`. Versão final marcada após a bateria de testes.
+- **00015-redesign-dashboard** (E013 — Redesign visual do dashboard): plano em `specs/00015-redesign-dashboard/plan.md`; payload aditivo de `GET /api/v2/dashboard/stats` (`contracts[]`, `contracts[].a_vencer`, `responsavel`, `contractsAVencer` via junção `created_by` → `users` e janelas de E005) + rewrite de `frontend/lib/screens/dashboard_screen.dart` (KPIs, cards, filtros) sobre tokens do `ColorScheme` em `app_theme.dart`. Bateria final verde em 2026-10-28 (unit 167, smoke 182, Flutter 70, audit 0); `APP_VERSION` permanece `0.0.1` até a promoção `dev` → `main`.
+- **00018-tema-escuro-por-padrao-alternancia** (E014 — Tema escuro por padrão e alternância persistida): implementado em 2026-10-28. `ThemePreferenceStore` lê/grava `theme_mode` (`light`/`dark`) em SharedPreferences, com fallback escuro para ausência ou valor inválido; `main()` resolve a preferência antes do `runApp`; a raiz stateful aplica `ThemeMode` e a top toolbar do MainShell ganhou o toggle com callback, tooltip e rótulo Semantics. Sem dependência nova e sem backend. Bateria final verde em 2026-10-28 (`flutter analyze` 0, `flutter test` 75/75); `APP_VERSION` permanece `0.0.1` até a promoção `dev` → `main`.
 
 ---
 

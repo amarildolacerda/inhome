@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:project_manager/main.dart';
+import 'package:project_manager/theme/app_theme.dart';
 
 /// Abre o shell com sessão simulada em SharedPreferences — mesma janela de
 /// pulsos de `openShellFor` (roles_nav_test) para o papel assentar.
@@ -22,6 +23,8 @@ Future<void> _openShell(
   required String role,
   Map<String, dynamic>? user,
   required VoidCallback onLogout,
+  VoidCallback? onToggleTheme,
+  ThemeData? theme,
 }) async {
   SharedPreferences.setMockInitialValues({
     'auth_role': role,
@@ -30,7 +33,12 @@ Future<void> _openShell(
   });
 
   await tester.pumpWidget(MaterialApp(
-    home: MainShell(key: const ValueKey('toolbar-shell'), onLogout: onLogout),
+    theme: theme,
+    home: MainShell(
+      key: const ValueKey('toolbar-shell'),
+      onLogout: onLogout,
+      onToggleTheme: onToggleTheme,
+    ),
   ));
   await tester.pump(const Duration(milliseconds: 50));
   await tester.pump(const Duration(milliseconds: 200));
@@ -66,6 +74,37 @@ void main() {
     await tester.tap(find.text('Sair'));
     await tester.pumpAndSettle();
     expect(loggedOut, isTrue, reason: 'tap em Sair dispara o logout');
+  });
+
+  testWidgets('FR-066 toggle alterna o tema na toolbar', (tester) async {
+    var toggled = 0;
+    await _openShell(
+      tester,
+      role: 'gestor',
+      user: {'id': 2, 'name': 'Maria Silva', 'role': 'gestor'},
+      onLogout: () {},
+      onToggleTheme: () => toggled += 1,
+      theme: AppTheme.dark,
+    );
+
+    // No escuro o controle oferece o claro, com rótulo de ação e tooltip.
+    expect(find.byTooltip('Usar tema claro'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Semantics && widget.properties.label == 'Alternar tema',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byIcon(Icons.light_mode_outlined), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Usar tema claro'));
+    await tester.pump();
+    expect(toggled, 1, reason: 'tap no toggle chega ao callback da raiz');
+
+    // A identidade da sessão e o Sair continuam na toolbar.
+    expect(find.text('Maria Silva'), findsOneWidget);
+    expect(find.text('Sair'), findsOneWidget);
   });
 
   testWidgets('sessão legada sem auth_user mantém papel e Sair', (tester) async {

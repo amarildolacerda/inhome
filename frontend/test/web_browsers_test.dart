@@ -18,11 +18,12 @@ void main() {
     expect(app.title, 'Gestão de Contratos');
     expect(app.debugShowCheckedModeBanner, isFalse);
     expect(app.darkTheme, isNotNull);
-    expect(app.themeMode, ThemeMode.system);
+    expect(app.themeMode, ThemeMode.dark);
   });
 
-  // E006 FR-004: bootstrap web aplicado — o tema carrega da primeira pintura
-  // sem conteúdo sem estilo (theme + darkTheme + themeMode presentes).
+  // E006 FR-004 + E014 FR-064: bootstrap web aplicado — o tema carrega da
+  // primeira pintura sem conteúdo sem estilo (theme + darkTheme + themeMode
+  // presentes) e nasce escuro.
   testWidgets('FR-004 bootstrap web aplicado sem conteúdo sem estilo',
       (WidgetTester tester) async {
     await tester.pumpWidget(const ProjectManagerApp());
@@ -30,8 +31,8 @@ void main() {
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.theme, isNotNull, reason: 'light theme applied at first paint');
     expect(app.darkTheme, isNotNull, reason: 'dark theme available');
-    expect(app.themeMode, ThemeMode.system,
-        reason: 'follows system brightness');
+    expect(app.themeMode, ThemeMode.dark,
+        reason: 'default escuro mesmo com o SO em modo claro');
   });
 
   // E006 FR-006: regressão fim a fim — o entrypoint real continua íntegro
