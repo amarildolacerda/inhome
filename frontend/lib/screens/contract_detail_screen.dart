@@ -307,6 +307,62 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
     );
   }
 
+class _CompactSchedule extends StatelessWidget {
+  const _CompactSchedule({required this.tasks});
+
+  final List<Task> tasks;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final map = <String, int>{};
+    for (final t in tasks) {
+      final d = t.dueDate;
+      if (d == null || d.isEmpty) continue;
+      map[d] = (map[d] ?? 0) + 1;
+    }
+    if (map.isEmpty) return const SizedBox.shrink();
+    final entries = map.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    final days = entries.take(7).toList();
+    if (days.isEmpty) return const SizedBox.shrink();
+    final maxCount = days.fold<int>(1, (m, e) => e.value > m ? e.value : m);
+    return Semantics(
+      label: 'Programação de atividades por dia',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (final e in days)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 1.5),
+              child: Tooltip(
+                message: '${_fmtDay(e.key)}: ${e.value} atividade(s)',
+                child: Container(
+                  width: 6,
+                  height: 10 + (e.value * 10 / maxCount).clamp(0, 16).toDouble(),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(1.5),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _fmtDay(String iso) {
+    try {
+      final d = DateTime.parse(iso);
+      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return iso;
+    }
+  }
+}
+
   @override
   Widget build(BuildContext context) {
     final contract = _contract;
@@ -339,6 +395,8 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
                             ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                     ),
+                    _CompactSchedule(tasks: _tasks),
+                    const SizedBox(width: 8),
                     Chip(
                       label: Text(contract.status),
                       visualDensity: VisualDensity.compact,
@@ -461,6 +519,62 @@ class _CreateTaskDialogState extends State<_CreateTaskDialog> {
       ),
     );
   }
+
+class _CompactSchedule extends StatelessWidget {
+  const _CompactSchedule({required this.tasks});
+
+  final List<Task> tasks;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final map = <String, int>{};
+    for (final t in tasks) {
+      final d = t.dueDate;
+      if (d == null || d.isEmpty) continue;
+      map[d] = (map[d] ?? 0) + 1;
+    }
+    if (map.isEmpty) return const SizedBox.shrink();
+    final entries = map.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    final days = entries.take(7).toList();
+    if (days.isEmpty) return const SizedBox.shrink();
+    final maxCount = days.fold<int>(1, (m, e) => e.value > m ? e.value : m);
+    return Semantics(
+      label: 'Programação de atividades por dia',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (final e in days)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 1.5),
+              child: Tooltip(
+                message: '${_fmtDay(e.key)}: ${e.value} atividade(s)',
+                child: Container(
+                  width: 6,
+                  height: 10 + (e.value * 10 / maxCount).clamp(0, 16).toDouble(),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(1.5),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _fmtDay(String iso) {
+    try {
+      final d = DateTime.parse(iso);
+      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return iso;
+    }
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -587,6 +701,62 @@ class _LinkProviderDialogState extends State<_LinkProviderDialog> {
       });
     }
   }
+
+class _CompactSchedule extends StatelessWidget {
+  const _CompactSchedule({required this.tasks});
+
+  final List<Task> tasks;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final map = <String, int>{};
+    for (final t in tasks) {
+      final d = t.dueDate;
+      if (d == null || d.isEmpty) continue;
+      map[d] = (map[d] ?? 0) + 1;
+    }
+    if (map.isEmpty) return const SizedBox.shrink();
+    final entries = map.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    final days = entries.take(7).toList();
+    if (days.isEmpty) return const SizedBox.shrink();
+    final maxCount = days.fold<int>(1, (m, e) => e.value > m ? e.value : m);
+    return Semantics(
+      label: 'Programação de atividades por dia',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (final e in days)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 1.5),
+              child: Tooltip(
+                message: '${_fmtDay(e.key)}: ${e.value} atividade(s)',
+                child: Container(
+                  width: 6,
+                  height: 10 + (e.value * 10 / maxCount).clamp(0, 16).toDouble(),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(1.5),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _fmtDay(String iso) {
+    try {
+      final d = DateTime.parse(iso);
+      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return iso;
+    }
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -1075,6 +1245,62 @@ class _WorkflowSheetState extends State<_WorkflowSheet> {
     return 'Sem título';
   }
 
+class _CompactSchedule extends StatelessWidget {
+  const _CompactSchedule({required this.tasks});
+
+  final List<Task> tasks;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final map = <String, int>{};
+    for (final t in tasks) {
+      final d = t.dueDate;
+      if (d == null || d.isEmpty) continue;
+      map[d] = (map[d] ?? 0) + 1;
+    }
+    if (map.isEmpty) return const SizedBox.shrink();
+    final entries = map.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    final days = entries.take(7).toList();
+    if (days.isEmpty) return const SizedBox.shrink();
+    final maxCount = days.fold<int>(1, (m, e) => e.value > m ? e.value : m);
+    return Semantics(
+      label: 'Programação de atividades por dia',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (final e in days)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 1.5),
+              child: Tooltip(
+                message: '${_fmtDay(e.key)}: ${e.value} atividade(s)',
+                child: Container(
+                  width: 6,
+                  height: 10 + (e.value * 10 / maxCount).clamp(0, 16).toDouble(),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(1.5),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _fmtDay(String iso) {
+    try {
+      final d = DateTime.parse(iso);
+      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return iso;
+    }
+  }
+}
+
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -1380,6 +1606,62 @@ class _DefinitionsDialogState extends State<_DefinitionsDialog> {
       for (var i = 0; i < _keys.length; i++) _keys[i]: _controllers[i].text.trim(),
     });
   }
+
+class _CompactSchedule extends StatelessWidget {
+  const _CompactSchedule({required this.tasks});
+
+  final List<Task> tasks;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final map = <String, int>{};
+    for (final t in tasks) {
+      final d = t.dueDate;
+      if (d == null || d.isEmpty) continue;
+      map[d] = (map[d] ?? 0) + 1;
+    }
+    if (map.isEmpty) return const SizedBox.shrink();
+    final entries = map.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    final days = entries.take(7).toList();
+    if (days.isEmpty) return const SizedBox.shrink();
+    final maxCount = days.fold<int>(1, (m, e) => e.value > m ? e.value : m);
+    return Semantics(
+      label: 'Programação de atividades por dia',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (final e in days)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 1.5),
+              child: Tooltip(
+                message: '${_fmtDay(e.key)}: ${e.value} atividade(s)',
+                child: Container(
+                  width: 6,
+                  height: 10 + (e.value * 10 / maxCount).clamp(0, 16).toDouble(),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(1.5),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _fmtDay(String iso) {
+    try {
+      final d = DateTime.parse(iso);
+      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return iso;
+    }
+  }
+}
 
   @override
   Widget build(BuildContext context) {
