@@ -52,6 +52,19 @@ function summarizeContracts(rows) {
   return counts;
 }
 
+// FR-039/SC-002: "a vencer" reuses the domain alert windows (E005). Exposing
+// the per-contract flag keeps client-side filters (FR-043) window-correct
+// without leaking the window configuration or refetching on every filter.
+function isAVencer(row, windows) {
+  const effective = Contract.effectiveStatus({
+    ...row,
+    status: label('contracts.status', row.status),
+  });
+  if (effective !== 'vigente' || !row.forecast_date) return false;
+  const days = daysUntil(row.forecast_date);
+  return days >= 0 && windows.some((window) => window >= days);
+}
+
 // FR-019 / SC-011: role-scoped metrics. admin/gestor → whole domain;
 // prestador → only their own tasks (and their linked contracts).
 function getDomainMetrics(db, user) {
@@ -75,12 +88,7 @@ function getDomainMetrics(db, user) {
       'SELECT COUNT(*) AS c FROM contract_providers WHERE user_id = ?',
       [user.id]
     ).c;
-    const contractsAVencer = linkedContracts.filter((row) => {
-      if (Contract.effectiveStatus({ ...row, status: label('contracts.status', row.status) }) !== 'vigente') return false;
-      if (!row.forecast_date) return false;
-      const days = daysUntil(row.forecast_date);
-      return days >= 0 && windows.some((w) => w >= days);
-    }).length;
+    const contractsAVencer = linkedContracts.filter((row) => isAVencer(row, windows)).length;
     return {
       scope: 'own',
       stats: {
@@ -104,6 +112,7 @@ function getDomainMetrics(db, user) {
         ...row,
         status: label('contracts.status', row.status),
         effective_status: Contract.effectiveStatus({ ...row, status: label('contracts.status', row.status) }),
+        a_vencer: isAVencer(row, windows),
         responsavel: row.created_by
           ? (db.get('SELECT name FROM users WHERE id = ?', [row.created_by])?.name ?? null)
           : null,
@@ -117,12 +126,7 @@ function getDomainMetrics(db, user) {
   const tasks = summarizeTasks(db.all('SELECT status, priority, due_date FROM tasks'));
   const usersTotal = db.get('SELECT COUNT(*) AS c FROM users').c;
   const prestadoresTotal = db.get("SELECT COUNT(*) AS c FROM users WHERE role = 'prestador'").c;
-  const contractsAVencer = allContracts.filter((row) => {
-    if (Contract.effectiveStatus({ ...row, status: label('contracts.status', row.status) }) !== 'vigente') return false;
-    if (!row.forecast_date) return false;
-    const days = daysUntil(row.forecast_date);
-    return days >= 0 && windows.some((w) => w >= days);
-  }).length;
+  const contractsAVencer = allContracts.filter((row) => isAVencer(row, windows)).length;
 
   const recentProjects = allContracts
     .slice(-5)
@@ -167,6 +171,7 @@ function getDomainMetrics(db, user) {
       ...row,
       status: label('contracts.status', row.status),
       effective_status: Contract.effectiveStatus({ ...row, status: label('contracts.status', row.status) }),
+      a_vencer: isAVencer(row, windows),
       responsavel: row.created_by
         ? (db.get('SELECT name FROM users WHERE id = ?', [row.created_by])?.name ?? null)
         : null,

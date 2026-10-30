@@ -172,9 +172,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 24),
 
             // FR-038/FR-039: KPI row with status counts + "a vencer" window.
-            // Hidden for prestador (FR-041: no domain KPIs).
+            // Hidden for prestador (FR-041: no domain KPIs). FR-043: when the
+            // payload carries the contract list, the KPIs count the filtered
+            // set so filters/search apply to both KPIs and cards.
             if (scope != 'own') ...[
-              _KpiRow(stats: stats),
+              _KpiRow(
+                stats: stats,
+                contracts: _data?['contracts'] is List ? filteredContracts : null,
+              ),
               const SizedBox(height: 24),
             ],
 
@@ -244,19 +249,36 @@ class _Header extends StatelessWidget {
 /// Each chip uses AppTheme.statusColor for the ColorScheme token and a
 /// textual label (WCAG 1.4.1 — no color-only communication).
 class _KpiRow extends StatelessWidget {
-  const _KpiRow({required this.stats});
+  const _KpiRow({required this.stats, this.contracts});
 
   final Map<String, dynamic> stats;
+
+  /// FR-043: filtered contract set when the payload carries `contracts`.
+  /// Null keeps the historical stats-only behavior for partial payloads.
+  final List<Map<String, dynamic>>? contracts;
 
   @override
   Widget build(BuildContext context) {
     int asInt(dynamic v) => v is num ? v.toInt() : int.tryParse('$v') ?? 0;
 
+    final filtered = contracts;
+    int byStatus(String status, String statsKey) {
+      if (filtered == null) return asInt(stats[statsKey]);
+      return filtered
+          .where((c) =>
+              '${c['effective_status'] ?? c['status'] ?? ''}' == status)
+          .length;
+    }
+
+    final aVencer = filtered == null
+        ? asInt(stats['contractsAVencer'])
+        : filtered.where((c) => c['a_vencer'] == true).length;
+
     final items = <({String label, int count, String status})>[
-      (label: 'Vigentes', count: asInt(stats['activeProjects']), status: 'vigente'),
-      (label: 'Atrasados', count: asInt(stats['contractsAtrasado']), status: 'atrasado'),
-      (label: 'Encerrados', count: asInt(stats['contractsEncerrado']), status: 'encerrado'),
-      (label: 'A vencer', count: asInt(stats['contractsAVencer']), status: 'vigente'),
+      (label: 'Vigentes', count: byStatus('vigente', 'activeProjects'), status: 'vigente'),
+      (label: 'Atrasados', count: byStatus('atrasado', 'contractsAtrasado'), status: 'atrasado'),
+      (label: 'Encerrados', count: byStatus('encerrado', 'contractsEncerrado'), status: 'encerrado'),
+      (label: 'A vencer', count: aVencer, status: 'vigente'),
     ];
 
     return LayoutBuilder(
@@ -364,8 +386,8 @@ class _ContractCards extends StatelessWidget {
         final eb = '${b['effective_status'] ?? ''}';
         if (ea == 'atrasado' && eb != 'atrasado') return -1;
         if (eb == 'atrasado' && ea != 'atrasado') return 1;
-        final fa = a['forecast_date'] as String?;
-        final fb = b['forecast_date'] as String?;
+        final fa = a['forecast_date'] is String ? a['forecast_date'] as String : null;
+        final fb = b['forecast_date'] is String ? b['forecast_date'] as String : null;
         if (fa == null && fb != null) return 1;
         if (fb == null && fa != null) return -1;
         if (fa != null && fb != null) return fa.compareTo(fb);
@@ -430,51 +452,50 @@ class _DashboardFilters extends StatelessWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final wide = constraints.maxWidth >= 700;
-            final statusDropdown = Expanded(
-              flex: 2,
-              child: DropdownButtonFormField<String?>(
-                initialValue: statusFilter,
-                decoration: const InputDecoration(labelText: 'Status'),
-                items: const [
-                  DropdownMenuItem(value: null, child: Text('Todos')),
-                  DropdownMenuItem(value: 'vigente', child: Text('Vigente')),
-                  DropdownMenuItem(value: 'atrasado', child: Text('Atrasado')),
-                  DropdownMenuItem(value: 'encerrado', child: Text('Encerrado')),
-                ],
-                onChanged: onStatusChanged,
-              ),
+            // FIX T016: build the controls without Expanded so the narrow
+            // Column below does not force flex inside an unbounded scroll
+            // view. The wide Row opts into Expanded explicitly.
+            final statusDropdown = DropdownButtonFormField<String?>(
+              key: const Key('dashboard-status-filter'),
+              initialValue: statusFilter,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Status'),
+              items: const [
+                DropdownMenuItem(value: null, child: Text('Todos')),
+                DropdownMenuItem(value: 'vigente', child: Text('Vigente')),
+                DropdownMenuItem(value: 'atrasado', child: Text('Atrasado')),
+                DropdownMenuItem(value: 'encerrado', child: Text('Encerrado')),
+              ],
+              onChanged: onStatusChanged,
             );
-            final responsavelDropdown = Expanded(
-              flex: 2,
-              child: DropdownButtonFormField<String?>(
-                initialValue: responsavelFilter,
-                decoration: const InputDecoration(labelText: 'Responsável'),
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('Todos')),
-                  for (final name in responsaveis)
-                    DropdownMenuItem(value: name, child: Text(name)),
-                ],
-                onChanged: onResponsavelChanged,
-              ),
+            final responsavelDropdown = DropdownButtonFormField<String?>(
+              key: const Key('dashboard-responsavel-filter'),
+              initialValue: responsavelFilter,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Responsável'),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('Todos')),
+                for (final name in responsaveis)
+                  DropdownMenuItem(value: name, child: Text(name)),
+              ],
+              onChanged: onResponsavelChanged,
             );
-            final searchField = Expanded(
-              flex: 3,
-              child: TextField(
-                decoration: const InputDecoration(
-                  labelText: 'Buscar por nome',
-                  prefixIcon: Icon(Icons.search),
-                ),
-                onChanged: onSearchChanged,
+            final searchField = TextField(
+              key: const Key('dashboard-search'),
+              decoration: const InputDecoration(
+                labelText: 'Buscar por nome',
+                prefixIcon: Icon(Icons.search),
               ),
+              onChanged: onSearchChanged,
             );
             if (wide) {
               return Row(
                 children: [
-                  statusDropdown,
+                  Expanded(flex: 2, child: statusDropdown),
                   const SizedBox(width: 12),
-                  responsavelDropdown,
+                  Expanded(flex: 2, child: responsavelDropdown),
                   const SizedBox(width: 12),
-                  searchField,
+                  Expanded(flex: 3, child: searchField),
                 ],
               );
             }
@@ -659,6 +680,14 @@ class _ProjectCardState extends State<_ProjectCard> {
     final status = _statusStyle(theme);
     // Sem id não há rota — o card permanece apenas informativo.
     final openable = widget.canOpen && project['id'] is num;
+    // FR-040/SC-003: forecast + responsável are always rendered; a missing
+    // forecast keeps the card visible with an explicit incomplete marker.
+    final forecastRaw = '${project['forecast_date'] ?? ''}'.trim();
+    final responsavel = '${project['responsavel'] ?? ''}'.trim();
+    final incomplete = forecastRaw.isEmpty;
+    final forecastLabel = incomplete
+        ? 'Sem previsão'
+        : 'Vencimento: ${_formatForecast(forecastRaw)}';
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -737,6 +766,37 @@ class _ProjectCardState extends State<_ProjectCard> {
                   ),
                 ),
                 const SizedBox(height: 8),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _CardMeta(icon: Icons.event, text: forecastLabel),
+                    _CardMeta(
+                      icon: Icons.person_outline,
+                      text: responsavel.isEmpty
+                          ? 'Sem responsável'
+                          : 'Responsável: $responsavel',
+                    ),
+                    if (incomplete)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: scheme.secondaryContainer,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          'Incompleto',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: scheme.onSecondaryContainer,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 Text(
                   '$completedCount de $taskCount tarefas concluídas',
                   style: theme.textTheme.bodySmall
@@ -749,6 +809,42 @@ class _ProjectCardState extends State<_ProjectCard> {
       ),
     );
   }
+}
+
+/// FR-040: compact icon + text line used for vencimento and responsável.
+class _CardMeta extends StatelessWidget {
+  const _CardMeta({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: scheme.onSurfaceVariant),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _formatForecast(String isoDate) {
+  final parts = isoDate.split('-');
+  if (parts.length == 3) return '${parts[2]}/${parts[1]}/${parts[0]}';
+  return isoDate;
 }
 
 class _EmptyProjectsCard extends StatelessWidget {

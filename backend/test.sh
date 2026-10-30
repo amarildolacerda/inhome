@@ -273,6 +273,12 @@ echo ""
 echo "=== 10. Dashboard Stats ==="
 api GET /api/v2/dashboard/stats "" "$ADMIN_TOKEN"
 check_http "GET /api/v2/dashboard/stats" 200
+# E013/FR-040: additive payload keeps recentProjects intact and exposes the
+# full contract set, the responsavel join, and the window-based flag.
+check_val "dashboard contracts inclui Smoke Contract" "1" "$(jcount contracts 'Smoke Contract')"
+check_val "dashboard expõe responsavel" "Smoke Admin" "$(jget contracts.0.responsavel)"
+check_val "dashboard expõe a_vencer por contrato" "1" "$(jcount_true contracts a_vencer)"
+check_val "dashboard expõe stats.contractsAVencer" "1" "$(jget stats.contractsAVencer)"
 
 # --- 11. wrong password -> 401 ---------------------------------------------
 echo ""

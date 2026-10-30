@@ -7,7 +7,7 @@ const { setupDataDir, initTestDb } = require('../support/testenv');
 
 setupDataDir();
 const { app } = require('../server');
-const { getDomainDb } = require('../config/database');
+const { getDomainDb, getPlatformDb } = require('../config/database');
 const { getDomainMetrics } = require('../routes/dashboard');
 
 const SYS_EMAIL = process.env.PLATFORM_ADMIN_EMAIL || 'admin@platform.local';
@@ -223,8 +223,49 @@ test('FR-003 403 para system_admin', async () => {
   assert.strictEqual(denied.body.error, 'Forbidden');
 });
 
-// E013: acceptance stubs for the dashboard redesign (plan.md Acceptance Test Stubs).
-// These stay RED (test.todo) until the backend payload tasks (T003) make them GREEN.
+// E013: per-requirement acceptance tests (plan.md Acceptance Test Stubs).
+// The domain fixture above already establishes the contracts used here:
+// C1 (+60d, linked to p1), C2 (+45d), C3 (-3d, atrasado).
 
-test.todo('FR-039 contractsAVencer segue janelas do domínio');
-test.todo('FR-041 prestador recebe só contratos vinculados');
+test('FR-039 contractsAVencer segue janelas do domínio', async () => {
+  const platform = getPlatformDb();
+
+  // Default windows [90,60,30,15]: C1 and C2 are vigente inside a window;
+  // C3 is atrasado and never counts.
+  platform.run('UPDATE domains SET alert_windows = NULL WHERE id = ?', [domainId]);
+  const defaults = await request(app).get('/api/v2/dashboard/stats').set(as(gestorToken));
+  assert.strictEqual(defaults.status, 200, JSON.stringify(defaults.body));
+  assert.strictEqual(defaults.body.stats.contractsAVencer, 2, 'two vigentes inside the default windows');
+  const byName = Object.fromEntries(defaults.body.contracts.map((c) => [c.name, c]));
+  assert.strictEqual(byName['C1 Obra'].a_vencer, true, 'C1 flag matches the KPI');
+  assert.strictEqual(byName['C2 Galpao'].a_vencer, true, 'C2 flag matches the KPI');
+  assert.strictEqual(byName['C3 Atrasado'].a_vencer, false, 'atrasado never counts as a vencer');
+
+  // Configured windows [30,15]: neither C1 nor C2 is inside, so the KPI and
+  // the per-contract flags follow the domain configuration, not a constant.
+  platform.run('UPDATE domains SET alert_windows = ? WHERE id = ?', ['[30,15]', domainId]);
+  try {
+    const tight = await request(app).get('/api/v2/dashboard/stats').set(as(gestorToken));
+    assert.strictEqual(tight.status, 200, JSON.stringify(tight.body));
+    assert.strictEqual(tight.body.stats.contractsAVencer, 0, 'outside every configured window');
+    assert.ok(tight.body.contracts.every((c) => c.a_vencer === false), 'no contract flagged');
+  } finally {
+    platform.run('UPDATE domains SET alert_windows = NULL WHERE id = ?', [domainId]);
+  }
+});
+
+test('FR-041 prestador recebe só contratos vinculados', async () => {
+  const own = await request(app).get('/api/v2/dashboard/stats').set(as(p1Token));
+  assert.strictEqual(own.status, 200, JSON.stringify(own.body));
+  assert.strictEqual(own.body.scope, 'own');
+  assert.deepStrictEqual(own.body.contracts.map((c) => c.name), ['C1 Obra'], 'only the linked contract');
+  assert.strictEqual(own.body.stats.totalProjects, 1, 'stats follow the same scope');
+  assert.strictEqual(own.body.contracts[0].responsavel, 'Guto', 'responsavel comes from created_by → users');
+  assert.strictEqual(typeof own.body.contracts[0].a_vencer, 'boolean', 'filter flag present');
+
+  // Admin/gestor still see the whole domain — scoping is server-side.
+  const domain = await request(app).get('/api/v2/dashboard/stats').set(as(adminToken));
+  assert.strictEqual(domain.status, 200, JSON.stringify(domain.body));
+  assert.strictEqual(domain.body.scope, 'domain');
+  assert.strictEqual(domain.body.contracts.length, 3, 'admin sees every contract');
+});

@@ -276,7 +276,7 @@ void main() {
 
   testWidgets('teclado: Ctrl+seta rola o painel e Tab alcança o card',
       (tester) async {
-    await tester.binding.setSurfaceSize(const Size(800, 600));
+    await tester.binding.setSurfaceSize(const Size(800, 360));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final api = _FakeApi(
       roleValue: 'admin',
@@ -344,7 +344,7 @@ void main() {
     // Espelha a aninhamento do shell novo (Column com toolbar + Expanded
     // contendo a tela) para provar que o padrão autofirst não depende do
     // body ser só o dashboard.
-    await tester.binding.setSurfaceSize(const Size(800, 600));
+    await tester.binding.setSurfaceSize(const Size(800, 360));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final api = _FakeApi(
       roleValue: 'admin',
