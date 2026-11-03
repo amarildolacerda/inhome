@@ -307,62 +307,6 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
     );
   }
 
-class _CompactSchedule extends StatelessWidget {
-  const _CompactSchedule({required this.tasks});
-
-  final List<Task> tasks;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final map = <String, int>{};
-    for (final t in tasks) {
-      final d = t.dueDate;
-      if (d == null || d.isEmpty) continue;
-      map[d] = (map[d] ?? 0) + 1;
-    }
-    if (map.isEmpty) return const SizedBox.shrink();
-    final entries = map.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
-    final days = entries.take(7).toList();
-    if (days.isEmpty) return const SizedBox.shrink();
-    final maxCount = days.fold<int>(1, (m, e) => e.value > m ? e.value : m);
-    return Semantics(
-      label: 'Programação de atividades por dia',
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          for (final e in days)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 1.5),
-              child: Tooltip(
-                message: '${_fmtDay(e.key)}: ${e.value} atividade(s)',
-                child: Container(
-                  width: 6,
-                  height: 10 + (e.value * 10 / maxCount).clamp(0, 16).toDouble(),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(1.5),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  String _fmtDay(String iso) {
-    try {
-      final d = DateTime.parse(iso);
-      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
-    } catch (_) {
-      return iso;
-    }
-  }
-}
-
   @override
   Widget build(BuildContext context) {
     final contract = _contract;
@@ -469,57 +413,6 @@ class _CompactSchedule extends StatelessWidget {
   }
 }
 
-/// Diálogo de criação de tarefa no contrato: mesmos campos do
-/// POST /contracts/:id/tasks (TASK_SCHEMA) — título, descrição, prioridade e
-/// responsável opcional entre os prestadores vinculados ao contrato. O status
-/// nasce em 'A Fazer'; criação não aceita outro.
-class _CreateTaskDialog extends StatefulWidget {
-  const _CreateTaskDialog({required this.prestadores});
-
-  /// Vinculados ao contrato — única fonte válida de responsável (o backend
-  /// recusa assignee_id fora do vínculo).
-  final List<ContractPrestador> prestadores;
-
-  @override
-  State<_CreateTaskDialog> createState() => _CreateTaskDialogState();
-}
-
-class _CreateTaskDialogState extends State<_CreateTaskDialog> {
-  final _titleController = TextEditingController();
-  final _descController = TextEditingController();
-  String _priority = 'medium';
-  int? _assigneeId;
-  String? _titleError;
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _descController.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final title = _titleController.text.trim();
-    setState(() => _titleError = title.isEmpty ? 'Informe o título' : null);
-    if (_titleError != null) return;
-
-    final description = _descController.text.trim();
-    Navigator.pop(
-      context,
-      // O contrato vem da rota; id e status existem só depois do POST.
-      // assigneeId null segue como assignee_id null — o schema do backend
-      // trata null como ausente (sem responsável).
-      Task(
-        id: 0,
-        contractId: 0,
-        title: title,
-        description: description.isEmpty ? null : description,
-        priority: _priority,
-        assigneeId: _assigneeId,
-      ),
-    );
-  }
-
 class _CompactSchedule extends StatelessWidget {
   const _CompactSchedule({required this.tasks});
 
@@ -575,6 +468,57 @@ class _CompactSchedule extends StatelessWidget {
     }
   }
 }
+
+/// Diálogo de criação de tarefa no contrato: mesmos campos do
+/// POST /contracts/:id/tasks (TASK_SCHEMA) — título, descrição, prioridade e
+/// responsável opcional entre os prestadores vinculados ao contrato. O status
+/// nasce em 'A Fazer'; criação não aceita outro.
+class _CreateTaskDialog extends StatefulWidget {
+  const _CreateTaskDialog({required this.prestadores});
+
+  /// Vinculados ao contrato — única fonte válida de responsável (o backend
+  /// recusa assignee_id fora do vínculo).
+  final List<ContractPrestador> prestadores;
+
+  @override
+  State<_CreateTaskDialog> createState() => _CreateTaskDialogState();
+}
+
+class _CreateTaskDialogState extends State<_CreateTaskDialog> {
+  final _titleController = TextEditingController();
+  final _descController = TextEditingController();
+  String _priority = 'medium';
+  int? _assigneeId;
+  String? _titleError;
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final title = _titleController.text.trim();
+    setState(() => _titleError = title.isEmpty ? 'Informe o título' : null);
+    if (_titleError != null) return;
+
+    final description = _descController.text.trim();
+    Navigator.pop(
+      context,
+      // O contrato vem da rota; id e status existem só depois do POST.
+      // assigneeId null segue como assignee_id null — o schema do backend
+      // trata null como ausente (sem responsável).
+      Task(
+        id: 0,
+        contractId: 0,
+        title: title,
+        description: description.isEmpty ? null : description,
+        priority: _priority,
+        assigneeId: _assigneeId,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -701,62 +645,6 @@ class _LinkProviderDialogState extends State<_LinkProviderDialog> {
       });
     }
   }
-
-class _CompactSchedule extends StatelessWidget {
-  const _CompactSchedule({required this.tasks});
-
-  final List<Task> tasks;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final map = <String, int>{};
-    for (final t in tasks) {
-      final d = t.dueDate;
-      if (d == null || d.isEmpty) continue;
-      map[d] = (map[d] ?? 0) + 1;
-    }
-    if (map.isEmpty) return const SizedBox.shrink();
-    final entries = map.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
-    final days = entries.take(7).toList();
-    if (days.isEmpty) return const SizedBox.shrink();
-    final maxCount = days.fold<int>(1, (m, e) => e.value > m ? e.value : m);
-    return Semantics(
-      label: 'Programação de atividades por dia',
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          for (final e in days)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 1.5),
-              child: Tooltip(
-                message: '${_fmtDay(e.key)}: ${e.value} atividade(s)',
-                child: Container(
-                  width: 6,
-                  height: 10 + (e.value * 10 / maxCount).clamp(0, 16).toDouble(),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(1.5),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  String _fmtDay(String iso) {
-    try {
-      final d = DateTime.parse(iso);
-      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
-    } catch (_) {
-      return iso;
-    }
-  }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -1245,62 +1133,6 @@ class _WorkflowSheetState extends State<_WorkflowSheet> {
     return 'Sem título';
   }
 
-class _CompactSchedule extends StatelessWidget {
-  const _CompactSchedule({required this.tasks});
-
-  final List<Task> tasks;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final map = <String, int>{};
-    for (final t in tasks) {
-      final d = t.dueDate;
-      if (d == null || d.isEmpty) continue;
-      map[d] = (map[d] ?? 0) + 1;
-    }
-    if (map.isEmpty) return const SizedBox.shrink();
-    final entries = map.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
-    final days = entries.take(7).toList();
-    if (days.isEmpty) return const SizedBox.shrink();
-    final maxCount = days.fold<int>(1, (m, e) => e.value > m ? e.value : m);
-    return Semantics(
-      label: 'Programação de atividades por dia',
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          for (final e in days)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 1.5),
-              child: Tooltip(
-                message: '${_fmtDay(e.key)}: ${e.value} atividade(s)',
-                child: Container(
-                  width: 6,
-                  height: 10 + (e.value * 10 / maxCount).clamp(0, 16).toDouble(),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(1.5),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  String _fmtDay(String iso) {
-    try {
-      final d = DateTime.parse(iso);
-      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
-    } catch (_) {
-      return iso;
-    }
-  }
-}
-
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -1606,62 +1438,6 @@ class _DefinitionsDialogState extends State<_DefinitionsDialog> {
       for (var i = 0; i < _keys.length; i++) _keys[i]: _controllers[i].text.trim(),
     });
   }
-
-class _CompactSchedule extends StatelessWidget {
-  const _CompactSchedule({required this.tasks});
-
-  final List<Task> tasks;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final map = <String, int>{};
-    for (final t in tasks) {
-      final d = t.dueDate;
-      if (d == null || d.isEmpty) continue;
-      map[d] = (map[d] ?? 0) + 1;
-    }
-    if (map.isEmpty) return const SizedBox.shrink();
-    final entries = map.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
-    final days = entries.take(7).toList();
-    if (days.isEmpty) return const SizedBox.shrink();
-    final maxCount = days.fold<int>(1, (m, e) => e.value > m ? e.value : m);
-    return Semantics(
-      label: 'Programação de atividades por dia',
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          for (final e in days)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 1.5),
-              child: Tooltip(
-                message: '${_fmtDay(e.key)}: ${e.value} atividade(s)',
-                child: Container(
-                  width: 6,
-                  height: 10 + (e.value * 10 / maxCount).clamp(0, 16).toDouble(),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(1.5),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  String _fmtDay(String iso) {
-    try {
-      final d = DateTime.parse(iso);
-      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
-    } catch (_) {
-      return iso;
-    }
-  }
-}
 
   @override
   Widget build(BuildContext context) {

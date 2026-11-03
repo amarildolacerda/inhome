@@ -41,3 +41,9 @@
 | Responsive columns, no horizontal overflow | PASS |
 | Filters + search in body, persist on update | PASS |
 | Keyboard navigation | PASS |
+
+## Post-QC redesign revalidation (2026-11-03)
+- Visual redo full (faixa KPIs, fila, filtros) after original QC; same FR-038..043 surface.
+- Automated: dashboard_redesign + dashboard_projects_nav 16/16 PASS; analyze clean on changed files.
+- Manual: user confirmed `docker compose` stack and dashboard OK in chat (2026-11-03).
+- `.qc-passed` digests still describe the 2026-10-28 tree; re-seal required before release promotion.

@@ -80,8 +80,7 @@ Future<void> _pump(WidgetTester tester, Map<String, dynamic> payload) async {
   await tester.pumpAndSettle();
 }
 
-Finder _kpiCard(String label) =>
-    find.ancestor(of: find.text(label), matching: find.byType(Card)).first;
+Finder _kpi(String id) => find.byKey(Key('kpi-$id'));
 
 void main() {
   setUp(() {
@@ -111,19 +110,19 @@ void main() {
       expect(find.text(label), findsOneWidget);
     }
     expect(
-      find.descendant(of: _kpiCard('Vigentes'), matching: find.text('2')),
+      find.descendant(of: _kpi('vigente'), matching: find.text('2')),
       findsOneWidget,
     );
     expect(
-      find.descendant(of: _kpiCard('Atrasados'), matching: find.text('3')),
+      find.descendant(of: _kpi('atrasado'), matching: find.text('3')),
       findsOneWidget,
     );
     expect(
-      find.descendant(of: _kpiCard('Encerrados'), matching: find.text('4')),
+      find.descendant(of: _kpi('encerrado'), matching: find.text('4')),
       findsOneWidget,
     );
     expect(
-      find.descendant(of: _kpiCard('A vencer'), matching: find.text('1')),
+      find.descendant(of: _kpi('a-vencer'), matching: find.text('1')),
       findsOneWidget,
     );
 
@@ -222,12 +221,12 @@ void main() {
     expect(find.text('Contrato atrasado'), findsOneWidget);
     expect(find.text('Contrato vigente'), findsNothing);
     expect(
-      find.descendant(of: _kpiCard('Vigentes'), matching: find.text('0')),
+      find.descendant(of: _kpi('vigente'), matching: find.text('0')),
       findsOneWidget,
       reason: 'KPI follows the filter',
     );
     expect(
-      find.descendant(of: _kpiCard('Atrasados'), matching: find.text('1')),
+      find.descendant(of: _kpi('atrasado'), matching: find.text('1')),
       findsOneWidget,
     );
 
@@ -242,7 +241,60 @@ void main() {
     expect(find.text('Contrato vigente'), findsOneWidget);
     expect(find.text('Contrato atrasado'), findsNothing);
     expect(
-      find.descendant(of: _kpiCard('A vencer'), matching: find.text('1')),
+      find.descendant(of: _kpi('a-vencer'), matching: find.text('1')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('FR-043 limpar filtros restaura KPIs e fila', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await _pump(
+      tester,
+      _payload([
+        _contract(
+          id: 1,
+          name: 'Contrato vigente',
+          status: 'vigente',
+          forecast: '2026-11-15',
+          responsavel: 'Ana',
+          aVencer: true,
+        ),
+        _contract(
+          id: 2,
+          name: 'Contrato atrasado',
+          status: 'atrasado',
+          forecast: '2026-10-01',
+          responsavel: 'Bia',
+        ),
+      ]),
+    );
+
+    expect(find.byKey(const Key('dashboard-clear-filters')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('dashboard-status-filter')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Atrasado').last);
+    await tester.pumpAndSettle();
+
+    final clear = find.byKey(const Key('dashboard-clear-filters'));
+    expect(clear, findsOneWidget, reason: 'filtro ativo oferece limpeza');
+
+    await tester.ensureVisible(clear);
+    await tester.tap(clear);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('dashboard-clear-filters')), findsNothing);
+    expect(find.text('Contrato vigente'), findsOneWidget);
+    expect(find.text('Contrato atrasado'), findsOneWidget);
+    expect(
+      find.descendant(of: _kpi('vigente'), matching: find.text('1')),
+      findsOneWidget,
+      reason: 'KPI volta ao conjunto inteiro',
+    );
+    expect(
+      find.descendant(of: _kpi('atrasado'), matching: find.text('1')),
       findsOneWidget,
     );
   });

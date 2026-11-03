@@ -20,3 +20,9 @@
 ## Iteration 1/10 - QC Complete
 - QC status: PASS
 - Created .qc-passed with valid evidence
+
+## Post-QC redesign (2026-11-03)
+- User directed full visual redo (abandon prior card layout); skill frontend-design applied via designer lane `des-1`.
+- Scope: `dashboard_screen.dart` rewrite (faixa `_KpiBand`, fila `_ContractRow`, filtros no corpo), `app_theme.dart` (`statusBlock`, `panel`/Archivo), `pubspec.yaml` fonts section (asset OFL, sem dependência de pacote), `dashboard_redesign_test.dart`.
+- Validation: dashboard+nav tests 16/16; `flutter analyze` 0 issues nos arquivos do redesign (2 pré-existentes fora do escopo); usuário confirmou docker compose + dashboard OK.
+- Note: digests em `.qc-passed` (baseline `dd52e58`) referem-se ao estado de 2026-10-28, anterior a este redesign; re-sigilo/QC pendente na próxima promoção `dev` → `main`.

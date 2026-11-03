@@ -7,8 +7,6 @@ Custom project TODOs. Agents read this file at session start.
 ### V1
 - [X] Épico E014 — Tema escuro por padrão + alternância para claro (SharedPreferences + toggle na toolbar); feature `00018` com 19/19 tasks, checklists 55/55, QC PASS (`.qc-passed`), flutter 75/75 · backend 167/167 · smoke 182/182 · audit 0, browser headless 22/22 (2026-10-30)
 
-- [ ] Épico E013 — Redesign do dashboard no estilo do mockup (dados atuais; restrições: estender `app_theme.dart`, só tokens do ColorScheme, sem dependências novas, filtros no corpo, APIs M3); registrado no `specs/project-plan.md` Wave 6 (2026-10-23). Insumo do usuário (pedido de toolbar de 23/10, cancelado como ajuste isolado): avaliar na nova UX usuário/Sair à direita da barra e menu à esquerda abrindo/fechando a sidebar com preferência persistida
-
 - [ ] `users` CHECK — alinhar a prosa do spec com o rebuild da tabela (`WARNING` não-bloqueante do QC de 00013, `specs/00013-e011-auditoria-classificacao`); decidido adiar em 2026-10-11. Pendência técnica, não pedida pelo usuário (2026-10-23)
 
 ### V2
@@ -20,6 +18,8 @@ Custom project TODOs. Agents read this file at session start.
 ### V3 - avaliar entregas x `specs/plan/canvas_valor_usuario.png`
 
 ## Done
+
+- [X] Épico E013 — Redesign visual do dashboard (00015): feature fechada 2026-10-28 (`.completed` + `.qc-passed`, FR-038..043); redesign completo pós-QC em 2026-11-03 (skill frontend-design, `des-1`) com faixa full-bleed de KPIs, fila de contratos + filtros/atividade em colunas, `AppTheme.statusBlock`/`panel` (Archivo variável como asset em `pubspec.yaml`); usuário validou docker compose + dashboard; flutter dashboard 16/16 e analyze sem issues novos. Digests do `.qc-passed` de 28/10 não cobrem o redesign de 03/11 — re-sigilo/QC só na próxima promoção
 
 - [X] Pacote UX 23/10 — toolbar shell (usuário/papel/domínio + Sair), dashboard com cards clicáveis e rolagem por teclado, seção Prestadores (vínculo/desvincular com bloqueio `OPEN_TASKS_BLOCK_UNLINK`), seletor de Responsável na criação de tarefa e reatribuição no sheet, pré-marcação de manutenção + botão inerte no NOOP, manutenção fecha o sheet, lembrar login (`flutter_secure_storage`), upload >1MB (nginx 4m + express 4mb); flutter 65/65, analyze 0 (2026-10-23)
 

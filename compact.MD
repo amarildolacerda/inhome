@@ -1,14 +1,13 @@
 # compact.MD — contexto compactado da sessão
 
-> Atualizado em 23/10/2026 (~15:10 UTC) para restauração de contexto. Repo `/mnt/c/git/inhome`, branch `dev`.
-> Timestamps de status: `[DD/MM HH:MM]` (data corrente 2026-10-23). Substitui o compact de 23/10 11:57.
+> Atualizado em 03/11/2026 para restauração de contexto. Repo `/mnt/c/git/inhome`, branch `dev`.
+> Timestamps de status: `[DD/MM HH:MM]`. Substitui o compact de 23/10.
 
 ## Objetivo
 
-- Release fechada: 12/12 épicas (E001–E012) QC-PASS, workspaces `specs/00001`–`specs/00014` todos `COMPLETION_STATE: complete` (validado 23/10 pós-re-sigilo).
-- Pacote UX de 23/10 entregue e commitado (`d99c175`): toolbar shell, cards navegáveis, teclado no dashboard, vínculo/reatribuição de prestadores, lembrar login, manutenção fecha sheet + estado pré-marcado, upload 4m.
-- Épicos novos E013 (redesign dashboard) e E014 (tema escuro default + toggle claro) registrados em `specs/project-plan.md` Wave 6 — próximos trabalhos estruturados (SDD).
-- Manter os 14 selos QC válidos em todo momento e `origin/dev` em dia (estado terminal: selos dirty, nunca commitados).
+- Wave 6 fechada: E013 (redesign dashboard) e E014 (tema escuro default + toggle) `[X]` em `specs/project-plan.md`; workspaces `00015` e `00018` com `.completed` + `.qc-passed` (2026-10-28).
+- Redesign visual completo do dashboard em 2026-11-03 (pós-QC, skill frontend-design via `des-1`): faixa full-bleed de KPIs, fila de contratos, Archivo como asset; usuário validou docker compose + dashboard.
+- Manter selos QC válidos e `origin/dev` em dia (estado terminal: selos dirty, nunca commitados).
 
 ## Estado do repositório
 
@@ -42,14 +41,15 @@
 - Workspaces SDD: `specs/00001`–`specs/00014`; `spec/plan ≤ 10240 B`, `tasks ≤ 6144 B`, checkboxes só `[ ]`→`[X]`, IDs imutáveis (`FR/TR/OR/RR/SC/CHK/T/AD/STF`).
 - Prosa histórica de specs (qc-report, plan, spec, checklists, manual-test) NÃO é reescrita em sweeps de nomenclatura — só artefatos vivos (código, openapi, docs de operação).
 - Estilo de commit: PT curto, conventional. Attestation fixa: `Verifier: Amarildo de Lacerda (aprovação explícita no chat, 2026-10-11)`.
-- Design/UX segue regras do brief do redesign (E013): estender `app_theme.dart`, só tokens do ColorScheme, sem deps novas, APIs M3; mockup de referência do usuário salvo como referência no TODO/E013.
-- `/sddp-autopilot` sem argumentos HALTou em Gate (12/12 épicos completos na época) — com E013/E014 agora `[ ]`, auto-select volta a funcionar.
+- Design/UX segue regras do brief E013: estender `app_theme.dart`, só tokens do ColorScheme, sem deps de pacote novas, APIs M3; mockup em `specs/00015-redesign-dashboard/mockup.png`.
+- Redesign 03/11: `AppTheme.statusBlock` (bloco sólido por status, `a_vencer`→`tertiary`) + `AppTheme.panel` (Archivo variável em `frontend/assets/fonts/`, seção `fonts:` no `pubspec.yaml`); fila `_ContractRow` substitui cards em grade.
+- Digests do `.qc-passed` de `00015`/`00018` descrevem a árvore de 2026-10-28 — redesign de 03/11 não está nesses digests; re-sigilo/QC na próxima promoção `dev` → `main`.
 
 ## Pendências conhecidas
 
 1. `users` CHECK — prosa de spec divergente do rebuild (WARNING não-bloqueante do QC de 00013); diferida, visível em `TODO.md` Pending.
 2. Divergências históricas de prosa `/api/` em specs seladas (ex.: 00003 plan 63-68, health) — decidido: deixar como registro histórico.
-3. Épicos E013 (redesign dashboard) e E014 (tema escuro + toggle) — Wave 6, prontos para `/sddp-autopilot`.
+3. Re-sigilo/QC pós-redesign de 03/11 em `00015` antes de promoção `dev` → `main` (digests do selo antigos).
 
 ## Sessões reutilizáveis e regras de lane
 

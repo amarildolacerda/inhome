@@ -68,5 +68,5 @@ Cada cliente (domínio) tem os dados separados: o que acontece em um domínio n�
 - [Documentação técnica](TECHNICAL.md) — para a equipe de desenvolvimento
 - [Workflow SDD](docs/sdd-pilot.md) — processo de desenvolvimento deste repositório
 
-- **00015-redesign-dashboard** (E013 — Redesign visual do dashboard): redesign visual do dashboard com KPIs por status, cards com vencimento/responsável, escopo por papel e filtros; backend adiciona `contracts[]`, `responsavel`, `a_vencer` e `stats.contractsAVencer` em `GET /api/v2/dashboard/stats`.
+- **00015-redesign-dashboard** (E013 — Redesign visual do dashboard): painel com faixa de KPIs por status (vigente/a vencer/atrasado/encerrado), fila de contratos ordenada por urgência com vencimento e responsável, filtros e busca no corpo, escopo por papel; backend expõe `contracts[]`, `responsavel`, `a_vencer` e `stats.contractsAVencer` em `GET /api/v2/dashboard/stats`.
 - **00018-tema-escuro-por-padrao-alternancia** (E014 — Tema escuro por padrão): o app nasce em tema escuro, oferece alternância na toolbar e persiste a escolha em SharedPreferences; a preferência é lida antes da primeira renderização e o claro continua utilizável nos tokens de E006/E013.
