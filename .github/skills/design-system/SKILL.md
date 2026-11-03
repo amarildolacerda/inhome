@@ -24,10 +24,14 @@ código, não templates para copiar literalmente.
 - Novo estilo ou regra de componente entra em `app_theme.dart`
   (`filledButtonTheme`, `inputDecorationTheme` já seguem esse padrão). Nunca
   criar arquivo de tema paralelo nem `ThemeData(...)` local em tela.
-- Existem `AppTheme.light` e `AppTheme.dark`. O `main.dart` hoje amarra
-  `theme`/`darkTheme` com `ThemeMode.system`; o épico E014
-  (`specs/plan/E014.md`) torna o escuro o default com toggle para o claro.
-  Qualquer cor nova precisa ficar legível nos dois modos — testar nos dois.
+- Existem `AppTheme.light` e `AppTheme.dark`. O `main.dart` aplica
+  `ThemePreferenceStore` com default **escuro** (E014 entregue) e toggle na
+  top toolbar. Qualquer cor nova precisa ficar legível nos dois modos —
+  testar nos dois.
+- Estilo de painel: `AppTheme.panel(size, weight, …)` usa a família
+  `Archivo` (`panelFamily`) com `FontVariation('wght')` e opcional
+  `tabularFigures` nas contagens — só no dashboard; o resto do app segue o
+  `fontFamily` base (`Inter`).
 - Contraste: texto sobre cor >= WCAG AA (4.5:1), já documentado no topo de
   `app_theme.dart` e verificado por `frontend/test/a11y_labels_test.dart`.
   Botões primários com mínimo 48x48 (`filledButtonTheme`).
@@ -43,13 +47,20 @@ código, não templates para copiar literalmente.
 - **Diálogo**: confirmação/cancelamento com `FilledButton`
   (confirmar) + `TextButton` (cancelar), como em
   `contract_detail_screen.dart:541`.
-- **Card**: `Card` com shape/raio herdado do tema, margem zero quando
-  encadeado (`_ProjectCard` do `dashboard_screen.dart`).
+- **Card/lista**: `Card` com shape/raio herdado do tema, margem zero quando
+  encadeado; no dashboard a fila usa `_ContractRow` com trilho de status de
+  4px (`dashboard_screen.dart`).
 - **Card clicável**: `InkWell` + `MouseRegion` (cursor `click`, vira `wait`
   durante carregamento), `CircularProgressIndicator` no lugar do ícone de
   ação enquanto voa, flag local bloqueando duplo-tap, e `SnackBar` de erro
-  sem derrubar a tela. Modelo: `_ProjectCardState` em
-  `dashboard_screen.dart:776-799`.
+  sem derrubar a tela. Modelo: `_ContractRowState` em
+  `dashboard_screen.dart` (nó `Semantics(button, explicitChildNodes)` em
+  torno do `InkWell`).
+- **Bloco de status (KPI/chip)**: `AppTheme.statusBlock(scheme, status)`
+  devolve `(background, foreground)` — vigente `primary`, a vencer
+  `tertiary`, atrasado `error`, encerrado `secondaryContainer`; sempre com
+  rótulo textual ao lado (WCAG 1.4.1). Trilhos finos usam
+  `AppTheme.statusColor`.
 - **Chips**: status e papéis via `Chip` com label pronto em PT
   (`users_screen.dart:176` com `_roleLabel`, `_statusChip` do
   `suggestion_panel.dart`). Não montar bolinhas de cor solta sem texto.
@@ -67,12 +78,13 @@ código, não templates para copiar literalmente.
   finders de teste.
 - Labels em PT, exatos e estáveis — viram finder de teste, então mudar a
   string é breaking change nos testes: `'Painel do domínio'`,
-  `'Abrir tarefas do projeto <nome>'` (`dashboard_screen.dart:797`),
+  `'Abrir tarefas do projeto <nome>'` (`_ContractRow` em
+  `dashboard_screen.dart`),
   `'Prestador vinculado <nome>'` (`contract_detail_screen.dart:279`),
   `'Detalhe da tarefa'` (`task_detail_sheet.dart:299`).
 - Rolagem por teclado: o scrollable precisa de foco dentro dele — padrão
   `Focus(autofocus: true, skipTraversal: true, …)` envolvendo o conteúdo
-  dentro do `SingleChildScrollView` (`dashboard_screen.dart:150`).
+  dentro do `SingleChildScrollView` do dashboard.
   `skipTraversal` mantém o Tab indo direto aos controles focáveis.
 - Atalhos de rolagem variam por plataforma: na **web** as setas puras rolam;
   no mapa de teste/Android/desktop (que é o que o `flutter test` usa) rolam
@@ -83,15 +95,16 @@ código, não templates para copiar literalmente.
 
 - `LayoutBuilder` + `ConstrainedBox`/`BoxConstraints` com breakpoints
   numéricos, como já usado no app:
-  - coluna estreita de KPIs quando `maxWidth >= 720` (`dashboard_screen.dart:163`);
-  - grid de stats com largura mínima de card 200px e divisão por `perRow`
-    (`dashboard_screen.dart:450`);
+  - dashboard em duas colunas quando `maxWidth >= 880`, padding 24/16 a
+    partir de 600 (`_DashboardScreenState.build`);
+  - filtros em duas colunas quando `maxWidth >= 560` (`_DashboardFilters`);
   - limites de largura 400 (login), 420 (form de erro do dashboard),
     `ConstrainedBox` no corpo do contrato (`contract_detail_screen.dart:209`).
 - Sem pacote novo de UI/layout sem decisão explícita do usuário. `fl_chart`
   e `responsive_framework` já foram rejeitados como padrão; `pubspec.yaml` é
   fechado (http, shared_preferences, flutter_secure_storage, provider,
-  socket_io_client, intl, go_router).
+  socket_io_client, intl, go_router) — fonte Archivo é asset em
+  `assets/fonts/`, não dependência de pacote.
 - Testar larguras de tela estreitas: `flutter analyze` não pega overflow —
   só teste com superfície reduzida ou inspeção pega.
 
@@ -103,7 +116,7 @@ código, não templates para copiar literalmente.
   ação via `SnackBar` com retry quando fizer sentido. Helper `_errorText`
   (`dashboard_screen.dart`) remove o invólucro `Exception: ` para não vazar
   jargão de framework para o usuário.
-- **Vazio**: card/mensagem com ação (`_EmptyProjectsCard` do dashboard) —
+- **Vazio**: card/mensagem com ação (`_QueueEmpty` do dashboard) —
   nunca só uma linha cinza.
 - **Confirmação e resultado**: `SnackBar` via `_snack(...)`. Mensagem de
   erro do backend vem do campo `code` estável, traduzida para PT: ver

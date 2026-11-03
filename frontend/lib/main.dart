@@ -10,16 +10,49 @@ import 'screens/users_screen.dart';
 import 'screens/finalidades_screen.dart';
 import 'screens/vencimentos_screen.dart';
 import 'screens/audit_screen.dart';
+import 'services/theme_preference_store.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
   // FR-027: web bootstrap entrypoint (Chrome, Edge, Firefox, Safari) —
   // frontend/web/index.html loads flutter_bootstrap.js which calls main().
-  runApp(const ProjectManagerApp());
+  // FR-065: resolve a preferência antes do primeiro frame; falha de leitura
+  // cai no escuro sem expor a interface clara.
+  WidgetsFlutterBinding.ensureInitialized();
+  ThemeMode initialThemeMode;
+  try {
+    initialThemeMode = await ThemePreferenceStore.load();
+  } catch (_) {
+    initialThemeMode = ThemeMode.dark;
+  }
+  runApp(ProjectManagerApp(initialThemeMode: initialThemeMode));
 }
 
-class ProjectManagerApp extends StatelessWidget {
-  const ProjectManagerApp({super.key});
+class ProjectManagerApp extends StatefulWidget {
+  const ProjectManagerApp({
+    super.key,
+    this.initialThemeMode = ThemeMode.dark,
+  });
+
+  /// FR-064: default escuro na primeira execução, independente do SO.
+  final ThemeMode initialThemeMode;
+
+  @override
+  State<ProjectManagerApp> createState() => _ProjectManagerAppState();
+}
+
+class _ProjectManagerAppState extends State<ProjectManagerApp> {
+  late ThemeMode _themeMode = widget.initialThemeMode == ThemeMode.light
+      ? ThemeMode.light
+      : ThemeMode.dark;
+
+  /// FR-066/FR-067: troca o tema em memória e grava a escolha local.
+  Future<void> _toggleTheme() async {
+    final next =
+        _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    setState(() => _themeMode = next);
+    await ThemePreferenceStore.save(next);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,14 +62,18 @@ class ProjectManagerApp extends StatelessWidget {
       // FR-028: accessible light/dark themes (contrast + touch targets).
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
-      home: const AuthGate(),
+      // FR-067: a escolha do usuário vence o tema do sistema operacional.
+      themeMode: _themeMode,
+      home: AuthGate(onToggleTheme: _toggleTheme),
     );
   }
 }
 
 class AuthGate extends StatefulWidget {
-  const AuthGate({super.key});
+  const AuthGate({super.key, this.onToggleTheme});
+
+  /// FR-066: callback opcional para a toolbar alternar o tema do app.
+  final VoidCallback? onToggleTheme;
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -90,6 +127,7 @@ class _AuthGateState extends State<AuthGate> {
           if (!mounted) return;
           setState(() => _authenticated = false);
         },
+        onToggleTheme: widget.onToggleTheme,
       );
     }
 
@@ -118,12 +156,16 @@ class _NavEntry {
 }
 
 class MainShell extends StatefulWidget {
-  const MainShell({super.key, this.onLogout});
+  const MainShell({super.key, this.onLogout, this.onToggleTheme});
 
   /// Chamado quando o papel da sessão não pode ser resolvido em nenhum dos
   /// dois passos (preferências nem /auth/me) — tratado como logout, volta ao
   /// login.
   final VoidCallback? onLogout;
+
+  /// FR-066: alternância claro/escuro na top toolbar. Nulo em testes do
+  /// shell isolado; o app real sempre injeta o callback da raiz.
+  final VoidCallback? onToggleTheme;
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -382,6 +424,7 @@ class _MainShellState extends State<MainShell> {
             userName: _userName,
             roleLabel: _userRoleLabel,
             onLogout: _logout,
+            onToggleTheme: widget.onToggleTheme,
           ),
           const Divider(height: 1, thickness: 1),
           Expanded(
@@ -431,16 +474,19 @@ class _SessionToolbar extends StatelessWidget {
     required this.userName,
     required this.roleLabel,
     required this.onLogout,
+    this.onToggleTheme,
   });
 
   final String? userName;
   final String? roleLabel;
   final VoidCallback onLogout;
+  final VoidCallback? onToggleTheme;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     final fullIdentity = [
       if (userName != null) userName,
       if (roleLabel != null) roleLabel,
@@ -503,6 +549,23 @@ class _SessionToolbar extends StatelessWidget {
                   ),
                 ),
               const SizedBox(width: 8),
+              if (onToggleTheme != null)
+                Tooltip(
+                  message: isDark ? 'Usar tema claro' : 'Usar tema escuro',
+                  child: Semantics(
+                    container: true,
+                    button: true,
+                    label: 'Alternar tema',
+                    child: IconButton(
+                      onPressed: onToggleTheme,
+                      icon: Icon(
+                        isDark
+                            ? Icons.light_mode_outlined
+                            : Icons.dark_mode_outlined,
+                      ),
+                    ),
+                  ),
+                ),
               Tooltip(
                 message: 'Encerrar sessão',
                 child: TextButton.icon(

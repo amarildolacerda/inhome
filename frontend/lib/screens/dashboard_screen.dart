@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 import '../models/contract.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 import 'contract_detail_screen.dart';
 
-/// Painel do domínio (admin/gestor) ou da fila pessoal (prestador) — mesmos
-/// dados de GET /dashboard/stats, com hierarquia nova:
+/// Painel do domínio (admin/gestor) ou da fila pessoal (prestador) — os
+/// mesmos dados de GET /dashboard/stats em composição nova (E013):
 ///
-///  1. KPIs principais primeiro — taxa de conclusão em destaque com barra de
-///     progresso e cartão de urgentes ao lado;
-///  2. grade secundária de contagens (projetos, tarefas por estado, atrasadas);
-///  3. composição das tarefas por status;
-///  4. projetos recentes como cartões com progresso e status.
+///  1. cabeçalho com frase de situação (o que pede resposta agora);
+///  2. faixa de KPIs sangrada de ponta a ponta — blocos sólidos de cor por
+///     status, sem gaps e sem cantos arredondados, com algarismos grandes;
+///     único momento de movimento do painel (varredura escalonada na carga);
+///  3. duas colunas no viewport largo — fila de contratos à esquerda, filtros
+///     e atividade recente à direita; empilhado no estreito;
+///  4. fila ordenada por urgência em uma lista contida (trilho de status,
+///     vencimento, responsável e chip de status textual).
+///
+/// Sem paginação local, sem gráficos, sem dados novos — só reapresentação.
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key, this.api});
 
@@ -27,11 +33,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _loading = true;
   String? _error;
 
-  /// Gate de permissão do card "Projetos recentes": resolvido uma vez na
-  /// abertura do painel; a afordância de navegação só aparece para papel de
-  /// domínio. Falha na resolução deixa false (sem link — defesa em
-  /// profundidade; o backend já só devolve recentProjects nesse escopo).
+  /// Gate de permissão da navegação por card: resolvido uma vez na abertura
+  /// do painel; a afordância só aparece para papel de domínio. Falha na
+  /// resolução deixa false (sem link — defesa em profundidade; o backend já
+  /// só devolve contratos desse escopo para quem pode abrir).
   bool _canOpenProject = false;
+
+  /// FR-043/AD-004: client-side filter state — persists across payload
+  /// refreshes (E009).
+  String? _statusFilter;
+  String? _responsavelFilter;
+  String _searchQuery = '';
 
   /// Papéis com acesso ao canal de tarefas do contrato.
   static const _openProjectRoles = {'admin', 'gestor', 'system_admin'};
@@ -76,13 +88,62 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return text.isEmpty ? 'Não foi possível carregar o painel.' : text;
   }
 
-  int _asInt(dynamic value) =>
-      value is num ? value.toInt() : int.tryParse('$value') ?? 0;
+  /// FR-043: apply client-side filters to contracts (status, responsável,
+  /// busca).
+  List<Map<String, dynamic>> _applyFilters(List<Map<String, dynamic>> contracts) {
+    return contracts.where((c) {
+      if (_statusFilter != null) {
+        final effective = '${c['effective_status'] ?? c['status'] ?? ''}';
+        if (effective != _statusFilter) return false;
+      }
+      if (_responsavelFilter != null) {
+        final resp = '${c['responsavel'] ?? ''}';
+        if (resp != _responsavelFilter) return false;
+      }
+      if (_searchQuery.isNotEmpty) {
+        final name = '${c['name'] ?? ''}'.toLowerCase();
+        if (!name.contains(_searchQuery.toLowerCase())) return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  bool get _hasActiveFilters =>
+      _statusFilter != null || _responsavelFilter != null || _searchQuery.isNotEmpty;
+
+  void _clearFilters() {
+    setState(() {
+      _statusFilter = null;
+      _responsavelFilter = null;
+      _searchQuery = '';
+    });
+  }
+
+  /// Frase de situação do cabeçalho — conta o conjunto filtrado, o mesmo que
+  /// alimenta os KPIs, para o texto e os números nunca divergirem.
+  String _insight(int atrasados, int aVencer) {
+    if (atrasados > 0) {
+      return atrasados == 1
+          ? '1 contrato atrasado pede resposta'
+          : '$atrasados contratos atrasados pedem resposta';
+    }
+    if (aVencer > 0) {
+      return aVencer == 1
+          ? '1 contrato vence na janela ativa'
+          : '$aVencer contratos vencem na janela ativa';
+    }
+    return 'Nenhum contrato atrasado';
+  }
+
+  String _queueCount(int total, int shown) {
+    if (total == 0) return '';
+    if (shown == total) return shown == 1 ? '1 contrato' : '$shown contratos';
+    return '$shown de $total contratos';
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
 
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
@@ -96,7 +157,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 48, color: scheme.error),
+              Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
               const SizedBox(height: 12),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
@@ -121,145 +182,131 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final stats = Map<String, dynamic>.from(
       _data?['stats'] is Map ? _data!['stats'] as Map : const {},
     );
-    final recentProjects = _data?['recentProjects'] is List
+    final scope = '${_data?['scope'] ?? 'domain'}';
+    final hasContracts = _data?['contracts'] is List;
+    final contracts = hasContracts
         ? List<Map<String, dynamic>>.from(
-            (_data!['recentProjects'] as List).whereType<Map>(),
+            (_data!['contracts'] as List).whereType<Map>(),
           )
         : <Map<String, dynamic>>[];
-    final tasksByStatus = _data?['tasksByStatus'] is List
-        ? List<Map<String, dynamic>>.from(
-            (_data!['tasksByStatus'] as List).whereType<Map>(),
-          )
-        : <Map<String, dynamic>>[];
+    final filteredContracts = _applyFilters(contracts);
+    final responsaveis = contracts
+        .map((c) => '${c['responsavel'] ?? ''}')
+        .where((n) => n.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
 
-    final completionRate = _asInt(stats['completionRate']).clamp(0, 100);
-    final totalTasks = _asInt(stats['totalTasks']);
-    final completedTasks = _asInt(stats['completedTasks']);
-    final urgentTasks = _asInt(stats['urgentTasks']);
+    int asInt(dynamic v) => v is num ? v.toInt() : int.tryParse('$v') ?? 0;
+    int countByStatus(String status, String statsKey) {
+      if (!hasContracts) return asInt(stats[statsKey]);
+      return filteredContracts
+          .where((c) => '${c['effective_status'] ?? c['status'] ?? ''}' == status)
+          .length;
+    }
+
+    final atrasados = countByStatus('atrasado', 'contractsAtrasado');
+    final aVencer = hasContracts
+        ? filteredContracts.where((c) => c['a_vencer'] == true).length
+        : asInt(stats['contractsAVencer']);
+    final dailyActivity = _data?['dailyActivity'] is List
+        ? _data!['dailyActivity'] as List
+        : const [];
+
+    final queue = _QueueSection(
+      filtered: filteredContracts,
+      totalLabel: _queueCount(contracts.length, filteredContracts.length),
+      emptyScope: scope,
+      filtersActive: _hasActiveFilters,
+      onClearFilters: _clearFilters,
+      api: api,
+      canOpen: _canOpenProject,
+    );
+    final filters = _DashboardFilters(
+      statusFilter: _statusFilter,
+      responsavelFilter: _responsavelFilter,
+      searchQuery: _searchQuery,
+      responsaveis: responsaveis,
+      onStatusChanged: (v) => setState(() => _statusFilter = v),
+      onResponsavelChanged: (v) => setState(() => _responsavelFilter = v),
+      onSearchChanged: (v) => setState(() => _searchQuery = v),
+      onClear: _clearFilters,
+      showClear: _hasActiveFilters,
+    );
+    final activity = _ActivityPanel(dailyActivity: dailyActivity);
 
     return Semantics(
       container: true,
       label: 'Painel do domínio',
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        // Foco autofirst dentro do scrollable: sem foco no interior, o
-        // Scrollable ignora os atalhos de rolagem do teclado (no web, setas
-        // puras; em desktop, Ctrl+seta e PageUp/PageDown — o mouse rola em
-        // todos). skipTraversal mantém o Tab indo direto para os controles
-        // (InkWell dos cards segue focável pelo teclado).
+        padding: const EdgeInsets.fromLTRB(0, 20, 0, 32),
         child: Focus(
           autofocus: true,
           skipTraversal: true,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _Header(onRefresh: _loadDashboard, refreshing: _loading),
-              const SizedBox(height: 24),
-
-            // 1) KPIs principais — taxa de conclusão em destaque e urgentes
-            //    como alerta; larguras vêm do LayoutBuilder, sem overflow.
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final wide = constraints.maxWidth >= 720;
-                final children = <Widget>[
-                  _CompletionCard(
-                    rate: completionRate,
-                    completed: completedTasks,
-                    total: totalTasks,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 880;
+              final padH = constraints.maxWidth >= 600 ? 24.0 : 16.0;
+              final children = <Widget>[
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: padH),
+                  child: _Header(
+                    insight: _insight(atrasados, aVencer),
+                    onRefresh: _loadDashboard,
                   ),
-                  _UrgentCard(count: urgentTasks),
-                ];
-                if (wide) {
-                  return IntrinsicHeight(
+                ),
+                const SizedBox(height: 20),
+                // FR-038/FR-039: faixa de KPIs. FR-041: oculta para
+                // prestador (scope own — sem KPIs de domínio).
+                if (scope != 'own') ...[
+                  _KpiBand(
+                    stats: stats,
+                    contracts: hasContracts ? filteredContracts : null,
+                  ),
+                  const SizedBox(height: 24),
+                ],
+                if (wide)
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: padH),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(flex: 3, child: children[0]),
-                        const SizedBox(width: 16),
-                        Expanded(flex: 2, child: children[1]),
+                        Expanded(flex: 3, child: queue),
+                        const SizedBox(width: 24),
+                        Expanded(
+                          flex: 2,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              filters,
+                              const SizedBox(height: 16),
+                              activity,
+                            ],
+                          ),
+                        ),
                       ],
                     ),
-                  );
-                }
-                return Column(
-                  children: [
-                    children[0],
-                    const SizedBox(height: 16),
-                    children[1],
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // 2) Grade secundária de contagens.
-            _StatGrid(cards: [
-              _CompactStatCard(
-                title: 'Projetos ativos',
-                value: '${_asInt(stats['activeProjects'])}',
-                icon: Icons.folder_open,
-                color: scheme.primary,
-              ),
-              _CompactStatCard(
-                title: 'Total de tarefas',
-                value: '$totalTasks',
-                icon: Icons.checklist,
-                color: scheme.secondary,
-              ),
-              _CompactStatCard(
-                title: 'Em andamento',
-                value: '${_asInt(stats['inProgressTasks'])}',
-                icon: Icons.pending_actions,
-                color: scheme.tertiary,
-              ),
-              _CompactStatCard(
-                title: 'Concluídas',
-                value: '$completedTasks',
-                icon: Icons.check_circle_outline,
-                color: scheme.tertiary,
-              ),
-              _CompactStatCard(
-                title: 'Atrasadas',
-                value: '${_asInt(stats['tasksOverdue'])}',
-                icon: Icons.schedule,
-                color: scheme.error,
-              ),
-            ]),
-
-            // 3) Composição das tarefas por status — some sem dados.
-            if (tasksByStatus.isNotEmpty) ...[
-              const SizedBox(height: 24),
-              _StatusBreakdown(items: tasksByStatus),
-            ],
-
-            // 4) Projetos recentes.
-            const SizedBox(height: 32),
-            Text(
-              'Projetos recentes',
-              style: theme.textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Últimos contratos atualizados no domínio',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 16),
-            if (recentProjects.isEmpty)
-              _EmptyProjectsCard()
-            else
-            ...recentProjects.map(
-              (project) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _ProjectCard(
-                  project: project,
-                  api: api,
-                  canOpen: _canOpenProject,
-                ),
-              ),
-            ),
-          ],
+                  )
+                else
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: padH),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        filters,
+                        const SizedBox(height: 20),
+                        queue,
+                        const SizedBox(height: 20),
+                        activity,
+                      ],
+                    ),
+                  ),
+              ];
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: children,
+              );
+            },
           ),
         ),
       ),
@@ -267,15 +314,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
+/// Cabeçalho: título substantivo + frase de situação + atualização.
 class _Header extends StatelessWidget {
-  const _Header({required this.onRefresh, required this.refreshing});
+  const _Header({required this.insight, required this.onRefresh});
 
+  final String insight;
   final VoidCallback onRefresh;
-  final bool refreshing;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -284,22 +333,31 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Dashboard',
-                style: theme.textTheme.headlineMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                'Painel de contratos',
+                style: AppTheme.panel(
+                  30,
+                  weight: 600,
+                  letterSpacing: -0.4,
+                  height: 1.15,
+                  color: scheme.onSurface,
+                ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Text(
-                'Visão geral de projetos e tarefas',
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                insight,
+                style: AppTheme.panel(
+                  14.5,
+                  color: scheme.onSurfaceVariant,
+                  height: 1.35,
+                ),
               ),
             ],
           ),
         ),
+        const SizedBox(width: 12),
         IconButton(
           tooltip: 'Atualizar painel',
-          onPressed: refreshing ? null : onRefresh,
+          onPressed: onRefresh,
           icon: const Icon(Icons.refresh),
         ),
       ],
@@ -307,415 +365,348 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// KPI principal: taxa de conclusão com barra de progresso e contagem
-/// absoluta — o número que orienta a decisão fica no topo e maior.
-class _CompletionCard extends StatelessWidget {
-  const _CompletionCard({
-    required this.rate,
-    required this.completed,
-    required this.total,
-  });
+/// FR-038/FR-039: faixa de KPIs — o elemento memorável do painel.
+///
+/// Blocos sólidos de cor colados sem gaps, cantos retos e sangria de ponta
+/// a ponta (fora do padding horizontal do corpo). Cada bloco combina
+/// algarismo grande com rótulo textual e um nó de semântica que anuncia
+/// contagem e significado juntos (WCAG 1.4.1 — nada aqui é só cor).
+///
+/// Movimento: uma única varredura escalonada da esquerda para a direita na
+/// carga do painel; `MediaQuery.disableAnimations` (reduced motion) salta
+/// direto ao estado final. Filtros não re-disparam a animação — o State
+/// persiste entre rebuilds.
+class _KpiBand extends StatefulWidget {
+  const _KpiBand({required this.stats, this.contracts});
 
-  final int rate;
-  final int completed;
-  final int total;
+  final Map<String, dynamic> stats;
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.pie_chart_outline,
-                    size: 20, color: scheme.onSurfaceVariant),
-                const SizedBox(width: 8),
-                Text(
-                  'Taxa de conclusão',
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '$rate%',
-              style: theme.textTheme.displaySmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: scheme.primary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: total > 0 ? rate / 100 : 0,
-                minHeight: 8,
-                backgroundColor: scheme.surfaceContainerHighest,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '$completed de $total tarefas concluídas',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Cartão de alerta: tarefas urgentes abertas — cor de erro reservada só
-/// para isso (e para atrasadas) na grade.
-class _UrgentCard extends StatelessWidget {
-  const _UrgentCard({required this.count});
-
-  final int count;
+  /// FR-043: filtered contract set when the payload carries `contracts`.
+  /// Null keeps the historical stats-only behavior for partial payloads.
+  final List<Map<String, dynamic>>? contracts;
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final attention = count > 0;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  attention ? Icons.warning_amber : Icons.check_circle_outline,
-                  size: 20,
-                  color: attention ? scheme.error : scheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Urgentes',
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(color: scheme.onSurfaceVariant),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '$count',
-              style: theme.textTheme.displaySmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: attention ? scheme.error : scheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              attention
-                  ? 'Tarefas com prioridade urgente em aberto'
-                  : 'Nenhuma tarefa urgente em aberto',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  State<_KpiBand> createState() => _KpiBandState();
 }
 
-/// Grade de cartões compactos que se adapta à largura disponível (mesma
-/// lógica de colunas mínimas de 200px usada antes, sem cálculo manual de
-/// largura de linha).
-class _StatGrid extends StatelessWidget {
-  const _StatGrid({required this.cards});
-
-  final List<Widget> cards;
+class _KpiBandState extends State<_KpiBand> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 620),
+  );
+  bool _started = false;
 
   @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const spacing = 16.0;
-        const minCardWidth = 200.0;
-        final width =
-            constraints.maxWidth.isFinite ? constraints.maxWidth : minCardWidth;
-        int perRow = ((width + spacing) / (minCardWidth + spacing)).floor();
-        if (perRow < 1) perRow = 1;
-        if (perRow > cards.length) perRow = cards.length;
-        final cardWidth = (width - spacing * (perRow - 1)) / perRow;
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: [
-            for (final card in cards) SizedBox(width: cardWidth, child: card),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _CompactStatCard extends StatelessWidget {
-  const _CompactStatCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final tinted = Color.alphaBlend(
-      color.withValues(alpha: 0.12),
-      scheme.surfaceContainerLow,
-    );
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: tinted,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, size: 20, color: color),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    value,
-                    style: theme.textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: scheme.onSurfaceVariant),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Barras horizontais com a composição de tarefas por status, na ordem do
-/// fluxo (A Fazer → Em Progresso → Revisão → Concluída) quando presente.
-class _StatusBreakdown extends StatelessWidget {
-  const _StatusBreakdown({required this.items});
-
-  final List<Map<String, dynamic>> items;
-
-  static const _order = ['A Fazer', 'Em Progresso', 'Revisão', 'Concluída'];
-
-  Color _colorFor(ThemeData theme, String status) {
-    final scheme = theme.colorScheme;
-    switch (status) {
-      case 'Concluída':
-        return scheme.tertiary;
-      case 'Em Progresso':
-        return scheme.primary;
-      case 'Revisão':
-        return scheme.secondary;
-      default:
-        return scheme.outline;
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.value = 1;
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _controller.forward();
+      });
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final sorted = [...items]..sort((a, b) {
-        final sa = '${a['status']}';
-        final sb = '${b['status']}';
-        final ia = _order.indexOf(sa);
-        final ib = _order.indexOf(sb);
-        return (ia < 0 ? _order.length : ia) - (ib < 0 ? _order.length : ib);
-      });
-    final maxCount = sorted.fold<int>(1, (max, item) {
-      final count = item['count'] is num ? (item['count'] as num).toInt() : 0;
-      return count > max ? count : max;
-    });
-
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Tarefas por status',
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 16),
-            for (var i = 0; i < sorted.length; i++) ...[
-              if (i > 0) const SizedBox(height: 12),
-              _StatusRow(
-                status: '${sorted[i]['status']}',
-                count: sorted[i]['count'] is num
-                    ? (sorted[i]['count'] as num).toInt()
-                    : 0,
-                fraction: (sorted[i]['count'] is num
-                        ? (sorted[i]['count'] as num).toInt()
-                        : 0) /
-                    maxCount,
-                color: _colorFor(theme, '${sorted[i]['status']}'),
-                labelStyle: theme.textTheme.bodyMedium,
-                countStyle: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w600),
-                trackColor: scheme.surfaceContainerHighest,
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
-}
-
-class _StatusRow extends StatelessWidget {
-  const _StatusRow({
-    required this.status,
-    required this.count,
-    required this.fraction,
-    required this.color,
-    required this.labelStyle,
-    required this.countStyle,
-    required this.trackColor,
-  });
-
-  final String status;
-  final int count;
-  final double fraction;
-  final Color color;
-  final TextStyle? labelStyle;
-  final TextStyle? countStyle;
-  final Color trackColor;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final stats = widget.stats;
+    final filtered = widget.contracts;
+
+    int asInt(dynamic v) => v is num ? v.toInt() : int.tryParse('$v') ?? 0;
+    int byStatus(String status, String statsKey) {
+      if (filtered == null) return asInt(stats[statsKey]);
+      return filtered
+          .where((c) => '${c['effective_status'] ?? c['status'] ?? ''}' == status)
+          .length;
+    }
+
+    final aVencer = filtered == null
+        ? asInt(stats['contractsAVencer'])
+        : filtered.where((c) => c['a_vencer'] == true).length;
+
+    final items = <({String label, int count, String block, String key, String semantic})>[
+      (
+        label: 'Vigentes',
+        count: byStatus('vigente', 'activeProjects'),
+        block: 'vigente',
+        key: 'kpi-vigente',
+        semantic: '${byStatus('vigente', 'activeProjects')} contratos vigentes',
+      ),
+      (
+        label: 'A vencer',
+        count: aVencer,
+        block: 'a_vencer',
+        key: 'kpi-a-vencer',
+        semantic:
+            '$aVencer contratos vigentes vencem na janela ativa do domínio',
+      ),
+      (
+        label: 'Atrasados',
+        count: byStatus('atrasado', 'contractsAtrasado'),
+        block: 'atrasado',
+        key: 'kpi-atrasado',
+        semantic: '${byStatus('atrasado', 'contractsAtrasado')} contratos atrasados',
+      ),
+      (
+        label: 'Encerrados',
+        count: byStatus('encerrado', 'contractsEncerrado'),
+        block: 'encerrado',
+        key: 'kpi-encerrado',
+        semantic: '${byStatus('encerrado', 'contractsEncerrado')} contratos encerrados',
+      ),
+    ];
+
+    return Row(
       children: [
-        Row(
-          children: [
-            Expanded(child: Text(status, style: labelStyle)),
-            const SizedBox(width: 8),
-            Text('$count', style: countStyle),
-          ],
-        ),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(3),
-          child: LinearProgressIndicator(
-            value: fraction.clamp(0.0, 1.0),
-            minHeight: 6,
-            color: color,
-            backgroundColor: trackColor,
+        for (var i = 0; i < items.length; i++)
+          Expanded(
+            child: AnimatedBuilder(
+              key: Key(items[i].key),
+              animation: _controller,
+              builder: (context, child) {
+                final start = i * 0.14;
+                final progress = Interval(
+                  start,
+                  start + 0.55,
+                  curve: Curves.easeOutCubic,
+                ).transform(_controller.value);
+                return ClipRect(
+                  clipper: _WipeClipper(progress),
+                  child: child,
+                );
+              },
+              child: _KpiSegment(item: items[i], scheme: scheme),
+            ),
           ),
-        ),
       ],
     );
   }
 }
 
-/// Contrato recente: nome, status e progresso de tarefas em um cartão —
-/// substitui o ListTile denso anterior.
-///
-/// Com papel de domínio o card inteiro vira atalho para a lista de tarefas
-/// do contrato (GET /contracts/:id → ContractDetailScreen): chevron sutil
-/// como sinal de navegação, foco de teclado via InkWell e um spinner no
-/// lugar do chevron enquanto o contrato carrega (bloqueia duplo-tap).
-class _ProjectCard extends StatefulWidget {
-  const _ProjectCard({
-    required this.project,
+/// Recorta o segmento da faixa de 0→100% da largura sem mexer no layout
+/// (o conteúdo é medido em tamanho cheio e apenas revelado).
+class _WipeClipper extends CustomClipper<Rect> {
+  const _WipeClipper(this.progress);
+
+  final double progress;
+
+  @override
+  Rect getClip(Size size) =>
+      Rect.fromLTRB(0, 0, size.width * progress, size.height);
+
+  @override
+  bool shouldReclip(_WipeClipper oldClipper) =>
+      oldClipper.progress != progress;
+}
+
+class _KpiSegment extends StatelessWidget {
+  const _KpiSegment({required this.item, required this.scheme});
+
+  final ({String label, int count, String block, String key, String semantic})
+      item;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final block = AppTheme.statusBlock(scheme, item.block);
+    final content = Container(
+      color: block.background,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              '${item.count}',
+              style: AppTheme.panel(
+                40,
+                weight: 700,
+                letterSpacing: -1,
+                height: 1.05,
+                tabular: true,
+                color: block.foreground,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              item.label,
+              style: AppTheme.panel(
+                13.5,
+                weight: 500,
+                height: 1.2,
+                color: block.foreground,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    return Semantics(
+      container: true,
+      label: item.semantic,
+      excludeSemantics: true,
+      child: content,
+    );
+  }
+}
+
+/// FR-042: composição em duas colunas no largo, empilhada no estreito.
+/// A fila fica à esquerda (conteúdo principal); filtros e atividade formam
+/// o rail quieto à direita.
+class _QueueSection extends StatelessWidget {
+  const _QueueSection({
+    required this.filtered,
+    required this.totalLabel,
+    required this.emptyScope,
+    required this.filtersActive,
+    required this.onClearFilters,
     required this.api,
     required this.canOpen,
   });
 
-  final Map<String, dynamic> project;
-
-  /// Seam de injeção para teste — igual ao do painel.
+  final List<Map<String, dynamic>> filtered;
+  final String totalLabel;
+  final String emptyScope;
+  final bool filtersActive;
+  final VoidCallback onClearFilters;
   final ApiService api;
+  final bool canOpen;
 
-  /// Gate de permissão já resolvido pelo painel (papel de domínio).
+  /// FR-040: urgency ordering — atrasados first, then forecast_date
+  /// ascending; incomplete (no forecast) last but visible.
+  static List<Map<String, dynamic>> _sort(List<Map<String, dynamic>> list) {
+    return [...list]..sort((a, b) {
+        final ea = '${a['effective_status'] ?? ''}';
+        final eb = '${b['effective_status'] ?? ''}';
+        if (ea == 'atrasado' && eb != 'atrasado') return -1;
+        if (eb == 'atrasado' && ea != 'atrasado') return 1;
+        final fa = a['forecast_date'] is String ? a['forecast_date'] as String : null;
+        final fb = b['forecast_date'] is String ? b['forecast_date'] as String : null;
+        if (fa == null && fb != null) return 1;
+        if (fb == null && fa != null) return -1;
+        if (fa != null && fb != null) return fa.compareTo(fb);
+        return 0;
+      });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final sorted = _sort(filtered);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Fila de contratos',
+                style: AppTheme.panel(
+                  17,
+                  weight: 600,
+                  letterSpacing: -0.1,
+                  color: scheme.onSurface,
+                ),
+              ),
+            ),
+            if (totalLabel.isNotEmpty)
+              Text(
+                totalLabel,
+                style: AppTheme.panel(13, color: scheme.onSurfaceVariant),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (sorted.isEmpty)
+          _QueueEmpty(
+            scope: emptyScope,
+            filtersActive: filtersActive,
+            onClearFilters: onClearFilters,
+          )
+        else
+          Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              border: Border.all(color: scheme.outlineVariant),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                for (var i = 0; i < sorted.length; i++) ...[
+                  if (i > 0)
+                    Divider(height: 1, color: scheme.outlineVariant),
+                  _ContractRow(
+                    contract: sorted[i],
+                    api: api,
+                    canOpen: canOpen,
+                  ),
+                ],
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Linha da fila: trilho de status à esquerda, nome + chip, vencimento e
+/// responsável. Com papel de domínio a linha inteira roteia para o canal de
+/// tarefas do contrato (GET /contracts/:id → ContractDetailScreen).
+class _ContractRow extends StatefulWidget {
+  const _ContractRow({
+    required this.contract,
+    required this.api,
+    required this.canOpen,
+  });
+
+  final Map<String, dynamic> contract;
+  final ApiService api;
   final bool canOpen;
 
   @override
-  State<_ProjectCard> createState() => _ProjectCardState();
+  State<_ContractRow> createState() => _ContractRowState();
 }
 
-class _ProjectCardState extends State<_ProjectCard> {
+class _ContractRowState extends State<_ContractRow> {
   bool _opening = false;
 
-  ({String label, Color background, Color foreground}) _statusStyle(
-      ThemeData theme) {
+  ({String label, Color background, Color foreground}) _statusBlock(
+      ColorScheme scheme) {
     // effective_status vem do backend ('vigente' | 'atrasado' | 'encerrado');
     // status é o label persistido ('vigente' | 'encerrado').
     final status =
-        '${widget.project['effective_status'] ?? widget.project['status']}';
-    final scheme = theme.colorScheme;
-    switch (status) {
-      case 'vigente':
-        return (
-          label: 'Vigente',
-          background: scheme.primaryContainer,
-          foreground: scheme.onPrimaryContainer,
-        );
-      case 'atrasado':
-        return (
-          label: 'Atrasado',
-          background: scheme.errorContainer,
-          foreground: scheme.onErrorContainer,
-        );
-      case 'encerrado':
-        return (
-          label: 'Encerrado',
-          background: scheme.surfaceContainerHighest,
-          foreground: scheme.onSurfaceVariant,
-        );
-      default:
-        return (
-          label: status.isEmpty ? '—' : status,
-          background: scheme.surfaceContainerHighest,
-          foreground: scheme.onSurfaceVariant,
-        );
-    }
+        '${widget.contract['effective_status'] ?? widget.contract['status']}';
+    final (label, block) = switch (status) {
+      'vigente' => ('Vigente', AppTheme.statusBlock(scheme, 'vigente')),
+      'atrasado' => ('Atrasado', AppTheme.statusBlock(scheme, 'atrasado')),
+      'encerrado' => ('Encerrado', AppTheme.statusBlock(scheme, 'encerrado')),
+      _ => (
+          status.isEmpty ? '—' : status,
+          AppTheme.statusBlock(scheme, 'desconhecido'),
+        ),
+    };
+    return (label: label, background: block.background, foreground: block.foreground);
   }
 
   /// Abre o canal de tarefas do contrato: busca o contrato completo e
@@ -723,7 +714,7 @@ class _ProjectCardState extends State<_ProjectCard> {
   /// derrubar o painel; [_opening] bloqueia toque repetido durante o voo.
   Future<void> _openTasks() async {
     if (_opening) return;
-    final id = widget.project['id'];
+    final id = widget.contract['id'];
     if (id is! num) return;
     setState(() => _opening = true);
     try {
@@ -744,7 +735,7 @@ class _ProjectCardState extends State<_ProjectCard> {
         ),
       );
     } catch (e) {
-      _snack(_errorText(e, 'Falha ao abrir o projeto'));
+      _snack(_errorText(e, 'Falha ao abrir o contrato'));
     } finally {
       if (mounted) setState(() => _opening = false);
     }
@@ -770,137 +761,378 @@ class _ProjectCardState extends State<_ProjectCard> {
 
   @override
   Widget build(BuildContext context) {
-    final name = '${widget.project['name'] ?? ''}';
-    // Sem id não há rota — o card permanece apenas informativo.
-    final openable = widget.canOpen && widget.project['id'] is num;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final contract = widget.contract;
+    final name = '${contract['name'] ?? ''}';
+    // Sem id não há rota — a linha permanece apenas informativa.
+    final openable = widget.canOpen && contract['id'] is num;
+    final status = _statusBlock(scheme);
 
-    final card = Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: openable
-          ? InkWell(
-              onTap: _opening ? null : _openTasks,
-              child: _content(context, name: name),
-            )
-          : _content(context, name: name),
+    // FR-040/SC-003: forecast + responsável always rendered; a missing
+    // forecast keeps the row visible with an explicit incomplete marker.
+    final forecastRaw = '${contract['forecast_date'] ?? ''}'.trim();
+    final responsavel = '${contract['responsavel'] ?? ''}'.trim();
+    final incomplete = forecastRaw.isEmpty;
+    final forecastLabel =
+        incomplete ? 'Sem previsão' : 'Vencimento: ${_formatForecast(forecastRaw)}';
+
+    // Urgência no texto do vencimento: erro quando já passou, tertiary
+    // quando está na janela. A cor acompanha as palavras — nunca sozinha.
+    final effective =
+        '${contract['effective_status'] ?? contract['status'] ?? ''}';
+    Color forecastColor = scheme.onSurfaceVariant;
+    if (effective == 'atrasado') {
+      forecastColor = scheme.error;
+    } else if (contract['a_vencer'] == true && effective == 'vigente') {
+      forecastColor = scheme.tertiary;
+    }
+
+    // Stack (não Row com stretch): a altura da linha vem do conteúdo e o
+    // trilho de 4px acompanha, mesmo com o contexto de altura infinita do
+    // scroll.
+    final row = Stack(
+      children: [
+        Positioned(
+          left: 0,
+          top: 0,
+          bottom: 0,
+          child: Container(
+            width: 4,
+            color: AppTheme.statusColor(scheme, effective),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 14, 12, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: AppTheme.panel(
+                        15.5,
+                        weight: 600,
+                        height: 1.25,
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  _StatusChip(
+                    label: status.label,
+                    block: (
+                      background: status.background,
+                      foreground: status.foreground,
+                    ),
+                  ),
+                  if (openable) ...[
+                    const SizedBox(width: 6),
+                    _opening
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(
+                            Icons.chevron_right,
+                            size: 20,
+                            color: scheme.outline,
+                          ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    forecastLabel,
+                    style: AppTheme.panel(13, color: forecastColor),
+                  ),
+                  if (incomplete) const _IncompleteTag(),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                responsavel.isEmpty
+                    ? 'Sem responsável'
+                    : 'Responsável: $responsavel',
+                style: AppTheme.panel(13, color: scheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
 
-    if (!openable) return card;
+    if (!openable) return row;
 
     // Semântica anuncia a ação de navegação; MouseRegion dá o cursor de
-    // clique no web enquanto o card não está carregando. container: true
+    // clique no web enquanto a linha não está carregando. container: true
     // mantém o nó de botão independente — sem isso o label se funde ao do
     // cabeçalho vizinho e leitores de tela anunciam texto cruzado.
     return Semantics(
       container: true,
+      // Filhos explícitos: o nó do card guarda só o label da ação — sem
+      // isso os textos da linha mesclam no mesmo nó e o finder exato de
+      // teste/leitor de tela não encontra "Abrir tarefas do projeto …".
+      explicitChildNodes: true,
       button: true,
       label: 'Abrir tarefas do projeto $name',
       child: MouseRegion(
-        cursor:
-            _opening ? SystemMouseCursors.wait : SystemMouseCursors.click,
-        child: card,
+        cursor: _opening ? SystemMouseCursors.wait : SystemMouseCursors.click,
+        child: InkWell(
+          onTap: _opening ? null : _openTasks,
+          child: row,
+        ),
       ),
     );
   }
+}
 
-  Widget _content(BuildContext context, {required String name}) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final project = widget.project;
-    final taskCount = project['task_count'] is num
-        ? (project['task_count'] as num).toInt()
-        : 0;
-    final completedCount = project['completed_count'] is num
-        ? (project['completed_count'] as num).toInt()
-        : 0;
-    final progress =
-        taskCount > 0 ? (completedCount / taskCount).clamp(0.0, 1.0) : 0.0;
-    final status = _statusStyle(theme);
-    // Sem id não há rota — o card permanece apenas informativo.
-    final openable = widget.canOpen && project['id'] is num;
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.label, required this.block});
 
-    return Padding(
+  final String label;
+  final ({Color background, Color foreground}) block;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: block.background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: AppTheme.panel(
+          12,
+          weight: 600,
+          height: 1.2,
+          color: block.foreground,
+        ),
+      ),
+    );
+  }
+}
+
+/// Marcador de contrato sem previsão — texto + tag, nunca só cor.
+class _IncompleteTag extends StatelessWidget {
+  const _IncompleteTag();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: scheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        'Incompleto',
+        style: AppTheme.panel(
+          12,
+          weight: 600,
+          height: 1.2,
+          color: scheme.onSecondaryContainer,
+        ),
+      ),
+    );
+  }
+}
+
+/// FR-043: filtros no corpo (status, responsável, busca) — sem AppBar extra.
+/// No largo entram no rail direito; no estreito, acima da fila. Persistem
+/// entre atualizações de payload (E009) e aplicam client-side.
+class _DashboardFilters extends StatelessWidget {
+  const _DashboardFilters({
+    required this.statusFilter,
+    required this.responsavelFilter,
+    required this.searchQuery,
+    required this.responsaveis,
+    required this.onStatusChanged,
+    required this.onResponsavelChanged,
+    required this.onSearchChanged,
+    required this.onClear,
+    required this.showClear,
+  });
+
+  final String? statusFilter;
+  final String? responsavelFilter;
+  final String searchQuery;
+  final List<String> responsaveis;
+  final ValueChanged<String?> onStatusChanged;
+  final ValueChanged<String?> onResponsavelChanged;
+  final ValueChanged<String> onSearchChanged;
+  final VoidCallback onClear;
+  final bool showClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
       padding: const EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Color.alphaBlend(
-                scheme.primary.withValues(alpha: 0.12),
-                scheme.surfaceContainerLow,
-              ),
-              borderRadius: BorderRadius.circular(10),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final twoUp = constraints.maxWidth >= 560;
+          // FIX T016: build the controls without Expanded so the narrow
+          // Column below does not force flex inside an unbounded scroll
+          // view. The wide Row opts into Expanded explicitly.
+          final statusDropdown = DropdownButtonFormField<String?>(
+            key: const Key('dashboard-status-filter'),
+            initialValue: statusFilter,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Status'),
+            items: const [
+              DropdownMenuItem(value: null, child: Text('Todos')),
+              DropdownMenuItem(value: 'vigente', child: Text('Vigente')),
+              DropdownMenuItem(value: 'atrasado', child: Text('Atrasado')),
+              DropdownMenuItem(value: 'encerrado', child: Text('Encerrado')),
+            ],
+            onChanged: onStatusChanged,
+          );
+          final responsavelDropdown = DropdownButtonFormField<String?>(
+            key: const Key('dashboard-responsavel-filter'),
+            initialValue: responsavelFilter,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Responsável'),
+            items: [
+              const DropdownMenuItem(value: null, child: Text('Todos')),
+              for (final name in responsaveis)
+                DropdownMenuItem(value: name, child: Text(name)),
+            ],
+            onChanged: onResponsavelChanged,
+          );
+          final searchField = TextField(
+            key: const Key('dashboard-search'),
+            decoration: const InputDecoration(
+              labelText: 'Buscar por nome',
+              prefixIcon: Icon(Icons.search),
             ),
-            child: Icon(Icons.folder_open, size: 20, color: scheme.primary),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            onChanged: onSearchChanged,
+          );
+          final clear = showClear
+              ? Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    key: const Key('dashboard-clear-filters'),
+                    onPressed: onClear,
+                    icon: const Icon(Icons.close, size: 16),
+                    label: const Text('Limpar filtros'),
+                  ),
+                )
+              : const SizedBox.shrink();
+
+          if (twoUp) {
+            return Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Row(
                   children: [
-                    Expanded(
-                      child: Text(
-                        name,
-                        style: theme.textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w600),
-                      ),
-                    ),
+                    Expanded(child: statusDropdown),
                     const SizedBox(width: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: status.background,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        status.label,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: status.foreground,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    if (openable) ...[
-                      const SizedBox(width: 4),
-                      // Sinal de navegação: chevron em repouso, spinner
-                      // discreto durante o carregamento do contrato.
-                      _opening
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2),
-                            )
-                          : Icon(
-                              Icons.chevron_right,
-                              size: 20,
-                              color: scheme.outline,
-                            ),
-                    ],
+                    Expanded(child: responsavelDropdown),
                   ],
                 ),
                 const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 6,
-                    color: scheme.primary,
-                    backgroundColor: scheme.surfaceContainerHighest,
+                searchField,
+                clear,
+              ],
+            );
+          }
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              statusDropdown,
+              const SizedBox(height: 12),
+              responsavelDropdown,
+              const SizedBox(height: 12),
+              searchField,
+              clear,
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Atividade dos últimos 7 dias — dado já servido, em posição quieta:
+/// legenda curta + barras com tooltip de data/contagem.
+class _ActivityPanel extends StatelessWidget {
+  const _ActivityPanel({required this.dailyActivity});
+
+  final List<dynamic> dailyActivity;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final items = dailyActivity.take(7).toList();
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    int countOf(dynamic e) =>
+        e is Map && e['count'] is num
+            ? (e['count'] as num).toInt()
+            : e is Map
+                ? int.tryParse('${e['count']}') ?? 0
+                : 0;
+    final maxCount = items.fold<int>(1, (m, e) {
+      final c = countOf(e);
+      return c > m ? c : m;
+    });
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Atividade nos últimos 7 dias',
+            style: AppTheme.panel(13, weight: 600, color: scheme.onSurface),
+          ),
+          const SizedBox(height: 12),
+          Semantics(
+            label: 'Mapa de atividade do domínio (últimos 7 dias)',
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                for (final e in items)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    child: Tooltip(
+                      message: '${e is Map ? e['date'] : ''}: ${countOf(e)} atividade(s)',
+                      child: Container(
+                        width: 8,
+                        height: 12 + (countOf(e) * 28 / maxCount).clamp(0, 28).toDouble(),
+                        decoration: BoxDecoration(
+                          color: scheme.primary.withValues(alpha: 0.75),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '$completedCount de $taskCount tarefas concluídas',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
-                ),
               ],
             ),
           ),
@@ -910,37 +1142,76 @@ class _ProjectCardState extends State<_ProjectCard> {
   }
 }
 
-class _EmptyProjectsCard extends StatelessWidget {
+/// Estado vazio da fila — convida à ação em vez de só constatar.
+class _QueueEmpty extends StatelessWidget {
+  const _QueueEmpty({
+    required this.scope,
+    required this.filtersActive,
+    required this.onClearFilters,
+  });
+
+  final String scope;
+  final bool filtersActive;
+  final VoidCallback onClearFilters;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.folder_open, size: 40, color: scheme.outline),
-              const SizedBox(height: 12),
-              Text(
-                'Nenhum projeto encontrado',
-                style: theme.textTheme.bodyLarge
-                    ?.copyWith(color: scheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Quando um contrato for criado no domínio, ele aparece aqui.',
+    final title = filtersActive
+        ? 'Nenhum contrato corresponde aos filtros'
+        : scope == 'own'
+            ? 'Nenhum contrato vinculado'
+            : 'Nenhum contrato no painel';
+    final body = filtersActive
+        ? 'Ajuste a busca ou limpe os filtros para ver a fila inteira.'
+        : scope == 'own'
+            ? 'Contratos em que você participa aparecem aqui.'
+            : 'Contratos criados em Projetos aparecem aqui.';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.inbox_outlined, size: 36, color: scheme.outline),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: AppTheme.panel(15, weight: 600, color: scheme.onSurface),
+            ),
+            const SizedBox(height: 6),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 380),
+              child: Text(
+                body,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: scheme.onSurfaceVariant),
+                style: AppTheme.panel(13, color: scheme.onSurfaceVariant),
+              ),
+            ),
+            if (filtersActive) ...[
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: onClearFilters,
+                child: const Text('Limpar filtros'),
               ),
             ],
-          ),
+          ],
         ),
       ),
     );
   }
+}
+
+String _formatForecast(String isoDate) {
+  final parts = isoDate.split('-');
+  if (parts.length == 3) return '${parts[2]}/${parts[1]}/${parts[0]}';
+  return isoDate;
 }

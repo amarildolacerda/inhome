@@ -26,3 +26,9 @@ flutter:
   uses-material-design: true
   assets:
     - assets/
+  # E013: família do painel — Archivo variável (SIL OFL, assets/fonts/).
+  # Não é dependência de pacote: só declaração de fonte empacotada.
+  fonts:
+    - family: Archivo
+      fonts:
+        - asset: assets/fonts/Archivo-Variable.ttf
