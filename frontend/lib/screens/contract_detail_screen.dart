@@ -448,7 +448,7 @@ class _CompactSchedule extends StatelessWidget {
                   width: 6,
                   height: 10 + (e.value * 10 / maxCount).clamp(0, 16).toDouble(),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.8),
+                    color: theme.colorScheme.primary.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(1.5),
                   ),
                 ),
