@@ -143,6 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
                       // O backend resolve email ou usuário — só exige preenchido.
                       validator: (v) => (v?.trim().isEmpty ?? true)
                           ? 'Informe o email ou usuário'
@@ -151,6 +152,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _passwordController,
+                      textInputAction: TextInputAction.done,
+                      // Quem digita a senha e aperta Enter espera entrar; sem
+                      // isso o submit só acontecia no clique em "Entrar".
+                      onFieldSubmitted: (_) => _submit(),
                       decoration: InputDecoration(
                         labelText: 'Senha',
                         prefixIcon: const Icon(Icons.lock_outline),
