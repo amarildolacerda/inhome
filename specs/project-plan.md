@@ -13,10 +13,10 @@ dod_source: none
 | **Product** | Gestão de Contratos de Terceiros |
 | **Created** | 2026-09-27 |
 | **Status** | active |
-| **Epics** | 14 — 10 × P1, 4 × P2 |
-| **Categories** | 14 PRODUCT, 0 TECHNICAL, 0 OPERATIONAL |
+| **Epics** | 15 — 11 × P1, 4 × P2 |
+| **Categories** | 15 PRODUCT, 0 TECHNICAL, 0 OPERATIONAL |
 | **Author** | Amarildo de Lacerda |
-| **Waves** | 6 |
+| **Waves** | 7 |
 
 ## Epic Checklist
 
@@ -64,6 +64,12 @@ dod_source: none
 - [X] E013 [P2] [PRODUCT] {PRD:CAP-004,CAP-005} Redesign visual do dashboard — KPIs por status, vencimentos, cards e layout em colunas [→ Details](plan/E013.md)
 - [X] E014 [P2] [PRODUCT] {PRD:CAP-005} Tema escuro por padrão — alternância para claro persistida na top toolbar [→ Details](plan/E014.md)
 
+### Wave 7 — Indicadores do painel de contratos
+
+> Pedido do usuário em 2026-11-04: o card do painel precisa distinguir contrato perpétuo de cadastro incompleto, mostrar conclusão do trabalho e sinalizar tarefas abertas com prazo vencido. E017 estende o card de E013 e a tabela de E002 com uma coluna aditiva; não cria endpoint novo.
+
+- [ ] E017 [P1] [PRODUCT] {PRD:CAP-002,CAP-004,CAP-005} Indicadores do painel de contratos — perpétuo, conclusão e tarefas atrasadas [→ Details](plan/E017.md)
+
 ## Dependency Diagram
 
 ```mermaid
@@ -83,9 +89,13 @@ graph LR
   E -->|"E013"| N["Dashboard redesenhado<br>KPIs, cards e colunas"]
   J -->|"E013"| N
   E -->|"E014"| O["Tema escuro padrão<br>e alternância clara"]
+  C -->|"E017"| P["Indicadores do contrato<br>perpétuo, conclusão e atraso"]
+  D -->|"E017"| P
+  J -->|"E017"| P
+  N -->|"E017"| P
 ```
 
-Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_<id>` da infraestrutura já entregue (T033), não a saída de E009 — criar a aresta faria uma capacidade P2 (CAP-008) ser prerequisite de uma P1 e inflaria a prioridade de E009 contra o PRD. E011 e E012 apontam das entregas de base que consomem (E001 guards/papéis, E003 `tasks`/`task_history`/anexos), não da infraestrutura de tempo real. Wave 6: E013 consome o painel por papel de E006 e as janelas de vencimento de E005 (KPI `a vencer`), não o motor de E004 diretamente; E014 parte do tema produzido por E006 — a ordem E013 → E014 dentro da onda é só para rebaixar seguro sobre `app_theme.dart`, não um contrato de dependência.
+Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_<id>` da infraestrutura já entregue (T033), não a saída de E009 — criar a aresta faria uma capacidade P2 (CAP-008) ser prerequisite de uma P1 e inflaria a prioridade de E009 contra o PRD. E011 e E012 apontam das entregas de base que consomem (E001 guards/papéis, E003 `tasks`/`task_history`/anexos), não da infraestrutura de tempo real. Wave 6: E013 consome o painel por papel de E006 e as janelas de vencimento de E005 (KPI `a vencer`), não o motor de E004 diretamente; E014 parte do tema produzido por E006 — a ordem E013 → E014 dentro da onda é só para rebaixar seguro sobre `app_theme.dart`, não um contrato de dependência. Wave 7: E017 consome a tabela de contratos de E002, as tarefas de E003, a lista de "sem previsão" de E005 e o card/KPIs de E013.
 
 ## Execution Wave Summary
 
@@ -97,12 +107,13 @@ Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_
 | 4 | E011 | Sim | Leitura sobre `tasks`/`task_history` já entregues (E003); classificação é coluna aditiva |
 | 5 | E012 | Sim | Decide e mantém `tasks` de E003 sob os guards de E001; `category` é coluna aditiva em anexos já entregues |
 | 6 | E013, E014 | Não | Só frontend, sem backend novo; sequenciais entre si por `app_theme.dart`/`main.dart` compartilhados |
+| 7 | E017 | Sim | Coluna aditiva em `contracts` de E002 e extensão do payload do dashboard; consome `tasks` de E003 e a lista de E005 |
 
 ## Parallel Execution Guidance
 
-- **Independent Epics**: Wave 1 — E001, E002, E003, E006, E009 em paralelo; E007 entra depois de E002/E003 na mesma onda. Wave 2 — E004 e E008 sem contato. Wave 3 — E005 e E010 sem contato. Wave 5 — E012 sozinha, estende CAP-003 sem tocar em E011. Wave 6 — E013 e E014 sem backend, mas sequenciais entre si pelo tema compartilhado.
+- **Independent Epics**: Wave 1 — E001, E002, E003, E006, E009 em paralelo; E007 entra depois de E002/E003 na mesma onda. Wave 2 — E004 e E008 sem contato. Wave 3 — E005 e E010 sem contato. Wave 5 — E012 sozinha, estende CAP-003 sem tocar em E011. Wave 6 — E013 e E014 sem backend, mas sequenciais entre si pelo tema compartilhado. Wave 7 — E017 sozinha.
 - **Integration Risks**: E007 pode mexer em índices usados pelas listagens de contrato/tarefa (E002/E003). E006 altera `frontend/lib/main.dart` e `frontend/lib/theme/app_theme.dart`, importados por todas as telas — qualquer épica de tela da onda deve rebaixar sobre esses arquivos. E004 e E007 escrevem em `config/database.js` (migração × índices), mas estão em ondas diferentes. E012 adiciona coluna em `attachments` e ações em `tasks.js` — superfície já entregue por E003, em onda posterior. Wave 6 estende `app_theme.dart` e `main.dart` (superfície de E006) e reescreve `dashboard_screen.dart` — qualquer trabalho de tela simultâneo rebaixa sobre esses arquivos; E014 assume a top toolbar do MainShell já entregue pela obra ad-hoc em andamento.
-- **Shared Resource Conflicts**: `backend/src/config/database.js` (E004 migração, E007 índices — ondas distintas); `frontend/lib/main.dart` e `app_theme.dart` (E006, compartilhado com qualquer trabalho de tela; E013 e E014 estendem na onda 6); `frontend/nginx.conf` (só E003); salas Socket.io `domain_<id>` (leitura por E004/E005, escrita já entregue); `backend/src/routes/tasks.js` e `frontend/lib/screens/tasks_screen.dart` (E003 origem, E012 extensão na onda 5); `frontend/lib/screens/dashboard_screen.dart` (E006 origem, E013 reescrita na onda 6).
+- **Shared Resource Conflicts**: `backend/src/config/database.js` (E004 migração, E007 índices — ondas distintas); `frontend/lib/main.dart` e `app_theme.dart` (E006, compartilhado com qualquer trabalho de tela; E013 e E014 estendem na onda 6); `frontend/nginx.conf` (só E003); salas Socket.io `domain_<id>` (leitura por E004/E005, escrita já entregue); `backend/src/routes/tasks.js` e `frontend/lib/screens/tasks_screen.dart` (E003 origem, E012 extensão na onda 5); `frontend/lib/screens/dashboard_screen.dart` (E006 origem, E013 reescrita na onda 6, E017 extensão na onda 7); `backend/src/routes/alerts.js` (E004 origem, E005 painel, E017 exclusão de perpétuos).
 
 ## Coverage Validation
 
@@ -111,10 +122,10 @@ Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_
 | Capability | Title | Priority | Epics |
 |------------|-------|----------|-------|
 | CAP-001 | Ciclo de domínio, papéis e acesso | P1 | E001 |
-| CAP-002 | Contrato e vigência | P1 | E002 |
+| CAP-002 | Contrato e vigência | P1 | E002, E017 |
 | CAP-003 | Execução de tarefas com evidência | P1 | E003, E011, E012 |
-| CAP-004 | Alertas de vigência e painel de próximos vencimentos | P1 | E004, E005, E013 |
-| CAP-005 | Painel por papel | P1 | E006, E013, E014 |
+| CAP-004 | Alertas de vigência e painel de próximos vencimentos | P1 | E004, E005, E013, E017 |
+| CAP-005 | Painel por papel | P1 | E006, E013, E014, E017 |
 | CAP-006 | Busca e filtros | P1 | E007 |
 | CAP-007 | Relatório de serviços executados em PDF e CSV | P1 | E008 |
 | CAP-008 | Comunicação em tempo real entre sessões | P2 | E009 |
@@ -154,6 +165,7 @@ Sem DOD: extração de épicas operacionais pulada; subida do stack, cópia de s
 |--------|---------------|-------------|
 | `domains`, `system_users` (`data/platform.db`) | E001 | E004, E005 (seleção de tenant) |
 | `contratos` (status, previsão de finalização) | E002 | E004, E005, E007, E008 |
+| Coluna `contracts.perpetual` (vigência indefinida) | E017 | E005 (exclusão de "sem previsão"), E013 (card do painel) |
 | `tasks`, `task_history`, anexos de tarefa | E003 | E007, E008, E011, E012 |
 | Coluna `attachments.category` (`evidence`/`documentation`) | E012 | — (leitura no detalhe da tarefa) |
 | `alert_events`, janelas de alerta 90/60/30/15 | E004 | E005, E010, E013 |
@@ -171,6 +183,7 @@ Sem DOD: extração de épicas operacionais pulada; subida do stack, cópia de s
 | `/api/search` (contratos e tarefas) | E007 | — |
 | `/api/reports` (PDF/CSV por contrato) | E008 | — |
 | `/api/dashboard` | E006 | E013 |
+| `GET /api/v2/dashboard/stats` — `contracts[].perpetual`, `tasks_total`, `tasks_done`, `tasks_overdue` | E017 | E013 (card do painel) |
 
 ### Libraries / Modules
 

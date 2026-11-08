@@ -32,6 +32,7 @@ class Contract {
   final String? finalidadeName;
   final String startDate;
   final String forecastDate;
+  final bool perpetual;
   final String status;
   final String dbStatus;
   final int? createdBy;
@@ -49,6 +50,7 @@ class Contract {
     this.finalidadeName,
     required this.startDate,
     required this.forecastDate,
+    this.perpetual = false,
     this.status = Contract.statusVigente,
     this.dbStatus = Contract.statusVigente,
     this.createdBy,
@@ -68,6 +70,7 @@ class Contract {
       finalidadeName: json['purpose_name'] as String?,
       startDate: (json['start_date'] as String?) ?? '',
       forecastDate: (json['forecast_date'] as String?) ?? '',
+      perpetual: (json['perpetual'] as bool?) ?? (json['perpetual'] as num?) == 1,
       status: (json['status'] as String?) ?? statusVigente,
       dbStatus: (json['db_status'] as String?) ?? statusVigente,
       createdBy: (json['created_by'] as num?)?.toInt(),
@@ -87,6 +90,7 @@ class Contract {
         'object': object,
         'start_date': startDate,
         'forecast_date': forecastDate,
+        'perpetual': perpetual,
         'purpose_id': finalidadeId,
       };
 

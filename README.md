@@ -13,6 +13,7 @@ Organize contratos de terceiros, acompanhe o trabalho contratado e mantenha a ex
 ### Contratos sob controle
 - Cadastre o contrato com objeto, finalidade, data de início e previsão de término
 - Vincule os prestadores que participam do contrato
+- Contratos perpétuos podem manter a previsão vazia e continuam fora de indicadores de incompleto e de alerta de vencimento
 - Prorrogue ou encerre quando necessário
 - Contrato vencido aparece sinalizado como atrasado — sem travar o trabalho em andamento
 
@@ -26,6 +27,7 @@ Organize contratos de terceiros, acompanhe o trabalho contratado e mantenha a ex
 ### Visão clara do que importa
 - **Busca e filtros** por contrato, status, prioridade, prestador, finalidade e prazo
 - **Painel (dashboard)** com o andamento do domínio; cada prestador vê só o que é seu
+- **Contratos perpétuos** aparecem como "Perpétuo" no cartão e continuam sem falso sinal de incompleto, embora as tarefas atrasadas continue contando no painel
 - **Relatório em PDF** por contrato: o que foi feito, quem executou, datas e fotos
 - **Vencimentos próximos**: tela agrupa os contratos pelas janelas de alerta (90/60/30/15, configuráveis por domínio) e destaca quem já foi alertado
 
@@ -70,3 +72,4 @@ Cada cliente (domínio) tem os dados separados: o que acontece em um domínio n�
 
 - **00015-redesign-dashboard** (E013 — Redesign visual do dashboard): painel com faixa de KPIs por status (vigente/a vencer/atrasado/encerrado), fila de contratos ordenada por urgência com vencimento e responsável, filtros e busca no corpo, escopo por papel; backend expõe `contracts[]`, `responsavel`, `a_vencer` e `stats.contractsAVencer` em `GET /api/v2/dashboard/stats`.
 - **00018-tema-escuro-por-padrao-alternancia** (E014 — Tema escuro por padrão): o app nasce em tema escuro, oferece alternância na toolbar e persiste a escolha em SharedPreferences; a preferência é lida antes da primeira renderização e o claro continua utilizável nos tokens de E006/E013.
+- **00019-dashboard-indicadores-de-contrato-perpetuo** (E017 — Indicadores do painel): contratos perpétuos são sinalizados explicitamente, ignorados em "Incompleto" e em janelas de vencimento, mas continuam contabilizando tarefas atrasadas no painel e nos indicadores de execução.

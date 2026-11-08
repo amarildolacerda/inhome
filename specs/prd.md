@@ -222,3 +222,4 @@ Nenhuma pergunta de produto bloqueante permanece: `PDQ-001` a `PDQ-009` foram re
 - A prioridade do alerta vem da pesquisa de set/2026 (`docs/resources.md`), fonte qualitativa com limitações registradas em EVD-010; nenhuma afirmação de mercado dessa pesquisa vale como consenso.
 - Fronteira de release fixada em PDD-003 (Opção B), com adiamentos em PDD-007, PDD-008 e PDD-009.
 - Prova de isolamento por domínio e de permissão mínima por papel exige dois domínios ativos em uso simultâneo e os quatro papéis; execução em domínio único não demonstra nenhuma das duas restrições inegociáveis.
+- Termo de domínio "contrato perpétuo" (E017): contrato sem data de término por natureza; fica fora de listas de "sem previsão" e do KPI "a vencer", e a previsão de finalização só é opcional enquanto o marcador estiver ativo — restrição válida para qualquer alerta ou relatório futuro.

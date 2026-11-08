@@ -69,7 +69,7 @@ function listPanel(req, res) {
                  FROM alert_events ae
                 WHERE ae.contract_id = c.id) AS event_pairs
          FROM contracts c
-        WHERE c.status = ?
+        WHERE c.status = ? AND c.perpetual = 0
         ORDER BY incomplete DESC, c.forecast_date ASC, c.id ASC
         LIMIT ? OFFSET ?`,
       [code('contracts.status', 'vigente'), limit, offset]
@@ -84,7 +84,7 @@ function listPanel(req, res) {
       const counts = db.get(
         `SELECT COUNT(*) AS total,
                 SUM(CASE WHEN forecast_date IS NULL OR forecast_date = '' THEN 1 ELSE 0 END) AS incomplete
-           FROM contracts WHERE status = ?`,
+           FROM contracts WHERE status = ? AND perpetual = 0`,
         [code('contracts.status', 'vigente')]
       );
       total = counts?.total || 0;

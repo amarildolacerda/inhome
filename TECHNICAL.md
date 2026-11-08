@@ -1,67 +1,90 @@
 # Documentação Técnica — Project Manager
 
+## Status do estado atual
+
+- Repositório em desenvolvimento na branch `dev`.
+- Feature ativa: `E017` — indicadores do dashboard para contratos perpétuos.
+- Situação: implementação validada no ponto de regressão do dashboard (`dashboard.test.js`), com contrato perpétuo ignorado em incompletos e janelas de alerta, mas mantendo contagem de tarefas vencidas.
+
 ## Arquitetura
 
 ```
 project-manager/
-├── backend/          # API RESTful (Node.js)
+├── backend/          # API RESTful (Node.js 22+)
 ├── frontend/         # Interface web (Flutter Web)
 ├── scripts/          # Scripts de validação SDD Pilot
 ├── specs/            # Artefatos de especificação
-└── docs/             # Documentação
+├── docs/             # Documentação institucional
+├── data/             # Bancos SQLite por domínio e plataforma
+├── uploads/          # Anexos em disco
+└── TECHNICAL.md      # Documento técnico do projeto
 ```
 
 ## Stack Tecnológica
 
 | Camada | Tecnologia |
 |--------|-----------|
-| Frontend | Flutter Web (Dart) |
-| Backend | Node.js 18+ (Express) |
-| Banco de dados | SQLite (via JSON file) |
+| Frontend | Flutter Web (Dart 3) |
+| Backend | Node.js 22+ (Express) |
+| Banco de dados | SQLite por domínio (`data/domains/<id>.db`) + `data/platform.db` |
 | Real-time | Socket.io |
-| Autenticação | JWT (jsonwebtoken) |
+| Autenticação | JWT (`jsonwebtoken`) com `bcryptjs` |
+| Uploads | arquivos em disco em `backend/uploads/` |
 
 ## API REST
 
-### Endpoints Principais
+### Endpoints principais
 
-#### Autenticação
-- `POST /api/v2/auth/register` — Criar conta
-- `POST /api/v2/auth/login` — Fazer login
-- `GET /api/v2/auth/me` — Obter usuário atual
+#### Autenticação e domínio
+- `POST /api/v2/auth/login` — autenticação com domínio habilitado
+- `POST /api/v2/domains/enable` — habilita um domínio novo
+- `GET /api/v2/auth/me` — usuário autenticado
 
 #### Contratos
-- `GET /api/v2/contracts` — Listar contratos do usuário
-- `GET /api/v2/contracts/:id` — Detalhes do contrato
-- `POST /api/v2/contracts` — Criar contrato
-- `PUT /api/v2/contracts/:id` — Atualizar contrato
-- `DELETE /api/v2/contracts/:id` — Excluir contrato
+- `GET /api/v2/contracts` — listar contratos do domínio/escopo
+- `GET /api/v2/contracts/:id` — detalhes do contrato
+- `POST /api/v2/contracts` — criar contrato
+- `PUT /api/v2/contracts/:id` — atualizar contrato
+- `DELETE /api/v2/contracts/:id` — remover contrato
+
+Regras do E017:
+- `perpetual` é um campo aditivo no contrato.
+- `forecast_date` pode permanecer vazia quando `perpetual` for `true`.
+- O valor `perpetual` é exportado no payload do dashboard e não dispara `a_vencer` / `incompleto`.
 
 #### Tarefas
-- `GET /api/v2/tasks` — Listar tarefas
-- `GET /api/v2/tasks/:id` — Detalhes da tarefa
-- `POST /api/v2/tasks` — Criar tarefa
-- `PUT /api/v2/tasks/:id` — Atualizar tarefa
-- `DELETE /api/v2/tasks/:id` — Excluir tarefa
+- `GET /api/v2/tasks` — listar tarefas
+- `GET /api/v2/tasks/:id` — detalhe da tarefa
+- `POST /api/v2/contracts/:id/tasks` — criar tarefa vinculada ao contrato
+- `PATCH /api/v2/tasks/:id/status` — avançar no fluxo de status
+- `POST /api/v2/tasks/:id/complete` — concluir tarefa com texto de evidência
 
 #### Dashboard
-- `GET /api/v2/dashboard/stats` — Métricas e estatísticas
+- `GET /api/v2/dashboard/stats` — métricas do domínio, escopo por papel e contratos
+
+Campos relevantes do contrato no payload:
+- `perpetual`
+- `tasks_total`
+- `tasks_done`
+- `tasks_overdue`
+- `a_vencer`
+- `effective_status`
 
 #### Alertas e vencimentos
-- `GET /api/v2/alerts/sweep` — Executa a varredura de vencimentos (admin/gestor)
-- `GET /api/v2/alerts/panel` — Painel agrupado pelas janelas de alerta, com paginação (admin/gestor)
-- `GET /api/v2/alerts/windows` — Lê as janelas configuradas do domínio (admin/gestor)
-- `PUT /api/v2/alerts/windows` — Grava as janelas do domínio, validadas (admin/gestor)
+- `GET /api/v2/alerts/sweep` — varredura de vencimentos
+- `GET /api/v2/alerts/panel` — painel agrupado por janelas
+- `GET /api/v2/alerts/windows` — janelas do domínio
+- `PUT /api/v2/alerts/windows` — atualização das janelas
 
-### Headers de Autenticação
+### Headers de autenticação
 
-Todas as rotas protegidas requerem:
+Todas as rotas protegidas exigem:
 
 ```
-Authorization: Bearer <token>
+Authorization: <token>
 ```
 
-### Estrutura de Resposta
+### Estrutura de resposta
 
 ```json
 {
@@ -70,65 +93,59 @@ Authorization: Bearer <token>
 }
 ```
 
-## Modelos de Dados
+## Modelos de dados
 
-### User
+### Contrato
 ```json
 {
   "id": 1,
-  "email": "user@example.com",
-  "name": "User Name",
-  "role": "member",
-  "created_at": "2026-09-22T00:00:00Z"
+  "name": "Contrato X",
+  "start_date": "2026-10-01",
+  "forecast_date": "",
+  "perpetual": true,
+  "status": "vigente",
+  "effective_status": "vigente",
+  "tasks_total": 2,
+  "tasks_done": 1,
+  "tasks_overdue": 1,
+  "a_vencer": false
 }
 ```
 
-### Project
+### Tarefa
 ```json
 {
   "id": 1,
-  "name": "Project Name",
-  "description": "Description",
-  "status": "active",
-  "owner_id": 1,
-  "task_count": 5,
-  "completed_count": 3
-}
-```
-
-### Task
-```json
-{
-  "id": 1,
-  "title": "Task title",
-  "description": "Description",
-  "status": "todo",
+  "contract_id": 1,
+  "title": "Entrega principal",
+  "status": "A Fazer",
   "priority": "high",
-  "project_id": 1,
-  "assignee_id": 1
+  "assignee_id": 3,
+  "due_date": "2026-11-12"
 }
 ```
 
-## Enumerações
+## Regras de negócio relevantes
 
-- **Project Status**: `active`, `paused`, `completed`, `archived`
-- **Task Status**: `todo`, `in_progress`, `review`, `done`
-- **Task Priority**: `low`, `medium`, `high`, `urgent`
+- Contratos perpétuos não entram em `a_vencer` nem em `incompleto`.
+- O card do dashboard usa texto explícito (`Perpétuo`) em vez de falso "Incompleto".
+- Tarefas vencidas continuam sendo contadas para `tasks_overdue`, mesmo quando o contrato é perpétuo.
+- O dashboard pega contagens por contrato diretamente de `tasks`, sem criar nova superfície de API.
 
 ## Setup
 
 ### Pré-requisitos
 
-- Node.js 18+
-- Flutter SDK 3.0+
+- Node.js 22+
+- Flutter SDK 3.x
+- SQLite local por domínio
 
 ### Backend
 
 ```bash
 cd backend
 npm install
-cp .env.example .env  # Configure as variáveis
-npm run dev           # Inicia em http://localhost:3001
+npm run dev
 ```
 
 ### Frontend
@@ -136,109 +153,79 @@ npm run dev           # Inicia em http://localhost:3001
 ```bash
 cd frontend
 flutter pub get
-flutter run -d chrome  # Inicia em http://localhost:8080
+flutter run -d chrome
 ```
 
-### Variáveis de Ambiente
+### Variáveis de ambiente
 
 | Variável | Descrição | Padrão |
 |----------|-----------|--------|
-| `PORT` | Porta do servidor | `3001` |
-| `JWT_SECRET` | Segredo para tokens | — |
-| `DATABASE_PATH` | Caminho do banco | `./database.json` |
+| `PORT` | Porta do backend | `3001` |
+| `JWT_SECRET` | Segredo dos tokens | — |
+| `DATA_DIR` | Diretório de dados do projeto | `./data` |
 | `APP_VERSION` | Versão da aplicação | `0.0.1` |
-
-## WebSocket
-
-Eventos disponíveis:
-
-- `join_project` — Entrar em sala de projeto
-- `leave_project` — Sair de sala de projeto
-
-URL: `ws://localhost:3001`
 
 ## Desenvolvimento
 
-### Comandos
+### Comandos úteis
 
 ```bash
 # Backend
-npm run dev      # Desenvolvimento com hot-reload
-npm start        # Produção
+cd backend && node --test src/routes/dashboard.test.js
+cd backend && npm test
 
 # Frontend
-flutter run      # Desenvolvimento
-flutter build web --release  # Build de produção
+cd frontend && flutter analyze
+cd frontend && flutter test
 ```
 
-### Estrutura Backend
+### Estrutura do backend
 
 ```
 backend/src/
 ├── config/
-│   └── database.js      # Configuração do banco
+│   └── database.js      # DDL + migração por domínio
 ├── middleware/
-│   └── auth.js          # Middleware JWT
+│   └── auth.js          # JWT + autorização
 ├── models/
-│   ├── User.js          # Modelo de usuário
-│   ├── Project.js       # Modelo de projeto
-│   └── Task.js          # Modelo de tarefa
+│   ├── Contract.js      # lógica de status e overdue
+│   ├── Task.js          # fluxo de tarefas / histórico
+│   └── User.js          # usuários do domínio
 ├── routes/
-│   ├── auth.js          # Rotas de autenticação
-│   ├── projects.js      # Rotas de projetos
-│   ├── tasks.js         # Rotas de tarefas
-│   └── dashboard.js     # Rotas do dashboard
-└── server.js            # Entry point
+│   ├── auth.js          # auth + domínio
+│   ├── contracts.js     # CRUD de contratos
+│   ├── tasks.js         # CRUD de tarefas
+│   ├── dashboard.js     # métricas do painel
+│   └── alerts.js        # alertas e janelas
+└── server.js            # entry point
 ```
 
-### Estrutura Frontend
+### Estrutura do frontend
 
 ```
 frontend/lib/
 ├── models/
-│   ├── user.dart
-│   ├── project.dart
+│   ├── contract.dart
 │   └── task.dart
 ├── screens/
-│   ├── login_screen.dart
 │   ├── dashboard_screen.dart
-│   ├── projects_screen.dart
+│   ├── contracts_screen.dart
 │   └── tasks_screen.dart
 ├── services/
-│   ├── api_service.dart
-│   └── theme_preference_store.dart  # preferência local de tema
+│   └── api_service.dart
 └── main.dart
 ```
 
-## Git Workflow
+## Git workflow
 
-- **Branch `dev`**: Desenvolvimento (todas as alterações)
-- **Branch `main`**: Produção (merge requer autorização)
+- **Branch `dev`**: desenvolvimento
+- **Branch `main`**: produção
+- Nenhuma promoção para `main` sem testes e aprovação explícita
 
-```bash
-# Fluxo
-git checkout -b feature/nova-funcionalidade dev
-# ... desenvolver ...
-git checkout dev
-git merge feature/nova-funcionalidade
-# Após aprovação
-git checkout main
-git merge dev  # Requer autorização
-```
+## Atualização de documentação
 
-## Versionamento
-
-- **Formato**: Semantic Versioning (MAJOR.MINOR.PATCH)
-- **Arquivo**: `backend/.env` → `APP_VERSION`
-- **Incremento ao promover dev → main**:
-  - `fix:` → patch (0.0.1 → 0.0.2)
-  - `feat:` → minor (0.0.1 → 0.1.0)
-  - Breaking → major (0.0.1 → 1.0.0)
-
-## Planos SDD
-
-- **00015-redesign-dashboard** (E013 — Redesign visual do dashboard): plano em `specs/00015-redesign-dashboard/plan.md`; payload aditivo de `GET /api/v2/dashboard/stats` (`contracts[]`, `contracts[].a_vencer`, `responsavel`, `contractsAVencer` via junção `created_by` → `users` e janelas de E005) + rewrite de `frontend/lib/screens/dashboard_screen.dart` (KPIs, cards, filtros) sobre tokens do `ColorScheme` em `app_theme.dart`. Bateria final verde em 2026-10-28 (unit 167, smoke 182, Flutter 70, audit 0). Redesign visual completo em 2026-11-03 (pós-QC): faixa full-bleed de KPIs (`_KpiBand`/`statusBlock`), fila `_ContractRow`, Archivo variável em `assets/fonts/` (seção `fonts:` no `pubspec.yaml`, sem dependência de pacote); testes de dashboard 16/16 e usuário validou compose + UI — digests do `.qc-passed` de 28/10 não cobrem 03/11; `APP_VERSION` permanece `0.0.1` até a promoção `dev` → `main`.
-- **00018-tema-escuro-por-padrao-alternancia** (E014 — Tema escuro por padrão e alternância persistida): implementado em 2026-10-28. `ThemePreferenceStore` lê/grava `theme_mode` (`light`/`dark`) em SharedPreferences, com fallback escuro para ausência ou valor inválido; `main()` resolve a preferência antes do `runApp`; a raiz stateful aplica `ThemeMode` e a top toolbar do MainShell ganhou o toggle com callback, tooltip e rótulo Semantics. Sem dependência nova e sem backend. Bateria final verde em 2026-10-28 (`flutter analyze` 0, `flutter test` 75/75); `APP_VERSION` permanece `0.0.1` até a promoção `dev` → `main`.
+- `TECHNICAL.md`: revisado para refletir o stack real e a feature E017 em desenvolvimento.
+- `README.md`: atualizado com o comportamento de contratos perpétuos e do painel.
 
 ---
 

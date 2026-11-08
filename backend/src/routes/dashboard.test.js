@@ -269,3 +269,60 @@ test('FR-041 prestador recebe só contratos vinculados', async () => {
   assert.strictEqual(domain.body.scope, 'domain');
   assert.strictEqual(domain.body.contracts.length, 3, 'admin sees every contract');
 });
+
+test('FR-070/FR-073 perpetual ignores incomplete and overdue windows', async () => {
+  const created = await request(app)
+    .post('/api/v2/contracts')
+    .set(as(gestorToken))
+    .send({
+      name: 'Contrato Perpétuo',
+      start_date: dateOnly(-30),
+      perpetual: true,
+    });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.body));
+  assert.strictEqual(created.body.contract.perpetual, true, 'marker persists');
+  assert.strictEqual(created.body.contract.forecast_date, '', 'perpetual keeps empty forecast');
+
+  const link = await request(app)
+    .post(`/api/v2/contracts/${created.body.contract.id}/providers`)
+    .set(as(gestorToken))
+    .send({ user_id: p1Id });
+  assert.strictEqual(link.status, 201, JSON.stringify(link.body));
+
+  const taskDone = await request(app)
+    .post(`/api/v2/contracts/${created.body.contract.id}/tasks`)
+    .set(as(gestorToken))
+    .send({ title: 'Entregável concluído', assignee_id: p1Id, due_date: dateOnly(-10) });
+  assert.strictEqual(taskDone.status, 201, JSON.stringify(taskDone.body));
+
+  for (const step of ['Em Progresso', 'Revisão']) {
+    const move = await request(app)
+      .patch(`/api/v2/tasks/${taskDone.body.task.id}/status`)
+      .set(as(p1Token))
+      .send({ status: step });
+    assert.strictEqual(move.status, 200, JSON.stringify(move.body));
+  }
+
+  const complete = await request(app)
+    .post(`/api/v2/tasks/${taskDone.body.task.id}/complete`)
+    .set(as(p1Token))
+    .send({ text: 'concluído para validar indicadores' });
+  assert.strictEqual(complete.status, 200, JSON.stringify(complete.body));
+
+  const taskOpen = await request(app)
+    .post(`/api/v2/contracts/${created.body.contract.id}/tasks`)
+    .set(as(gestorToken))
+    .send({ title: 'Entrega atrasada', assignee_id: p1Id, due_date: dateOnly(-2) });
+  assert.strictEqual(taskOpen.status, 201, JSON.stringify(taskOpen.body));
+
+  const stats = await request(app).get('/api/v2/dashboard/stats').set(as(gestorToken));
+  assert.strictEqual(stats.status, 200, JSON.stringify(stats.body));
+  const row = stats.body.contracts.find((c) => c.name === 'Contrato Perpétuo');
+  assert.ok(row, 'perpetual contract is part of the domain dashboard');
+  assert.strictEqual(row.perpetual, true, 'perpetual flag exported');
+  assert.strictEqual(row.tasks_total, 2, 'task totals are exported');
+  assert.strictEqual(row.tasks_done, 1, 'done tasks count stays accurate');
+  assert.strictEqual(row.tasks_overdue, 1, 'overdue tasks still count for the contract');
+  assert.strictEqual(row.a_vencer, false, 'perpetual row is ignored by a_vencer');
+  assert.strictEqual(row.effective_status, 'vigente', 'perpetual never flips to atrasado');
+});

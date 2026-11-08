@@ -446,6 +446,7 @@ Os registros de decisão de nível de projeto serão arquivos MADR independentes
 - Catálogo de ADRs vazio nesta execução por decisão do usuário; `specs/adrs/` passa a ser preenchido por um comando posterior.
 - Superfície compartilhada de autorização (base de E001, consumida por E002–E011): a seleção de tenant sai do `domainId` do token em toda rota de negócio; `scopeDomain` (com teste unitário) cobre as rotas de tarefa (E003) e as novas rotas de auditoria (E011), e toda rota futura que aceitar `domainId` precisa ligar esse guarda ou repetir o filtro. O enum de papéis (`ROLES`) inclui `auditor` desde E011 — toda rota nova declara seus papéis explicitamente em `requireRole` (negar por padrão para quem não está na lista).
 - Convenção de nomenclatura de banco: identificadores em inglês. Fase 1 concluída em 2026-10-06 (`finalidades` → `purposes`, `contract_prestadores` → `contract_providers`, migração preguiçosa em `migrateSchema`, 31/31 domínios migrados). Fases 2–5 (colunas, enums de dado, papéis, superfície de API), inventário por arquivo e critérios de entrada em `docs/naming-conventions.md`.
+- Superfície compartilhada de E017: `GET /api/v2/dashboard/stats` serve `perpetual`, `tasks_total`, `tasks_done` e `tasks_overdue` por item de `contracts`; coluna aditiva `contracts.perpetual` (`INTEGER NOT NULL DEFAULT 0`) e lista de "sem previsão" de vencimentos exclui perpétuos.
 
 <!-- Managed by /sddp-plan: full rewrite of this section only; all other content preserved. -->
 

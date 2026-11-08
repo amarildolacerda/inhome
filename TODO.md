@@ -2,6 +2,9 @@
 
 Custom project TODOs. Agents read this file at session start.
 
+## em execução
+   E017
+   
 ## Pending
 
 ### V1
