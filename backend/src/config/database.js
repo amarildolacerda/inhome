@@ -157,6 +157,7 @@ const CONTRACTS_DDL = `CREATE TABLE IF NOT EXISTS contracts (
     purpose_id INTEGER REFERENCES purposes(id),
     start_date TEXT NOT NULL,
     forecast_date TEXT NOT NULL,
+    perpetual INTEGER NOT NULL DEFAULT 0,
     status INTEGER NOT NULL DEFAULT ${code('contracts.status', 'vigente')} CHECK (status IN ${sqlCodes('contracts.status', 'vigente', 'encerrado')}),
     created_by INTEGER REFERENCES users(id),
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -466,6 +467,9 @@ function migrateSchema(wrapper) {
       wrapper.run('ALTER TABLE contracts RENAME COLUMN finalidade_id TO purpose_id');
       wrapper.run('DROP INDEX IF EXISTS idx_contracts_finalidade');
       wrapper.run('CREATE INDEX IF NOT EXISTS idx_contracts_purpose ON contracts(purpose_id)');
+    }
+    if (!contractColumns.includes('perpetual')) {
+      wrapper.run('ALTER TABLE contracts ADD COLUMN perpetual INTEGER NOT NULL DEFAULT 0');
     }
   }
 

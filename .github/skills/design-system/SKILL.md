@@ -125,7 +125,7 @@ código, não templates para copiar literalmente.
   `projects_screen.dart:78`. Nunca exibir `code` cru nem mensagem EN do
   backend na UI.
 - **Ícones de status/urgência**: `Tooltip` com frase de significado
-  (ex.: `'Tarefas com prioridade urgente em aberto'` no dashboard).
+  (ex.: data e contagem no mapa de atividade do dashboard).
 
 ## 6. Copy
 

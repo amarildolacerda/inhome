@@ -77,3 +77,24 @@ test('FR-006 atrasado nunca é gravado', () => {
     }
   }
 });
+
+// E017 (FR-073): acceptance stub — plan.md §Acceptance Test Stubs.
+test('FR-073 perpétuo nunca atrasado', () => {
+  const now = new Date('2026-06-15T12:00:00Z');
+
+  // marcador ativo vence a previsão persistida: segue vigente
+  assert.strictEqual(
+    Contract.isOverdue({ status: 'vigente', forecast_date: '2026-06-01', perpetual: 1 }, now),
+    false
+  );
+  assert.strictEqual(
+    Contract.effectiveStatus({ status: 'vigente', forecast_date: '2026-06-01', perpetual: 1 }, now),
+    'vigente'
+  );
+
+  // sentinela '' (sem previsão) também nunca deriva atrasado
+  assert.strictEqual(
+    Contract.isOverdue({ status: 'vigente', forecast_date: '', perpetual: true }, now),
+    false
+  );
+});

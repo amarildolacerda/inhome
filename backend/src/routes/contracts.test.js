@@ -1084,3 +1084,22 @@ test('v1 removido: aliases EN sob /api/v2', async () => {
   assert.strictEqual(missingPurpose.body.error, 'purpose_id does not exist');
   assert.strictEqual(missingPurpose.body.code, 'PURPOSE_NOT_FOUND');
 });
+
+// E017 (FR-069): acceptance stub — plan.md §Acceptance Test Stubs.
+test('FR-069 forecast opcional só com perpétuo', async () => {
+  // marcador ativo sem previsão → criado com forecast_date vazio
+  const perpetual = await request(app)
+    .post('/api/v2/contracts')
+    .set(as(gestorToken))
+    .send({ name: 'Perpétuo Sem Previsão', start_date: '2026-01-01', perpetual: true });
+  assert.strictEqual(perpetual.status, 201, JSON.stringify(perpetual.body));
+  assert.strictEqual(perpetual.body.contract.perpetual, true, 'marker exported');
+  assert.strictEqual(perpetual.body.contract.forecast_date, '', 'forecast optional with marker');
+
+  // sem marcador e sem previsão → 400 (data exigida)
+  const semPrevisao = await request(app)
+    .post('/api/v2/contracts')
+    .set(as(gestorToken))
+    .send({ name: 'Sem Previsão Bloqueado', start_date: '2026-01-01' });
+  assert.strictEqual(semPrevisao.status, 400, JSON.stringify(semPrevisao.body));
+});

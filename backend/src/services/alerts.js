@@ -85,11 +85,11 @@ async function runExpirySweep({ notifyFn, domainId, emailTimeoutMs } = {}) {
       const db = getDomainDb(domain.id);
       const windows = readWindows(domain.alert_windows);
       const contracts = db.all(
-        `SELECT c.id, c.name, c.forecast_date, u.email AS creator_email
+        `SELECT c.id, c.name, c.forecast_date, c.perpetual, u.email AS creator_email
          FROM contracts c LEFT JOIN users u ON u.id = c.created_by`
       );
       for (const contract of contracts) {
-        if (!contract.forecast_date) continue;
+        if (contract.perpetual || !contract.forecast_date) continue;
         const days = daysUntil(contract.forecast_date);
         if (days < 0) continue;
         // FR-005/SC-001: one alert per pass — the tightest window that still

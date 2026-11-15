@@ -28,9 +28,22 @@ function validDate(value) {
   return typeof value === 'string' && DATE_RE.test(value) && !Number.isNaN(Date.parse(value));
 }
 
+function normalizePerpetual(value) {
+  if (typeof value === 'string') {
+    return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
+  }
+  return Boolean(value);
+}
+
 function parseBodyDates(body) {
   if (!body.start_date || !validDate(body.start_date)) throw httpError(400, 'start_date must be YYYY-MM-DD');
-  if (!body.forecast_date || !validDate(body.forecast_date)) {
+  const perpetual = normalizePerpetual(body.perpetual);
+  const forecast = body.forecast_date ?? '';
+  if (perpetual) {
+    if (forecast && !validDate(forecast)) throw httpError(400, 'forecast_date must be YYYY-MM-DD');
+    return;
+  }
+  if (!forecast || !validDate(forecast)) {
     throw httpError(400, 'forecast_date must be YYYY-MM-DD');
   }
 }
@@ -50,6 +63,9 @@ function createContract(req, res) {
     if (!body.name || !String(body.name).trim()) throw httpError(400, 'name is required');
     parseBodyDates(body);
 
+    const perpetual = normalizePerpetual(body.perpetual) ? 1 : 0;
+    const forecastDate = body.perpetual && (!body.forecast_date || body.forecast_date === '') ? '' : body.forecast_date;
+
     let purposeId = null;
     if (body.purpose_id !== undefined && body.purpose_id !== null) {
       const purpose = db.get('SELECT id, active FROM purposes WHERE id = ?', [
@@ -61,14 +77,15 @@ function createContract(req, res) {
     }
 
     db.run(
-      `INSERT INTO contracts(name, object, purpose_id, start_date, forecast_date, created_by)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO contracts(name, object, purpose_id, start_date, forecast_date, perpetual, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         String(body.name).trim(),
         body.object ? String(body.object) : null,
         purposeId,
         body.start_date,
-        body.forecast_date,
+        forecastDate,
+        perpetual,
         req.user.id,
       ]
     );
@@ -118,10 +135,10 @@ function listContracts(req, res) {
         statusWhere = ' WHERE c.status = ?';
         statusParams.push(code('contracts.status', 'encerrado'));
       } else if (wanted === 'vigente') {
-        statusWhere = " WHERE c.status = ? AND c.forecast_date >= date('now')";
+        statusWhere = " WHERE c.status = ? AND (c.perpetual = 1 OR c.forecast_date >= date('now'))";
         statusParams.push(vigente);
       } else {
-        statusWhere = " WHERE c.status = ? AND c.forecast_date < date('now')";
+        statusWhere = " WHERE c.status = ? AND c.perpetual = 0 AND c.forecast_date < date('now')";
         statusParams.push(vigente);
       }
     }
@@ -182,14 +199,15 @@ function updateContract(req, res) {
       fields.push('purpose_id = ?');
       params.push(body.purpose_id === null ? null : Number(body.purpose_id));
     }
-    if (body.start_date !== undefined || body.forecast_date !== undefined) {
+    if (body.start_date !== undefined || body.forecast_date !== undefined || body.perpetual !== undefined) {
       const start = body.start_date ?? row.start_date;
-      const forecast = body.forecast_date ?? row.forecast_date;
-      if (!validDate(start) || !validDate(forecast)) {
+      const perpetual = body.perpetual !== undefined ? normalizePerpetual(body.perpetual) : Boolean(row.perpetual);
+      const forecast = body.forecast_date !== undefined ? (body.forecast_date ?? '') : (row.forecast_date ?? '');
+      if (!validDate(start) || (!perpetual && !forecast) || (!perpetual && !validDate(forecast))) {
         return res.status(400).json({ error: 'dates must be YYYY-MM-DD' });
       }
-      fields.push('start_date = ?', 'forecast_date = ?');
-      params.push(start, forecast);
+      fields.push('start_date = ?', 'forecast_date = ?', 'perpetual = ?');
+      params.push(start, forecast, perpetual ? 1 : 0);
     }
     if (!fields.length) return res.json({ contract: Contract.decorate(db, row) });
     fields.push("updated_at = datetime('now')");
@@ -354,7 +372,8 @@ const CONTRACT_SCHEMA = {
   name: { required: true, type: 'string', min: 1, max: 200 },
   object: { type: 'string', max: 2000 },
   start_date: { required: true, type: 'date' },
-  forecast_date: { required: true, type: 'date' },
+  forecast_date: { type: 'date' },
+  perpetual: { type: 'boolean' },
   purpose_id: { type: 'integer', min: 1 },
 };
 

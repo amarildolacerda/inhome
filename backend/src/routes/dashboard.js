@@ -44,12 +44,39 @@ function summarizeTasks(rows) {
   };
 }
 
+function toBoolean(value) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+  if (typeof value === 'string') return ['1', 'true', 'yes', 'on'].includes(value.toLowerCase());
+  return false;
+}
+
 function summarizeContracts(rows) {
   const counts = { vigente: 0, atrasado: 0, encerrado: 0 };
   for (const row of rows) {
-    counts[Contract.effectiveStatus({ ...row, status: label('contracts.status', row.status) })] += 1;
+    const effective = Contract.effectiveStatus({
+      ...row,
+      status: label('contracts.status', row.status),
+      perpetual: row.perpetual,
+    });
+    counts[effective] += 1;
   }
   return counts;
+}
+
+function contractTaskCounts(db, contractId) {
+  const row = db.get(
+    `SELECT COUNT(*) AS total,
+            SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) AS done,
+            SUM(CASE WHEN status != ? AND due_date IS NOT NULL AND due_date < date('now') THEN 1 ELSE 0 END) AS overdue
+     FROM tasks WHERE contract_id = ?`,
+    [code('tasks.status', 'Concluída'), code('tasks.status', 'Concluída'), contractId]
+  );
+  return {
+    tasks_total: Number(row?.total || 0),
+    tasks_done: Number(row?.done || 0),
+    tasks_overdue: Number(row?.overdue || 0),
+  };
 }
 
 function summarizeDailyActivity(db, user) {
@@ -94,7 +121,9 @@ function isAVencer(row, windows) {
   const effective = Contract.effectiveStatus({
     ...row,
     status: label('contracts.status', row.status),
+    perpetual: row.perpetual,
   });
+  if (toBoolean(row.perpetual)) return false;
   if (effective !== 'vigente' || !row.forecast_date) return false;
   const days = daysUntil(row.forecast_date);
   return days >= 0 && windows.some((window) => window >= days);
@@ -112,7 +141,7 @@ function getDomainMetrics(db, user) {
       db.all('SELECT status, priority, due_date FROM tasks WHERE assignee_id = ?', [user.id])
     );
     const linkedContracts = db.all(
-      `SELECT c.id, c.name, c.status, c.forecast_date, c.updated_at, c.created_by
+      `SELECT c.id, c.name, c.status, c.forecast_date, c.perpetual, c.updated_at, c.created_by
        FROM contracts c
        JOIN contract_providers cp ON cp.contract_id = c.id AND cp.user_id = ?
        ORDER BY c.id`,
@@ -144,20 +173,31 @@ function getDomainMetrics(db, user) {
       },
       tasksByPriority: tasks.byPriority,
       tasksByStatus: tasks.byStatusList,
-      contracts: linkedContracts.map((row) => ({
-        ...row,
-        status: label('contracts.status', row.status),
-        effective_status: Contract.effectiveStatus({ ...row, status: label('contracts.status', row.status) }),
-        a_vencer: isAVencer(row, windows),
-        responsavel: row.created_by
-          ? (db.get('SELECT name FROM users WHERE id = ?', [row.created_by])?.name ?? null)
-          : null,
-      })),
+      contracts: linkedContracts.map((row) => {
+        const counts = contractTaskCounts(db, row.id);
+        return {
+          ...row,
+          perpetual: Boolean(row.perpetual),
+          ...counts,
+          status: label('contracts.status', row.status),
+          effective_status: Contract.effectiveStatus({
+            ...row,
+            status: label('contracts.status', row.status),
+            perpetual: row.perpetual,
+          }),
+          a_vencer: isAVencer(row, windows),
+          responsavel: row.created_by
+            ? (db.get('SELECT name FROM users WHERE id = ?', [row.created_by])?.name ?? null)
+            : null,
+        };
+      }),
       recentProjects: [],
     };
   }
 
-  const allContracts = db.all('SELECT id, name, status, forecast_date, updated_at, created_by FROM contracts ORDER BY id');
+  const allContracts = db.all(
+    'SELECT id, name, status, forecast_date, perpetual, updated_at, created_by FROM contracts ORDER BY id'
+  );
   const contracts = summarizeContracts(allContracts);
   const tasks = summarizeTasks(db.all('SELECT status, priority, due_date FROM tasks'));
   const usersTotal = db.get('SELECT COUNT(*) AS c FROM users').c;
@@ -167,22 +207,25 @@ function getDomainMetrics(db, user) {
   const recentProjects = allContracts
     .slice(-5)
     .reverse()
-    .map((row) => ({
-      ...row,
-      status: label('contracts.status', row.status),
-      effective_status: Contract.effectiveStatus({
+    .map((row) => {
+      const counts = contractTaskCounts(db, row.id);
+      return {
         ...row,
+        perpetual: Boolean(row.perpetual),
+        ...counts,
         status: label('contracts.status', row.status),
-      }),
-      responsavel: row.created_by
-        ? (db.get('SELECT name FROM users WHERE id = ?', [row.created_by])?.name ?? null)
-        : null,
-      task_count: db.get('SELECT COUNT(*) AS c FROM tasks WHERE contract_id = ?', [row.id]).c,
-      completed_count: db.get('SELECT COUNT(*) AS c FROM tasks WHERE contract_id = ? AND status = ?', [
-        row.id,
-        code('tasks.status', 'Concluída'),
-      ]).c,
-    }));
+        effective_status: Contract.effectiveStatus({
+          ...row,
+          status: label('contracts.status', row.status),
+          perpetual: row.perpetual,
+        }),
+        responsavel: row.created_by
+          ? (db.get('SELECT name FROM users WHERE id = ?', [row.created_by])?.name ?? null)
+          : null,
+        task_count: counts.tasks_total,
+        completed_count: counts.tasks_done,
+      };
+    });
 
   return {
     scope: 'domain',
@@ -204,15 +247,24 @@ function getDomainMetrics(db, user) {
     },
     tasksByPriority: tasks.byPriority,
     tasksByStatus: tasks.byStatusList,
-    contracts: allContracts.map((row) => ({
-      ...row,
-      status: label('contracts.status', row.status),
-      effective_status: Contract.effectiveStatus({ ...row, status: label('contracts.status', row.status) }),
-      a_vencer: isAVencer(row, windows),
-      responsavel: row.created_by
-        ? (db.get('SELECT name FROM users WHERE id = ?', [row.created_by])?.name ?? null)
-        : null,
-    })),
+    contracts: allContracts.map((row) => {
+      const counts = contractTaskCounts(db, row.id);
+      return {
+        ...row,
+        perpetual: Boolean(row.perpetual),
+        ...counts,
+        status: label('contracts.status', row.status),
+        effective_status: Contract.effectiveStatus({
+          ...row,
+          status: label('contracts.status', row.status),
+          perpetual: row.perpetual,
+        }),
+        a_vencer: isAVencer(row, windows),
+        responsavel: row.created_by
+          ? (db.get('SELECT name FROM users WHERE id = ?', [row.created_by])?.name ?? null)
+          : null,
+      };
+    }),
     recentProjects,
   };
 }

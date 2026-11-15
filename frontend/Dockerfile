@@ -10,7 +10,10 @@ COPY pubspec.yaml ./
 RUN flutter pub get
 
 COPY . .
-RUN flutter build web --release
+# --no-web-resources-cdn serve o CanvasKit de /canvaskit em vez do CDN
+# www.gstatic.com. Sem isso, browser sem acesso ao gstatic carrega o HTML
+# (título aparece) e nunca inicializa o engine: página em branco.
+RUN flutter build web --release --no-web-resources-cdn
 
 # Stage 2: static serve on port 80
 FROM nginx:alpine

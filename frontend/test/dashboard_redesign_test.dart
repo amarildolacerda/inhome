@@ -343,4 +343,121 @@ void main() {
     expect(find.text('A vencer'), findsNothing);
     expect(find.text('Contrato vinculado'), findsOneWidget);
   });
+
+  // E017 (FR-071): acceptance stub — plan.md §Acceptance Test Stubs.
+  testWidgets('FR-071 card perpétuo sem Incompleto', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final contracts = [
+      _contract(id: 1, name: 'Vitalício', status: 'vigente', forecast: null)
+        ..['perpetual'] = true,
+      _contract(id: 2, name: 'Comum sem previsão', status: 'vigente', forecast: null),
+    ];
+    await _pump(tester, _payload(contracts));
+
+    // marcador positivo + rótulo próprio no card perpétuo
+    expect(find.text('Perpétuo'), findsOneWidget);
+    expect(find.text('Vencimento: perpétuo'), findsOneWidget);
+
+    // os derivadores de incompleto ficam só no contrato comum (SC-014)
+    expect(find.text('Incompleto'), findsOneWidget);
+    expect(find.text('Sem previsão'), findsOneWidget);
+  });
+
+  // E017 (FR-074): acceptance stub — plan.md §Acceptance Test Stubs.
+  testWidgets('FR-074 Concluído sem tarefa aberta', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final contracts = [
+      _contract(id: 1, name: 'Tudo Concluído', status: 'vigente', forecast: '2026-12-31')
+        ..['tasks_total'] = 3
+        ..['tasks_done'] = 3,
+      _contract(id: 2, name: 'Falta Uma', status: 'vigente', forecast: '2026-12-31')
+        ..['tasks_total'] = 3
+        ..['tasks_done'] = 2,
+      _contract(id: 3, name: 'Sem Tarefas', status: 'vigente', forecast: '2026-12-31'),
+    ];
+    await _pump(tester, _payload(contracts));
+
+    // só o contrato com ao menos uma tarefa e todas concluídas (SC-016)
+    expect(find.text('Concluído'), findsOneWidget);
+  });
+
+  // E017 (FR-075): acceptance stub — plan.md §Acceptance Test Stubs.
+  testWidgets('FR-075 Concluído distinto de Encerrado', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final contracts = [
+      _contract(id: 1, name: 'Encerrado Total', status: 'encerrado', forecast: '2026-01-01')
+        ..['tasks_total'] = 2
+        ..['tasks_done'] = 2,
+    ];
+    await _pump(tester, _payload(contracts));
+
+    // chip de status permanece "Encerrado"; "Concluído" é adicional (SC-019)
+    expect(find.text('Encerrado'), findsOneWidget);
+    expect(find.text('Concluído'), findsOneWidget);
+  });
+
+  // E017 (FR-077): acceptance stub — plan.md §Acceptance Test Stubs.
+  testWidgets('FR-077 marcador de tarefas atrasadas com ícone e texto',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final contracts = [
+      _contract(id: 1, name: 'Com Atraso', status: 'vigente', forecast: '2026-12-31')
+        ..['tasks_total'] = 3
+        ..['tasks_done'] = 1
+        ..['tasks_overdue'] = 2,
+      _contract(id: 2, name: 'Sem Atraso', status: 'vigente', forecast: '2026-12-31'),
+    ];
+    await _pump(tester, _payload(contracts));
+
+    // SC-017: duas vencidas → texto plural; sem vencidas, nenhum marcador
+    expect(find.text('2 tarefas atrasadas'), findsOneWidget);
+    expect(find.bySemanticsLabel('2 tarefas atrasadas'), findsOneWidget);
+
+    // ícone além do texto (nunca só cor)
+    expect(find.byIcon(Icons.warning_amber_outlined), findsWidgets);
+
+    // contrato sem tarefas vencidas não ganha marcador
+    expect(find.text('0 tarefas atrasadas'), findsNothing);
+    expect(find.text('1 tarefa atrasada'), findsNothing);
+  });
+
+  // E017 (FR-078): acceptance stub — plan.md §Acceptance Test Stubs.
+  testWidgets('FR-078 bloco KPI de tarefas atrasadas espelha o backend',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final contracts = [
+      _contract(id: 1, name: 'Qualquer', status: 'vigente', forecast: '2026-12-31'),
+    ];
+
+    // SC-018: tasksOverdue > 0 → bloco presente com o valor servido
+    final comAtraso = _payload(contracts);
+    (comAtraso['stats'] as Map<String, dynamic>)['tasksOverdue'] = 2;
+    await _pump(tester, comAtraso);
+    expect(_kpi('tarefas-atrasadas'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: _kpi('tarefas-atrasadas'),
+        matching: find.text('2'),
+      ),
+      findsOneWidget,
+    );
+
+    // SC-018: zero → o bloco some da faixa
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+    final zero = _payload(contracts);
+    (zero['stats'] as Map<String, dynamic>)['tasksOverdue'] = 0;
+    await _pump(tester, zero);
+    expect(_kpi('tarefas-atrasadas'), findsNothing);
+  });
 }

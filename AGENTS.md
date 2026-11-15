@@ -4,7 +4,7 @@ Apply the Spec-Driven Development rules below during feature delivery. Enforce t
 
 ## Lifecycle
 
-`Specify → Clarify → Plan → Checklist (optional) → Tasks → Analyze (optional) → Implement → QC`
+`Specify → Clarify → Plan → Checklist (optional) → Tasks → Analyze (optional) → Implement → QC -> commit/push`
 
 Treat this order as strict. If a required artifact for the next phase is missing, stop and return the work to the phase that owns it.
 
@@ -81,6 +81,13 @@ Product specs require `Problem Statement`, `Scope`, `User Scenarios & Testing`, 
 - `plan.md`: preserve `Instructions Check`, `Technical Context`, `Requirement Coverage Map`, and `Acceptance Test Stubs`; populate coverage paths and symbols. Size limit: ≤ **10KB**.
 - `tasks.md`: preserve `Dependencies` and existing phase headers. Size limit: ≤ **6KB** and 40 tasks.
 
+### Maintainability and File-Length Rules
+
+- Source files above **500 lines** are considered a critical maintainability risk and must be split into focused modules or extracted components before merge unless a documented exception is explicitly justified.
+- Source files above **1000 lines** require a formal review and a concrete remediation plan; they should be treated as technical debt to be reduced in the same change set or in a follow-up patch.
+- The threshold applies to the active implementation files, not generated code or vendor assets, and should be enforced in UI layers and service layers alike.
+- A file that mixes responsibilities or grows beyond the threshold is not considered acceptable by default; the preferred path is to extract widgets, helpers, controllers, or services rather than continuing to extend a single monolith.
+
 ## Communication Style
 
 Follow `project-instructions.md` section IV (Agent Output Style). That section is authoritative; do not duplicate or paraphrase its rules elsewhere.
@@ -142,5 +149,5 @@ Execute routine repository operations for real: file edits, build/test/lint comm
 
 - At session start, read `TODO.md` and surface any new custom TODOs before beginning other work.
 - At session start in a new session, read `compact.MD` (when it exists) to restore the compacted session context before beginning other work.
-- Whenever a `/compact` is executed, update `compact.MD` with the compacted content so the file stays in sync with the latest compact.
+- Whenever a `/compact` is executed, update `compact.MD` with the compacted content so the file stays in sync with the latest compact. Quando executar push no git gerar o compact.MD com resumo da sessão;
 - Unit tests gate production: run the unit test suite before any `dev` → `main` promotion and do not promote while any test fails.

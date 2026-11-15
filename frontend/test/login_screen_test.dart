@@ -139,6 +139,21 @@ void main() {
     expect(loggedIn, isTrue);
   });
 
+  testWidgets('Enter na senha envia o login sem clicar em Entrar',
+      (tester) async {
+    final store = _FakeStore();
+    var loggedIn = false;
+
+    await _pumpLogin(tester, store: store, onLogin: () => loggedIn = true);
+
+    await tester.enterText(find.byType(TextFormField).at(0), 'ana@dom.com');
+    await tester.enterText(find.byType(TextFormField).at(1), 'senha123');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(loggedIn, isTrue);
+  });
+
   testWidgets('falha na loja não derruba o login', (tester) async {
     var loggedIn = false;
 
