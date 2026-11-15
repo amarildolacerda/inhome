@@ -275,6 +275,8 @@ class _CreateContractDialogState extends State<_CreateContractDialog> {
   String? _nameError;
   String? _startError;
   String? _forecastError;
+  // E017 (FR-069): marcador perpétuo torna a previsão opcional no cadastro.
+  bool _perpetual = false;
 
   @override
   void dispose() {
@@ -319,9 +321,14 @@ class _CreateContractDialogState extends State<_CreateContractDialog> {
     setState(() {
       _nameError = name.isEmpty ? 'Informe o nome' : null;
       _startError = _startDate == null ? 'Informe a data de início' : null;
-      _forecastError = _forecastDate == null
+      // FR-069: previsão exigida só sem o marcador; com o marcador a data é
+      // opcional, mas se preenchida continua validada contra o início.
+      final missingForecast = !_perpetual && _forecastDate == null;
+      _forecastError = missingForecast
           ? 'Informe a data de previsão'
-          : (_startDate != null && _forecastDate!.isBefore(_startDate!)
+          : (_forecastDate != null &&
+                  _startDate != null &&
+                  _forecastDate!.isBefore(_startDate!)
               ? 'Previsão deve ser igual ou posterior ao início'
               : null);
     });
@@ -338,7 +345,8 @@ class _CreateContractDialogState extends State<_CreateContractDialog> {
         name: name,
         object: object.isEmpty ? null : object,
         startDate: _iso(_startDate!),
-        forecastDate: _iso(_forecastDate!),
+        forecastDate: _forecastDate == null ? '' : _iso(_forecastDate!),
+        perpetual: _perpetual,
       ),
     );
   }
@@ -394,6 +402,18 @@ class _CreateContractDialogState extends State<_CreateContractDialog> {
                   suffixIcon: const Icon(Icons.calendar_today_outlined),
                   errorText: _forecastError,
                 ),
+              ),
+              const SizedBox(height: 12),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Contrato perpétuo'),
+                subtitle: const Text('Sem término previsto; previsão opcional'),
+                value: _perpetual,
+                onChanged: (value) => setState(() {
+                  _perpetual = value;
+                  // com o marcador ativo a previsão deixa de ser obrigatória
+                  if (value && _forecastDate == null) _forecastError = null;
+                }),
               ),
             ],
           ),

@@ -1,42 +1,30 @@
 part of 'suggestion_panel.dart';
 
 mixin SuggestionPanelLogic on State<SuggestionPanel> {
-  ApiService get api;
-  bool get _analysisLoading;
-  set _analysisLoading(bool value);
-  Map<String, dynamic>? get _analysis;
-  set _analysis(Map<String, dynamic>? value);
-  String? get _analysisLoadError;
-  set _analysisLoadError(String? value);
-  bool get _analysisBusy;
-  set _analysisBusy(bool value);
-  Timer? get _analysisPoll;
-  set _analysisPoll(Timer? value);
-  bool get _pollInFlight;
-  set _pollInFlight(bool value);
+  // Estado concreto do painel — os dois mixins (lógica e UI) compartilham
+  // estes campos via escopo de biblioteca; o refactor de E017 removeu os
+  // contratos abstratos duplicados que causavam unused/annotate warnings.
+  final api = ApiService();
 
-  bool get _suggestionsLoading;
-  set _suggestionsLoading(bool value);
-  List<Map<String, dynamic>> get _suggestions;
-  set _suggestions(List<Map<String, dynamic>> value);
-  int? get _knownAnalysisSuggestion;
-  set _knownAnalysisSuggestion(int? value);
+  bool _analysisLoading = true;
+  Map<String, dynamic>? _analysis;
+  String? _analysisLoadError;
+  bool _analysisBusy = false;
+  Timer? _analysisPoll;
+  bool _pollInFlight = false;
 
-  int? get _selectedId;
-  set _selectedId(int? value);
-  bool get _itemsLoading;
-  set _itemsLoading(bool value);
-  Map<String, dynamic>? get _selected;
-  set _selected(Map<String, dynamic>? value);
-  List<Map<String, dynamic>> get _items;
-  set _items(List<Map<String, dynamic>> value);
-  String? get _itemsError;
-  set _itemsError(String? value);
-  bool get _busy;
-  set _busy(bool value);
+  bool _suggestionsLoading = true;
+  List<Map<String, dynamic>> _suggestions = const [];
+  int? _knownAnalysisSuggestion;
 
-  StreamSubscription<Map<String, dynamic>>? get _eventsSub;
-  set _eventsSub(StreamSubscription<Map<String, dynamic>>? value);
+  int? _selectedId;
+  bool _itemsLoading = false;
+  Map<String, dynamic>? _selected;
+  List<Map<String, dynamic>> _items = const [];
+  String? _itemsError;
+  bool _busy = false;
+
+  StreamSubscription<Map<String, dynamic>>? _eventsSub;
 
   @override
   void initState() {

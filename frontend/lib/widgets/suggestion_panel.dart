@@ -39,26 +39,4 @@ class SuggestionPanel extends StatefulWidget {
 }
 
 class _SuggestionPanelState extends State<SuggestionPanel>
-    with SuggestionPanelLogic, SuggestionPanelUi {
-  final api = ApiService();
-
-  bool _analysisLoading = true;
-  Map<String, dynamic>? _analysis;
-  String? _analysisLoadError;
-  bool _analysisBusy = false;
-  Timer? _analysisPoll;
-  bool _pollInFlight = false;
-
-  bool _suggestionsLoading = true;
-  List<Map<String, dynamic>> _suggestions = const [];
-  int? _knownAnalysisSuggestion;
-
-  int? _selectedId;
-  bool _itemsLoading = false;
-  Map<String, dynamic>? _selected;
-  List<Map<String, dynamic>> _items = const [];
-  String? _itemsError;
-  bool _busy = false;
-
-  StreamSubscription<Map<String, dynamic>>? _eventsSub;
-}
+    with SuggestionPanelLogic, SuggestionPanelUi {}

@@ -17,6 +17,7 @@ dod_source: none
 | **Categories** | 15 PRODUCT, 0 TECHNICAL, 0 OPERATIONAL |
 | **Author** | Amarildo de Lacerda |
 | **Waves** | 7 |
+| **Progress** | 15/15 épicos concluídos — Waves 1–7 completas |
 
 ## Epic Checklist
 
@@ -68,7 +69,7 @@ dod_source: none
 
 > Pedido do usuário em 2026-11-04: o card do painel precisa distinguir contrato perpétuo de cadastro incompleto, mostrar conclusão do trabalho e sinalizar tarefas abertas com prazo vencido. E017 estende o card de E013 e a tabela de E002 com uma coluna aditiva; não cria endpoint novo.
 
-- [ ] E017 [P1] [PRODUCT] {PRD:CAP-002,CAP-004,CAP-005} Indicadores do painel de contratos — perpétuo, conclusão e tarefas atrasadas [→ Details](plan/E017.md)
+- [X] E017 [P1] [PRODUCT] {PRD:CAP-002,CAP-004,CAP-005} Indicadores do painel de contratos — perpétuo, conclusão e tarefas atrasadas [→ Details](plan/E017.md)
 
 ## Dependency Diagram
 
@@ -99,15 +100,17 @@ Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_
 
 ## Execution Wave Summary
 
-| Wave | Epics | All Parallel? | Notes |
-|------|-------|---------------|-------|
-| 1 | E001, E002, E003, E006, E007, E009 | Não | E007 sem `[P]`: `ensureIndexes()` e as consultas de contrato/tarefa em `config/database.js` são superfície compartilhada com E002/E003 |
-| 2 | E004, E008 | Sim | E004 escreve a migração de `alert_events`; E008 é leitura pura sobre `services/report.js` |
-| 3 | E005, E010 | Sim | E005 só consome a API de alertas de E004; E010 só valida gatilhos de envio |
-| 4 | E011 | Sim | Leitura sobre `tasks`/`task_history` já entregues (E003); classificação é coluna aditiva |
-| 5 | E012 | Sim | Decide e mantém `tasks` de E003 sob os guards de E001; `category` é coluna aditiva em anexos já entregues |
-| 6 | E013, E014 | Não | Só frontend, sem backend novo; sequenciais entre si por `app_theme.dart`/`main.dart` compartilhados |
-| 7 | E017 | Sim | Coluna aditiva em `contracts` de E002 e extensão do payload do dashboard; consome `tasks` de E003 e a lista de E005 |
+| Wave | Epics | All Parallel? | Status | Concluída em | Notes |
+|------|-------|---------------|--------|--------------|-------|
+| 1 | E001, E002, E003, E006, E007, E009 | Não | Concluída | 2026-10-23 | E007 sem `[P]`: `ensureIndexes()` e as consultas de contrato/tarefa em `config/database.js` são superfície compartilhada com E002/E003 |
+| 2 | E004, E008 | Sim | Concluída | 2026-10-23 | E004 escreve a migração de `alert_events`; E008 é leitura pura sobre `services/report.js` |
+| 3 | E005, E010 | Sim | Concluída | 2026-10-23 | E005 só consome a API de alertas de E004; E010 só valida gatilhos de envio |
+| 4 | E011 | Sim | Concluída | 2026-10-23 | Leitura sobre `tasks`/`task_history` já entregues (E003); classificação é coluna aditiva |
+| 5 | E012 | Sim | Concluída | 2026-10-23 | Decide e mantém `tasks` de E003 sob os guards de E001; `category` é coluna aditiva em anexos já entregues |
+| 6 | E013, E014 | Não | Concluída | 2026-10-30 | Só frontend, sem backend novo; sequenciais entre si por `app_theme.dart`/`main.dart` compartilhados |
+| 7 | E017 | Sim | Concluída | 2026-11-15 | Coluna aditiva em `contracts` de E002 e extensão do payload do dashboard; consome `tasks` de E003 e a lista de E005 |
+
+> **Status**: derivado dos checkboxes da Epic Checklist (onda concluída = todos os épicos `[X]`); data = último `QC Passed` dos markers `.qc-passed` dos épicos da onda.
 
 ## Parallel Execution Guidance
 

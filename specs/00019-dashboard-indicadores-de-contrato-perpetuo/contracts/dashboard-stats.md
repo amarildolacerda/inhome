@@ -9,8 +9,8 @@
 |---|---|---|
 | `perpetual` | boolean | Marcador do contrato, default `false` (FR-070). Mesmo valor para todo papel. |
 | `tasks_total` | integer | Tarefas do contrato, igual para todo papel (FR-076). |
-| `tasks_done` | integer | Conta só o status "Concluída" (FR-076). |
-| `tasks_overdue` | integer | Não concluída com `due_date` anterior a hoje (UTC); `due_date` vazia nunca conta (FR-076). |
+| `tasks_done` | integer | Conta só o status "Concluída", igual para todo papel (FR-076). |
+| `tasks_overdue` | integer | Não concluída com `due_date` anterior a hoje (UTC); `due_date` vazia nunca conta; igual para todo papel (FR-076). |
 
 O card deriva "Concluído" de `tasks_total > 0 && tasks_done == tasks_total` (FR-074, FR-075); nenhum campo extra.
 

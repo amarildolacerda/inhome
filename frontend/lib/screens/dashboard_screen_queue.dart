@@ -109,6 +109,11 @@ class _QueueSection extends StatelessWidget {
 /// Linha da fila: trilho de status à esquerda, nome + chip, vencimento e
 /// responsável. Com papel de domínio a linha inteira roteia para o canal de
 /// tarefas do contrato (GET /contracts/:id → ContractDetailScreen).
+/// Conversão tolerante dos campos numéricos do payload (`tasks_total` etc.
+/// chegam como int ou string conforme o serializador).
+int _asInt(dynamic value) =>
+    value is num ? value.toInt() : int.tryParse('$value') ?? 0;
+
 class _ContractRow extends StatefulWidget {
   const _ContractRow({
     required this.contract,
@@ -216,6 +221,14 @@ class _ContractRowState extends State<_ContractRow> {
     final forecastLabel =
         incomplete ? 'Sem previsão' : 'Vencimento: ${perpetual ? 'perpétuo' : _formatForecast(forecastRaw)}';
 
+    // E017 (FR-074/FR-076): contagens por contrato no payload do painel.
+    final tasksTotal = _asInt(contract['tasks_total'] ?? contract['task_count']);
+    final tasksDone = _asInt(contract['tasks_done'] ?? contract['completed_count']);
+    final tasksOverdue = _asInt(contract['tasks_overdue']);
+    // FR-074: ao menos uma tarefa e todas concluídas — sinal adicional que
+    // nunca substitui o chip de status (FR-075/SC-019).
+    final concluded = tasksTotal > 0 && tasksDone >= tasksTotal;
+
     // Urgência no texto do vencimento: erro quando já passou, tertiary
     // quando está na janela. A cor acompanha as palavras — nunca sozinha.
     Color forecastColor = scheme.onSurfaceVariant;
@@ -294,6 +307,8 @@ class _ContractRowState extends State<_ContractRow> {
                   ),
                   if (perpetual) const _PerpetualTag(),
                   if (incomplete) const _IncompleteTag(),
+                  if (concluded) const _ConcludedTag(),
+                  if (tasksOverdue > 0) _OverdueTasksTag(count: tasksOverdue),
                 ],
               ),
               const SizedBox(height: 4),
@@ -334,83 +349,6 @@ class _ContractRowState extends State<_ContractRow> {
   }
 }
 
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.label, required this.block});
-
-  final String label;
-  final ({Color background, Color foreground}) block;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: block.background,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: AppTheme.panel(
-          12,
-          weight: 600,
-          height: 1.2,
-          color: block.foreground,
-        ),
-      ),
-    );
-  }
-}
-
-/// Marcador de contrato sem previsão — texto + tag, nunca só cor.
-class _IncompleteTag extends StatelessWidget {
-  const _IncompleteTag();
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: scheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        'Incompleto',
-        style: AppTheme.panel(
-          12,
-          weight: 600,
-          height: 1.2,
-          color: scheme.onSecondaryContainer,
-        ),
-      ),
-    );
-  }
-}
-
-class _PerpetualTag extends StatelessWidget {
-  const _PerpetualTag();
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: scheme.tertiaryContainer,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        'Perpétuo',
-        style: AppTheme.panel(
-          12,
-          weight: 600,
-          height: 1.2,
-          color: scheme.onTertiaryContainer,
-        ),
-      ),
-    );
-  }
-}
 
 /// FR-043: filtros no corpo (status, responsável, busca) — sem AppBar extra.
 /// No largo entram no rail direito; no estreito, acima da fila. Persistem

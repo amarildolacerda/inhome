@@ -9,6 +9,7 @@ part 'dashboard_screen_kpis.dart';
 part 'dashboard_screen_queue.dart';
 part 'dashboard_screen_filters.dart';
 part 'dashboard_screen_activity.dart';
+part 'dashboard_screen_tags.dart';
 
 /// Painel do domínio (admin/gestor) ou da fila pessoal (prestador) — os
 /// mesmos dados de GET /dashboard/stats em composição nova (E013):

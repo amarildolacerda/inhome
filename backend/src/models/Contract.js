@@ -26,6 +26,15 @@ function isOverdue(row, now = new Date()) {
   return row.forecast_date < todayIso(now);
 }
 
+// E017 (FR-072, glossário "Incompleto / Sem previsão"): não perpétuo e sem
+// previsão. O marcador é a autoridade sobre forecast_date — a data
+// persistida de um perpétuo é ignorada, nunca o contrário (AD-003: predicado
+// único consumido pelos derivadores de incompleto).
+function isIncomplete(row) {
+  if (!row || isPerpetual(row)) return false;
+  return !row.forecast_date;
+}
+
 function effectiveStatus(row, now = new Date()) {
   if (!row) return null;
   if (row.status === 'encerrado') return 'encerrado';
@@ -36,6 +45,7 @@ function effectiveStatus(row, now = new Date()) {
 class Contract {
   static isOverdue = isOverdue;
   static effectiveStatus = effectiveStatus;
+  static isIncomplete = isIncomplete;
 
   static findById(db, id) {
     const row = db.get('SELECT * FROM contracts WHERE id = ?', [Number(id)]);

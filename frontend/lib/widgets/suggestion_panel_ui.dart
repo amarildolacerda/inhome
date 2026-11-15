@@ -1,61 +1,8 @@
 part of 'suggestion_panel.dart';
 
-mixin SuggestionPanelUi on State<SuggestionPanel> {
-  ApiService get api;
-  bool get _analysisLoading;
-  set _analysisLoading(bool value);
-  Map<String, dynamic>? get _analysis;
-  set _analysis(Map<String, dynamic>? value);
-  String? get _analysisLoadError;
-  set _analysisLoadError(String? value);
-  bool get _analysisBusy;
-  set _analysisBusy(bool value);
-  Timer? get _analysisPoll;
-  set _analysisPoll(Timer? value);
-  bool get _pollInFlight;
-  set _pollInFlight(bool value);
-
-  bool get _suggestionsLoading;
-  set _suggestionsLoading(bool value);
-  List<Map<String, dynamic>> get _suggestions;
-  set _suggestions(List<Map<String, dynamic>> value);
-  int? get _knownAnalysisSuggestion;
-  set _knownAnalysisSuggestion(int? value);
-
-  int? get _selectedId;
-  set _selectedId(int? value);
-  bool get _itemsLoading;
-  set _itemsLoading(bool value);
-  Map<String, dynamic>? get _selected;
-  set _selected(Map<String, dynamic>? value);
-  List<Map<String, dynamic>> get _items;
-  set _items(List<Map<String, dynamic>> value);
-  String? get _itemsError;
-  set _itemsError(String? value);
-  bool get _busy;
-  set _busy(bool value);
-
-  StreamSubscription<Map<String, dynamic>>? get _eventsSub;
-  set _eventsSub(StreamSubscription<Map<String, dynamic>>? value);
-
-  bool get _running;
-  bool get _editable;
-  int get _keptCount;
-
-  Future<void> _reload();
-  Future<void> _loadSelectedItems();
-  Future<void> _startAnalysis();
-  Future<void> _retryAnalysis();
-  Future<void> _refine();
-  Future<void> _approve();
-  Future<void> _rejectSuggestion();
-  Future<void> _editItem(Map<String, dynamic> item);
-  Future<void> _removeItem(Map<String, dynamic> item);
-  Future<void> _restoreItem(Map<String, dynamic> item);
-  int? _idOf(Map<String, dynamic> item);
-  String _analysisStatusLabel(String? status);
-  String _analysisErrorText(Object error);
-  String _refineErrorText(Object error);
+// Os campos e métodos que este mixin usa (estado, reload, análise, revisão)
+// vivem em SuggestionPanelLogic — a restrição `on` os traz ao escopo estático.
+mixin SuggestionPanelUi on State<SuggestionPanel>, SuggestionPanelLogic {
 
   @override
   Widget build(BuildContext context) {

@@ -39,7 +39,7 @@
 - https://sqlite.org/datatype3.html
 
 ### Summary
-Ship three text signals, an explicit perpetual flag, and an additive migration. Open question: does contract closure gate work completion?
+Ship three text signals, an explicit perpetual flag, and an additive migration.
 
 ### Sources Index
 | URL | Topic | Publisher | Updated | Accessed |

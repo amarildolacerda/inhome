@@ -93,6 +93,52 @@ test('username migration for legacy domain dbs', async () => {
   assert.strictEqual(row.username, null, 'migrated column is nullable');
 });
 
+// E017 (FR-069): domains created before the perpetual marker gain it on
+// open — PRAGMA table_info guard + single ALTER, same pattern as username.
+// The reopen proves idempotency: a second migrateSchema pass must skip the
+// ALTER instead of failing on "duplicate column name".
+test('perpetual migration for legacy domain dbs', async () => {
+  const SQL = await database.initSqlDriver();
+  const platform = database.getPlatformDb();
+  platform.run('INSERT INTO domains(name, slug) VALUES (?, ?)', ['LegacyPerpetual', 'legacy-perpetual']);
+  const legacy = platform.get('SELECT id FROM domains WHERE slug = ?', ['legacy-perpetual']);
+
+  // contracts table written straight to disk without the marker column
+  const file = path.join(dataDir, 'domains', `${legacy.id}.db`);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const raw = new SQL.Database();
+  raw.run(`CREATE TABLE contracts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    object TEXT,
+    purpose_id INTEGER REFERENCES purposes(id),
+    start_date TEXT NOT NULL,
+    forecast_date TEXT NOT NULL,
+    status INTEGER NOT NULL DEFAULT 1 CHECK (status IN (1,2)),
+    created_by INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  fs.writeFileSync(file, Buffer.from(raw.export()));
+  raw.close();
+
+  const db = database.getDomainDb(legacy.id);
+  let columns = db.all('PRAGMA table_info(contracts)').map((column) => column.name);
+  assert.ok(columns.includes('perpetual'), 'perpetual column migrated');
+  db.run("INSERT INTO contracts(name, start_date, forecast_date) VALUES ('Legado', '2026-01-01', '2026-12-31')");
+  assert.strictEqual(db.get('SELECT perpetual FROM contracts').perpetual, 0, 'legacy row defaults to 0');
+
+  // reopen: migrateSchema runs again and the guard must skip the ALTER
+  database.resetDatabaseCache();
+  await database.initSqlDriver();
+  const reopened = database.getDomainDb(legacy.id);
+  columns = reopened.all('PRAGMA table_info(contracts)').map((column) => column.name);
+  assert.strictEqual(columns.filter((name) => name === 'perpetual').length, 1, 'migration idempotent on reopen');
+
+  // restore the shared driver/platform for the tests that follow
+  database.getPlatformDb();
+});
+
 // E011 (FR-005): domains created before the auditor role carry the old role
 // CHECK — SQLite cannot ALTER it, so the users table is rebuilt in place on
 // open: existing rows keep their ids, auditor becomes insertable.

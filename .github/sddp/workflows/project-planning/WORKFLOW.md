@@ -206,7 +206,7 @@ Required sections in order:
 |---------|---------|
 | Epic Checklist | Waves with `### Wave N — [title]` + blockquote notes + epic checklist lines |
 | Dependency Diagram | Mermaid `graph LR` AoA style (nodes=milestones, arrows=epics, `<br>` for breaks, ≤30 nodes) |
-| Execution Wave Summary | Table: Wave, Epics, All Parallel?, Notes |
+| Execution Wave Summary | Table: Wave, Epics, All Parallel?, Status, Concluída em, Notes — Status = Concluída (todos os épicos da onda `[X]`) ou Em execução; Concluída em = último `QC Passed` dos `.qc-passed` dos épicos da onda (`—` quando em execução) |
 | Parallel Execution Guidance | Independent Epics, Integration Risks, Shared Resource Conflicts |
 | Coverage Validation | 3 tables: PRD `CAP-###→E###`, SAD `ADR-NNNN→E###`, DOD `DDR-###→E###`. Uncovered items with rationale. |
 | Shared Artifact Surface | 3 tables: Shared Data Entities, API Surfaces, Libraries/Modules — Introduced by + Consumed by |

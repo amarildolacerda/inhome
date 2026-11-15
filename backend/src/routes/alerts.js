@@ -17,6 +17,7 @@ const { authenticateToken, requireRole, scopeDomain } = require('../middleware/a
 const { runExpirySweep, readWindows, daysUntil, parseWindowsStrict } = require('../services/alerts');
 const { getPlatformDb, getDomainDb } = require('../config/database');
 const { code } = require('../config/enums');
+const Contract = require('../models/Contract');
 
 const mountAlertsRouter = express.Router();
 
@@ -61,10 +62,10 @@ function listPanel(req, res) {
     const offset = Math.max(Number(req.query.offset) || 0, 0);
 
     const rows = db.all(
-      `SELECT c.id, c.name, c.forecast_date,
-              (CASE WHEN c.forecast_date IS NULL OR c.forecast_date = '' THEN 1 ELSE 0 END) AS incomplete,
+      `SELECT c.id, c.name, c.forecast_date, c.perpetual,
+              (CASE WHEN c.perpetual = 0 AND (c.forecast_date IS NULL OR c.forecast_date = '') THEN 1 ELSE 0 END) AS incomplete,
               COUNT(*) OVER () AS total,
-              SUM(CASE WHEN c.forecast_date IS NULL OR c.forecast_date = '' THEN 1 ELSE 0 END) OVER () AS incomplete_total,
+              SUM(CASE WHEN c.perpetual = 0 AND (c.forecast_date IS NULL OR c.forecast_date = '') THEN 1 ELSE 0 END) OVER () AS incomplete_total,
               (SELECT GROUP_CONCAT(window_days || '=' || COALESCE(email_status, ''))
                  FROM alert_events ae
                 WHERE ae.contract_id = c.id) AS event_pairs
@@ -83,7 +84,7 @@ function listPanel(req, res) {
     } else {
       const counts = db.get(
         `SELECT COUNT(*) AS total,
-                SUM(CASE WHEN forecast_date IS NULL OR forecast_date = '' THEN 1 ELSE 0 END) AS incomplete
+                SUM(CASE WHEN perpetual = 0 AND (forecast_date IS NULL OR forecast_date = '') THEN 1 ELSE 0 END) AS incomplete
            FROM contracts WHERE status = ? AND perpetual = 0`,
         [code('contracts.status', 'vigente')]
       );
@@ -99,7 +100,11 @@ function listPanel(req, res) {
     const complete = [];
     const incompleteItems = [];
     for (const row of rows) {
-      if (row.incomplete) {
+      // E017 (FR-072/AD-003): o predicado único de incompleto é a autoridade
+      // na camada JS; os CASEs SQL espelham a mesma regra para agregação e
+      // ORDER BY, e o WHERE `perpetual = 0` mantém perpétuo fora dos blocos
+      // de vencimento (FR-073).
+      if (Contract.isIncomplete(row)) {
         // FR-001: sem previsão (NULL ou '') nunca some — sai como incompleto,
         // fora dos blocos, sem window/alertado (SC-005).
         incompleteItems.push({ id: row.id, name: row.name, forecast_date: null });

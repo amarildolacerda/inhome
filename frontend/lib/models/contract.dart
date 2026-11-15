@@ -42,6 +42,9 @@ class Contract {
   final int taskCount;
   final int completedCount;
 
+  /// E017 (FR-076): tarefas vencidas não concluídas (`tasks_overdue`).
+  final int tasksOverdue;
+
   const Contract({
     required this.id,
     required this.name,
@@ -59,6 +62,7 @@ class Contract {
     this.prestadores = const [],
     this.taskCount = 0,
     this.completedCount = 0,
+    this.tasksOverdue = 0,
   });
 
   factory Contract.fromJson(Map<String, dynamic> json) {
@@ -79,8 +83,15 @@ class Contract {
       prestadores: (json['prestadores'] as List<dynamic>? ?? const [])
           .map((item) => ContractPrestador.fromJson(Map<String, dynamic>.from(item as Map)))
           .toList(),
-      taskCount: (json['task_count'] as num?)?.toInt() ?? 0,
-      completedCount: (json['completed_count'] as num?)?.toInt() ?? 0,
+      // FR-076: o payload do painel traz tasks_total/tasks_done/tasks_overdue;
+      // task_count/completed_count são o espelho legado no mesmo JSON.
+      taskCount: (json['tasks_total'] as num?)?.toInt() ??
+          (json['task_count'] as num?)?.toInt() ??
+          0,
+      completedCount: (json['tasks_done'] as num?)?.toInt() ??
+          (json['completed_count'] as num?)?.toInt() ??
+          0,
+      tasksOverdue: (json['tasks_overdue'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -107,6 +118,12 @@ class Contract {
   DateTime? get forecastDateTime => DateTime.tryParse(forecastDate);
 
   double get progress => taskCount > 0 ? completedCount / taskCount : 0;
+
+  /// E017 (FR-074/FR-076): getters de cobertura — o card e os testes de
+  /// aceitação leem `tasksTotal`/`tasksDone` do mesmo espelho do payload.
+  int get tasksTotal => taskCount;
+
+  int get tasksDone => completedCount;
 }
 
 /// Datas do SQLite chegam como 'YYYY-MM-DD HH:MM:SS' ou ISO 8601.

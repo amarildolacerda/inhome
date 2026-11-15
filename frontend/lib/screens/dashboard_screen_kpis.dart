@@ -91,6 +91,21 @@ class _KpiBandState extends State<_KpiBand> with SingleTickerProviderStateMixin 
       ),
     ];
 
+    // E017 (FR-078/SC-018): espelha `stats.tasksOverdue` — o valor servido
+    // ("o KPI usa o servido", STF-003), não a soma dos cards; contagens por
+    // contrato são iguais para todo papel (FR-076). Estado zero oculta o
+    // bloco (STF-004/SC-018).
+    final tasksOverdue = asInt(stats['tasksOverdue']);
+    if (tasksOverdue > 0) {
+      items.add((
+        label: 'Tarefas atrasadas',
+        count: tasksOverdue,
+        block: 'atrasado',
+        key: 'kpi-tarefas-atrasadas',
+        semantic: '$tasksOverdue tarefas vencidas não concluídas',
+      ));
+    }
+
     return Row(
       children: [
         for (var i = 0; i < items.length; i++)
@@ -99,7 +114,12 @@ class _KpiBandState extends State<_KpiBand> with SingleTickerProviderStateMixin 
               key: Key(items[i].key),
               animation: _controller,
               builder: (context, child) {
-                final start = i * 0.14;
+                // E017 (FR-078): a faixa agora admite 5 segmentos — o passo
+                // do escalonamento se adapta ao tamanho para o Interval
+                // caber em [0,1] (antes: fixo em 0.14, válido só para 4).
+                final stagger =
+                    items.length > 1 ? 0.45 / (items.length - 1) : 0.0;
+                final start = i * stagger;
                 final progress = Interval(
                   start,
                   start + 0.55,

@@ -854,3 +854,35 @@ test('E010 FR-005: host morto grava failed, painel expõe failed e a varredura c
     delete process.env.SMTP_PORT;
   }
 });
+
+// E017 (FR-072): acceptance stub — plan.md §Acceptance Test Stubs.
+test('FR-072 sem previsão exclui perpétuo', async () => {
+  await ensurePanelDomain();
+  const created = await request(app)
+    .post('/api/v2/contracts')
+    .set(as(gestorCToken))
+    .send({
+      name: 'Perpétuo Sem Previsão',
+      object: 'marcado',
+      purpose_id: fimC,
+      start_date: panelDate(-10),
+      perpetual: true,
+    });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.body));
+
+  const res = await request(app).get('/api/v2/alerts/panel').set(as(gestorCToken));
+  assert.strictEqual(res.status, 200, JSON.stringify(res.body));
+  const names = res.body.items.map((i) => i.name);
+  assert.ok(!names.includes('Perpétuo Sem Previsão'), 'perpétuo fora da lista de incompletos');
+  assert.ok(names.includes('Sem previsão um'), 'comum sem previsão permanece');
+
+  const incompletos = res.body.items
+    .filter((i) => i.forecast_date === null)
+    .map((i) => i.name)
+    .sort();
+  assert.deepStrictEqual(
+    incompletos,
+    ['Sem previsão um', 'Sem previsão dois'].sort(),
+    'contagem de incompletos não muda'
+  );
+});

@@ -360,38 +360,6 @@ class _WorkflowSheetState extends State<_WorkflowSheet> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  String _reviewStatusLabel(String? status) {
-    switch (status) {
-      case 'pendente':
-        return 'Na fila';
-      case 'analisando':
-        return 'Em análise';
-      case 'sugerido':
-        return 'Aguardando aprovação';
-      case 'aprovada':
-        return 'Aplicada';
-      case 'falha':
-        return 'Falha';
-      default:
-        return '—';
-    }
-  }
-
-  String _planStatusLabel(String? status) {
-    switch (status) {
-      case 'pendente':
-        return 'Na fila';
-      case 'gerado':
-        return 'Gerado';
-      case 'falha':
-        return 'Falha';
-      default:
-        return '—';
-    }
-  }
-
-  int _count(dynamic value) => value is List ? value.length : 0;
-
   String _proposalTitle(dynamic changes) {
     if (changes is Map) return '${changes['title'] ?? 'Sem título'}';
     return 'Sem título';

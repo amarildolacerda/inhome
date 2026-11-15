@@ -326,3 +326,20 @@ test('FR-070/FR-073 perpetual ignores incomplete and overdue windows', async () 
   assert.strictEqual(row.a_vencer, false, 'perpetual row is ignored by a_vencer');
   assert.strictEqual(row.effective_status, 'vigente', 'perpetual never flips to atrasado');
 });
+
+// E017 (FR-070): acceptance stub — plan.md §Acceptance Test Stubs.
+test('FR-070 expõe perpetual em contracts[]', async () => {
+  const created = await request(app)
+    .post('/api/v2/contracts')
+    .set(as(gestorToken))
+    .send({ name: 'Perpétuo Payload', start_date: dateOnly(-5), perpetual: true });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.body));
+
+  const stats = await request(app).get('/api/v2/dashboard/stats').set(as(gestorToken));
+  assert.strictEqual(stats.status, 200, JSON.stringify(stats.body));
+  const perpetualRow = stats.body.contracts.find((c) => c.name === 'Perpétuo Payload');
+  assert.ok(perpetualRow, 'perpetual contract appears in contracts[]');
+  assert.strictEqual(perpetualRow.perpetual, true, 'perpetual exported per item');
+  const plain = stats.body.contracts.find((c) => c.name !== 'Perpétuo Payload');
+  assert.strictEqual(plain.perpetual, false, 'non-perpetual rows export false');
+});

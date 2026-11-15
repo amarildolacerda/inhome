@@ -163,4 +163,48 @@ void main() {
     expect(semantics.label, contains('Painel do domínio'),
         reason: 'screen container label reaches the semantics node');
   });
+
+  // E017 FR-079/SC-020: todo marcador novo do card de contrato usa texto
+  // além de cor e o par texto/fundo precisa passar em AA (4.5:1) nos dois
+  // temas — pares lidos dos próprios tokens que os widgets consomem
+  // (dashboard_screen_tags.dart e o chip de status).
+  test('FR-079 contraste AA dos marcadores do card nos dois modos', () {
+    final themes = <String, ThemeData>{
+      'claro': AppTheme.light,
+      'escuro': AppTheme.dark,
+    };
+
+    for (final entry in themes.entries) {
+      final scheme = entry.value.colorScheme;
+
+      // status do chip: texto/fundo do bloco de status
+      for (final status in ['vigente', 'atrasado', 'encerrado']) {
+        final block = AppTheme.statusBlock(scheme, status);
+        expect(
+          contrast(block.foreground, block.background),
+          greaterThanOrEqualTo(4.5),
+          reason: 'chip $status no modo ${entry.key}',
+        );
+      }
+
+      // marcadores do card: pares container/onContainer de cada tag
+      final markers = <String, (Color, Color)>{};
+      markers['Incompleto'] =
+          (scheme.onSecondaryContainer, scheme.secondaryContainer);
+      markers['Concluído'] =
+          (scheme.onPrimaryContainer, scheme.primaryContainer);
+      markers['Tarefas atrasadas'] =
+          (scheme.onErrorContainer, scheme.errorContainer);
+      markers['Perpétuo'] =
+          (scheme.onTertiaryContainer, scheme.tertiaryContainer);
+
+      for (final entry2 in markers.entries) {
+        expect(
+          contrast(entry2.value.$1, entry2.value.$2),
+          greaterThanOrEqualTo(4.5),
+          reason: 'marcador ${entry2.key} no modo ${entry.key}',
+        );
+      }
+    }
+  });
 }
