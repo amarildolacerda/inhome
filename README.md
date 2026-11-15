@@ -70,6 +70,15 @@ Cada cliente (domínio) tem os dados separados: o que acontece em um domínio n�
 - [Documentação técnica](TECHNICAL.md) — para a equipe de desenvolvimento
 - [Workflow SDD](docs/sdd-pilot.md) — processo de desenvolvimento deste repositório
 
+## Rodar o projeto
+
+```sh
+./run.sh            # detecta Docker e sobe backend + frontend
+./run.sh --local    # sem Docker: npm + flutter, frontend em http://localhost:8080
+./run.sh --status   # saúde dos serviços
+./run.sh --down     # para tudo
+```
+
 - **00015-redesign-dashboard** (E013 — Redesign visual do dashboard): painel com faixa de KPIs por status (vigente/a vencer/atrasado/encerrado), fila de contratos ordenada por urgência com vencimento e responsável, filtros e busca no corpo, escopo por papel; backend expõe `contracts[]`, `responsavel`, `a_vencer` e `stats.contractsAVencer` em `GET /api/v2/dashboard/stats`.
 - **00018-tema-escuro-por-padrao-alternancia** (E014 — Tema escuro por padrão): o app nasce em tema escuro, oferece alternância na toolbar e persiste a escolha em SharedPreferences; a preferência é lida antes da primeira renderização e o claro continua utilizável nos tokens de E006/E013.
 - **00019-dashboard-indicadores-de-contrato-perpetuo** (E017 — Indicadores do painel): contratos perpétuos são sinalizados explicitamente, ignorados em "Incompleto" e em janelas de vencimento, mas continuam contabilizando tarefas atrasadas no painel e nos indicadores de execução.

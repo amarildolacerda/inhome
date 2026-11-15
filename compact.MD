@@ -1,37 +1,35 @@
 # compact.MD — contexto compactado da sessão
 
-> Atualizado em [15/11 12:15] para restauração de contexto. Repo `/mnt/windows/git/inhome`, branch `dev`.
-> Estado atual: pipeline `/sddp-autopilot` de E017 concluído com QC PASS; push realizado em `dev` (`74bf654`).
+> Atualizado em [15/11 11:40] para restauração de contexto. Repo `/mnt/windows/git/inhome`, branch `dev`.
+> Estado atual: `run.sh` criado e testado nos dois modos; stack Docker `inhome` up (backend:3001, frontend:80).
 
 ## Objetivo
 
-- Executar `/sddp-autopilot` de ponta a ponta para a epic **E017** (`specs/00019-dashboard-indicadores-de-contrato-perpetuo`): Specify → Clarify → Plan → Checklist → Tasks → Analyze → Implement+QC → Post-Pipeline, com log em `autopilot-log.md`.
-- Melhoria lateral concluída: tracking de progresso por Wave em `specs/project-plan.md` (colunas `Status`/`Concluída em` + linha `Progress`), sincronizado com `.github/sddp/workflows/project-planning/WORKFLOW.md`.
+- Criar `run.sh` que prepara o ambiente local, baia o que falta e sobe backend + frontend, com auto-detecção Docker/local (escolha do usuário: ambos, `--local` força modo npm + flutter).
 
-## Estado do repositório
+## Entregas
 
-- Branch ativa: `dev`; base `origin/dev` = `bf546b0` (em sincronia antes do commit desta sessão).
-- Evidência do QC de E017 bindada ao baseline `bf546b0` (`.qc-passed`); após o commit desta sessão o marcador passa a ser histórico — padrão já usado por 00018.
-- Stack Docker `inhome` (backend:3001, frontend:80) deve ficar **up**; para rodar `npm test` é preciso `docker compose stop backend` → teste → `docker compose start backend` (`server.test.js` fixa 3001; `test.sh` usa 3199 e não conflita).
+- `run.sh` (raiz, executável): `--local` | `--docker` | auto (padrão), `--status`, `--down`, `--help`.
+  - Prepara `backend/.env` (JWT_SECRET gerado via openssl) + dirs `data/`, `backend/uploads/`, `.run/`.
+  - Baixa só o que falta: `npm ci` quando `package-lock.json` > `node_modules/.package-lock.json`; `flutter pub get` quando `pubspec.*` > `package_config.json` (com `touch` no package_config, senão o mtime de checkout re-dispara); `flutter build web --release --no-web-resources-cdn` quando fontes > `build/web/main.dart.js`; Docker: `docker compose up --build -d`.
+  - Health-checks: backend `/api/v2/health` (:3001), frontend `:80` (Docker) / `:8080` (local); logs e pids em `.run/` (gitignored).
+- `scripts/local-serve.mjs`: servidor Node zero-dep do `frontend/build/web` + proxy de `/api`, `/uploads`, `/socket.io` (HTTP + upgrade WebSocket) para `127.0.0.1:3001`, espelhando `frontend/nginx.conf` (SPA fallback, regras de cache).
+- Docs: `README.md` seção "Rodar o projeto"; `TECHNICAL.md` Setup → "Rápido (recomendado)".
 
-## Resultado da sessão (E017)
+## Evidências
 
-- **Pipeline completo**: spec 10216 B (PASS 31/31), plan 10234 B (PASS 14/14), tasks 6052 B (PASS; halt I0 corrigido: headings `Work Item` → `Delivery [US#]`), checklists 102/102 COMPLETE, Policy Auditor PASS nas bordas.
-- **24/24 tasks `[X]`** com evidência real: backend `npm test` 173/173, E2E `bash backend/test.sh` 182/182, frontend `flutter test` 83/83, `flutter analyze` 0 issues, `npm audit` 0 vulns.
-- **QC PASS**: `qc-report.md` (manifest de 33 SHA-256), `.qc-passed` atômico validado; `derive-completion-state` → `QC_COMPLETE=true`, `COMPLETION_STATE=complete`, 0 issues.
-- **Pós-pipeline**: E017 `[X]`, Progress **15/15**, Wave 7 **Concluída 2026-11-15** em `specs/project-plan.md` (`validate-prd --profile planning-ready --project-plan` valid=true).
+- Modo local: `./run.sh --local` verde (npm ci, pub get, build 204s, backend+frontend health OK); idempotente na 2ª execução; proxy validado (health via :8080, index 200, `main.dart.js` 200, WS upgrade `HTTP/1.1 101` + open packet do engine.io).
+- Modo Docker: `./run.sh --docker` verde (build com cache, containers up, health :3001/:80, proxy nginx OK); `./run.sh` auto detectou docker; `--down` derruba pids locais e containers; `--bogus` exit 1.
+- Bateria: backend `npm test` 173/173 (com `docker compose stop backend` — `server.test.js` fixa 3001), E2E `bash backend/test.sh` 183/183, `flutter test` 84/84.
 
 ## Decisões técnicas relevantes
 
-- `bf546b0` (07/11) já pré-implementava boa parte do backend/frontend de E017 — tasks verificadas contra o estado real; stubs de aceitação anexados no fim dos arquivos para não alterar contagens de teste.
-- Arquivo `frontend/lib/screens/dashboard_screen_queue.dart` passou de 500 linhas → marcadores extraídos para o part novo `dashboard_screen_tags.dart` (`dashboard_screen.dart` agora tem 6 `part`s).
-- 62 issues pré-existentes de `flutter analyze` (refactor de `suggestion_panel*`/`workflow_sheet` em `bf546b0`) corrigidos por refundir: campos concretos de `_SuggestionPanelState` movidos para `SuggestionPanelLogic`, contratos abstratos duplicados removidos, `SuggestionPanelUi on State<SuggestionPanel>, SuggestionPanelLogic`, 3 helpers mortos removidos do workflow_sheet.
-- Bug real do T022: o escalonamento fixo `i * 0.14 + 0.55` estourava `Interval` com o 5º segmento de KPI → passo adaptativo `0.45 / (items.length - 1)`.
-- FR-069 no frontend: não existe fluxo de edição de datas — escopo do switch "Contrato perpétuo" é o dialog de criação em `projects_screen.dart` (PUT backend já aceita `perpetual`).
-- Browser runtime: sem tool nativa nem MCP (`list_mcp_resources` vazio) → `BROWSER_RUNTIME_REQUIRED=false` (SCs cobertos headless por widget tests + supertest), padrão de 00014.
-- Subagentes esgotaram a cota免费 → QC Auditor e Story Verifier executados inline.
+- Frontend local não pode usar `flutter run -d web-server`: o app fala `/api/v2` relativo e `Uri.base.origin` no socket.io → precisa do proxy (mesmo motivo do nginx no compose).
+- Modo local serve `build/web` (release) em vez de dev-server: mesmo bundle de produção, sem porta extra de debug.
+- Portas: backend 3001, frontend local 8080, frontend Docker 80 (allowlist CORS do backend já cobre 8080).
 
 ## Pendências / próximos passos
 
-- ~~Commit + push em `dev`~~ concluído: `74bf654` (artefatos E017 + limpezas + `compact.MD`).
-- E017 release-ready no instante do QC; nada mais bloqueia promoção futura `dev` → `main` (suíte verde é pré-requisito — está verde).
+- Commit + push em `dev` deste change-set (`run.sh`, `scripts/local-serve.mjs`, `.gitignore`, `README.md`, `TECHNICAL.md`, `compact.MD`).
+- Obs.: commit alheio `72f4973 fix(manutenção): registra histórico sem trocar de estado` estava local não-push no momento do commit desta sessão; push leva os dois.
+- Nada bloqueia promoção futura `dev` → `main` (suíte verde no momento do push).

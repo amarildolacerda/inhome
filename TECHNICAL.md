@@ -134,6 +134,17 @@ Authorization: <token>
 
 ## Setup
 
+### Rápido (recomendado)
+
+```bash
+./run.sh            # detecta Docker e sobe backend (:3001) + frontend (:80)
+./run.sh --local    # sem Docker: npm ci, flutter pub get/build, backend + proxy em :8080
+./run.sh --status   # saúde dos serviços
+./run.sh --down     # para tudo
+```
+
+O script cria `backend/.env` (JWT_SECRET gerado) quando ausente e só reinstala dependências quando `package-lock.json`/`pubspec.*` mudam.
+
 ### Pré-requisitos
 
 - Node.js 22+
