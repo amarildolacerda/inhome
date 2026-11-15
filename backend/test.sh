@@ -694,8 +694,10 @@ api POST "/api/v2/tasks/$REJECT_ID/maintenance" '{"status":"Em Progresso"}' "$AD
 check_http "manutenção sem motivo" 400
 check_val "code estável do motivo de manutenção" "TASK_MAINTENANCE_REASON_REQUIRED" "$(jget code)"
 api POST "/api/v2/tasks/$REJECT_ID/maintenance" '{"status":"A Fazer","motivo":"estado repetido"}' "$ADMIN_TOKEN"
-check_http "manutenção repetida" 400
-check_val "code estável do no-op" "TASK_MAINTENANCE_NOOP" "$(jget code)"
+check_http "manutenção repetida" 200
+check_val "manutenção repetida mantém o estado" "A Fazer" "$(jget task.status)"
+api GET "/api/v2/tasks/$REJECT_ID" "" "$ADMIN_TOKEN"
+check_val "nota do mesmo estado no histórico" "A Fazer: estado repetido" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const h=JSON.parse(d).history||[];const m=h.filter(x=>x.action==="maintain").pop();process.stdout.write(m&&m.note?String(m.note):"");})')"
 
 # anexo com category: gestor/grava documentation, default segue evidence
 api POST "/api/v2/tasks/$REJECT_ID/attachments" "{\"filename\":\"como-fazer.pdf\",\"dataBase64\":\"$TINY_PNG\",\"kind\":\"file\",\"category\":\"documentation\"}" "$USER_TOKEN"

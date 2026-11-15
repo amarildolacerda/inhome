@@ -22,6 +22,8 @@ Custom project TODOs. Agents read this file at session start.
 
 ## Done
 
+- [X] Bug: manutenção não registrava no mesmo estado (2026-11-15) — o botão "Aplicar manutenção" do sheet ficava inerte quando a escolha era o estado atual (`canApply` exigia troca) e o backend recusava com `TASK_MAINTENANCE_NOOP`; agora o mesmo estado grava a nota `<estado>: <motivo>` no histórico sem tocar na linha da tarefa (`completed_*` de Concluída preservado), snackbar "Manutenção registrada"; specs/plan/E012.md amendado (00014 não — selado por digest); backend 173/173 · smoke 183/183 · flutter 84/84 · analyze 0
+
 - [X] Épico E013 — Redesign visual do dashboard (00015): feature fechada 2026-10-28 (`.completed` + `.qc-passed`, FR-038..043); redesign completo pós-QC em 2026-11-03 (skill frontend-design, `des-1`) com faixa full-bleed de KPIs, fila de contratos + filtros/atividade em colunas, `AppTheme.statusBlock`/`panel` (Archivo variável como asset em `pubspec.yaml`); usuário validou docker compose + dashboard; flutter dashboard 16/16 e analyze sem issues novos. Digests do `.qc-passed` de 28/10 não cobrem o redesign de 03/11 — re-sigilo/QC só na próxima promoção
 
 - [X] Pacote UX 23/10 — toolbar shell (usuário/papel/domínio + Sair), dashboard com cards clicáveis e rolagem por teclado, seção Prestadores (vínculo/desvincular com bloqueio `OPEN_TASKS_BLOCK_UNLINK`), seletor de Responsável na criação de tarefa e reatribuição no sheet, pré-marcação de manutenção + botão inerte no NOOP, manutenção fecha o sheet, lembrar login (`flutter_secure_storage`), upload >1MB (nginx 4m + express 4mb); flutter 65/65, analyze 0 (2026-10-23)

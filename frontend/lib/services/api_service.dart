@@ -554,6 +554,8 @@ class ApiService {
   /// [FR-033]: POST /tasks/:id/maintenance — gestor/admin mudam o estado para
   /// qualquer um dos quatro fora do fluxo nominal, com motivo obrigatório.
   /// `status` sai no mesmo texto PT do PATCH /tasks/:id/status (Task.flow).
+  /// Enviar o estado atual também é válido: o backend grava a linha no
+  /// histórico e não altera a tarefa.
   Future<Map<String, dynamic>> maintainTask(
     int taskId, {
     required String status,

@@ -1119,18 +1119,24 @@ test('FR-033 manutenção admin/gestor; prestador 403', async () => {
   assert.strictEqual(noMotivo.status, 400, JSON.stringify(noMotivo.body));
   assert.strictEqual(noMotivo.body.code, 'TASK_MAINTENANCE_REASON_REQUIRED');
 
-  // repetido (igual ao estado atual) → 400
-  const noop = await request(app)
+  // repetido (igual ao estado atual) → 200: só o histórico é gravado, a linha
+  // da tarefa não muda (completed_* de uma Concluída não é limpo por acidente)
+  const same = await request(app)
     .post(`/api/v2/tasks/${taskId}/maintenance`)
     .set(as(adminToken))
     .send({ status: 'Revisão', motivo: 'mesmo estado' });
-  assert.strictEqual(noop.status, 400, JSON.stringify(noop.body));
-  assert.strictEqual(noop.body.code, 'TASK_MAINTENANCE_NOOP');
+  assert.strictEqual(same.status, 200, JSON.stringify(same.body));
+  assert.strictEqual(same.body.task.status, 'Revisão');
   assert.strictEqual(
     db.get('SELECT status FROM tasks WHERE id = ?', [taskId]).status,
     code('tasks.status', 'Revisão'),
-    '400 sem alteração'
+    'mesmo estado não altera a tarefa'
   );
+  const sameNote = db.get(
+    "SELECT note FROM task_history WHERE task_id = ? AND action = 'maintain' ORDER BY id DESC LIMIT 1",
+    [taskId]
+  );
+  assert.strictEqual(sameNote.note, 'Revisão: mesmo estado', 'nota do mesmo estado');
 
   // admin muda fora da sequência nominal: Revisão → A Fazer
   const byAdmin = await request(app)

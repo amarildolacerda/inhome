@@ -378,7 +378,7 @@ void main() {
 
     final confirm = find.widgetWithText(FilledButton, 'Aplicar manutenção');
     expect(tester.widget<FilledButton>(confirm).onPressed, isNull,
-        reason: 'estado pré-marcado é o atual — inerte até trocar e motivar');
+        reason: 'estado pré-marcado é o atual — inerte até o motivo ser preenchido');
 
     await _fillMaintenanceAndApply(tester);
 
@@ -407,7 +407,7 @@ void main() {
     expect(find.byType(TaskDetailSheet), findsNothing);
     expect(find.text('Lista de tarefas'), findsOneWidget);
     expect(changed, 1);
-    expect(find.text('Estado atualizado por manutenção'), findsOneWidget);
+    expect(find.text('Manutenção registrada'), findsOneWidget);
   });
 
   testWidgets('T010 falha na manutenção mantém o sheet com SnackBar de erro',
@@ -416,7 +416,7 @@ void main() {
       roleValue: 'gestor',
       taskJson: _taskJson(status: Task.inProgress),
       // Estado diferente do atual (helper escolhe Revisão): a falha simulada
-      // é de backend, não o NOOP que a UI já bloqueia com o botão inerte.
+      // é de backend, não de validação local da UI.
       maintenanceError: ApiException(
         'Serviço de manutenção indisponível',
         statusCode: 503,
@@ -439,7 +439,7 @@ void main() {
   });
 
   testWidgets(
-      'T010 seletor de estado vem com o status atual e inerte até trocar',
+      'T010 seletor vem com o status atual e habilita com o mesmo estado',
       (tester) async {
     final api = _FakeApi(
       roleValue: 'admin',
@@ -455,18 +455,21 @@ void main() {
       reason: 'o seletor abre com o estado atual da tarefa',
     );
 
-    // Motivo preenchido não habilita: aplicar igual ao atual é NOOP garantido.
+    // Sem motivo o botão continua inerte.
     final confirm = find.widgetWithText(FilledButton, 'Aplicar manutenção');
     expect(tester.widget<FilledButton>(confirm).onPressed, isNull);
+
+    // Mesmo estado com motivo habilita: registrar informação no histórico
+    // sem trocar de estado é operação válida (o backend grava só a nota).
     await tester.enterText(find.byType(TextField), 'Mesmo estado, só motivo');
     await tester.pump();
     expect(
       tester.widget<FilledButton>(confirm).onPressed,
-      isNull,
-      reason: 'estado igual ao atual mantém o botão inerte (NOOP do backend)',
+      isNotNull,
+      reason: 'estado igual ao atual com motivo habilita a aplicação',
     );
 
-    // Mudar para outro estado habilita junto com o motivo.
+    // Trocar de estado também habilita, junto com o motivo.
     await tester.ensureVisible(dropdown);
     await tester.pumpAndSettle();
     await tester.tap(dropdown);
@@ -481,6 +484,39 @@ void main() {
       isNotNull,
       reason: 'estado diferente do atual com motivo habilita a aplicação',
     );
+  });
+
+  testWidgets(
+      'T010 manutenção no mesmo estado envia POST e fecha o sheet',
+      (tester) async {
+    final api = _FakeApi(
+      roleValue: 'admin',
+      taskJson: _taskJson(status: Task.inProgress),
+    );
+    var changed = 0;
+    await _openSheetModal(tester, api, onChanged: () => changed++);
+
+    // Seletor já vem com o estado atual; só o motivo é preenchido.
+    final confirm = find.widgetWithText(FilledButton, 'Aplicar manutenção');
+    await tester.ensureVisible(confirm);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Conferência sem troca');
+    await tester.pump();
+    expect(tester.widget<FilledButton>(confirm).onPressed, isNotNull);
+    await tester.ensureVisible(confirm);
+    await tester.pumpAndSettle();
+    await tester.tap(confirm);
+    await tester.pumpAndSettle();
+
+    expect(api.posts, hasLength(1));
+    expect(api.posts.single['endpoint'], '/tasks/42/maintenance');
+    final body = api.posts.single['body'] as Map<String, dynamic>;
+    expect(body['status'], Task.inProgress,
+        reason: 'mesmo estado é enviado — o histórico é registrado');
+    expect(body['motivo'], 'Conferência sem troca');
+    expect(find.byType(TaskDetailSheet), findsNothing);
+    expect(find.text('Manutenção registrada'), findsOneWidget);
+    expect(changed, 1);
   });
 
   testWidgets(
