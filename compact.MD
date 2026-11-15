@@ -1,7 +1,7 @@
 # compact.MD — contexto compactado da sessão
 
 > Atualizado em [15/11 12:15] para restauração de contexto. Repo `/mnt/windows/git/inhome`, branch `dev`.
-> Estado atual: pipeline `/sddp-autopilot` de E017 concluído com QC PASS; commit/push desta sessão em `dev`.
+> Estado atual: pipeline `/sddp-autopilot` de E017 concluído com QC PASS; push realizado em `dev` (`74bf654`).
 
 ## Objetivo
 
@@ -33,5 +33,5 @@
 
 ## Pendências / próximos passos
 
-- Commit + push em `dev` desta sessão (artefatos E017 + limpezas + `compact.MD`).
+- ~~Commit + push em `dev`~~ concluído: `74bf654` (artefatos E017 + limpezas + `compact.MD`).
 - E017 release-ready no instante do QC; nada mais bloqueia promoção futura `dev` → `main` (suíte verde é pré-requisito — está verde).
