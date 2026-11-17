@@ -3,7 +3,7 @@
 Custom project TODOs. Agents read this file at session start.
 
 ## em execução
-   E017
+   — (Wave 8: E015/E016 registrados no project-plan em 2026-11-16)
    
 ## Pending
 
