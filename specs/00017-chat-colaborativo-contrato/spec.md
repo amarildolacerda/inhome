@@ -3,14 +3,14 @@ feature_branch: "00017-chat-colaborativo-contrato"
 created: "2026-10-24"
 input: "chat/resource.MD + TODO V2 — chat por contrato com IA e menu de tarefas"
 spec_type: "product"
-spec_maturity: "draft"
+spec_maturity: "clarified"
 epic_id: "E016"
 epic_sources: "{TODO V2; reutiliza E003/E004/E005/E009/E012}"
 ---
 
 # Spec: Chat colaborativo por contrato
 
-**Feature Branch**: `00017-chat-colaborativo-contrato` · **Created**: 2026-10-24 · **Status**: Draft · **Epic ID**: E016
+**Feature Branch**: `00017-chat-colaborativo-contrato` · **Created**: 2026-10-24 · **Status**: Clarified · **Spec Maturity**: clarified · **Epic ID**: E016
 
 ## Problem Statement
 
@@ -88,19 +88,19 @@ Thread a partir de mensagem ou card, reações rápidas entre participantes e av
 
 ### Functional Requirements
 
-- **FR-051** [US1]: Sistema DEVE manter um canal por contrato, criado sob demanda, com mensagens de autor, data e texto ≤ 4.000 caracteres, e histórico paginado em ordem.
-- **FR-052** [US1]: Sistema DEVE entregar mensagem em tempo real às sessões do domínio pela sala socket.io existente (`domain_<id>`), em melhor esforço como E009; falha de emissão não falha o envio.
+- **FR-051** [US1]: Sistema DEVE manter um canal por contrato, criado sob demanda, com mensagens de autor, data e texto ≤ 4.000 caracteres, e histórico paginado em ordem (padrão 50, máximo 100 por página).
+- **FR-052** [US1]: Sistema DEVE entregar mensagem em tempo real às sessões do domínio pela sala socket.io existente (`domain_<id>`), em melhor esforço como E009; falha de emissão não falha o envio. O emissor publica só para participantes com vínculo ativo no contrato e o cliente refiltra pelo contrato aberto (STF-003).
 - **FR-053** [US1]: Sistema DEVE aplicar os guards E001 ao canal: gestor e admin do domínio, prestador só em contratos vinculados; 401/403 como no restante de `/api/v2/*`.
-- **FR-054** [US1]: Sistema DEVE aceitar anexo (PDF, DOCX, imagem) pelo upload existente (multipart, 2 MB, validação de tipo), em categoria do chat distinta de `evidence`/`documentation`.
-- **FR-055** [US1]: Sistema DEVE manter o anexo de mensagem fora do fluxo de tarefas: invisível em conclusões, evidências e relatórios (E003/E008 inalterados).
+- **FR-054** [US1]: Sistema DEVE aceitar anexo (PDF, DOCX, imagem) pelo upload existente (multipart, 2 MB, validação de tipo), na categoria `chat`, distinta de `evidence`/`documentation`.
+- **FR-055** [US1]: Sistema DEVE manter o anexo de mensagem fora do fluxo de tarefas: categoria `chat` é excluída explicitamente das listagens de evidências de E003 e dos relatórios de E008, que seguem inalterados.
 - **FR-056** [US2]: Sistema DEVE oferecer o menu com "ver alertas", "ver próximas execuções" e "ver executadas", respondendo com cards: alertas do contrato (E004) e tarefas do escopo com prazo e status.
-- **FR-057** [US2]: Sistema DEVE permitir movimentar tarefa pelo card no workflow atual, nas mesmas validações e histórico das rotas atuais (prestador inicia e conclui como 00005).
+- **FR-057** [US2]: Sistema DEVE permitir movimentar tarefa pelo card no workflow atual, nas mesmas validações e histórico das rotas atuais (prestador inicia e conclui como 00005). A ação só vale para tarefa atribuída ao próprio usuário; tentativa de terceiros responde 403 sem escrita.
 - **FR-058** [US2]: Sistema DEVE restringir o menu por papel: prestador só tarefas próprias; gestor e admin a visão do contrato ou domínio das telas atuais.
 - **FR-059** [US3]: Sistema DEVE, ao receber documento no canal, executar análise assíncrona extraindo prazos, riscos, multas, seguros e local de execução, exibida no chat ligada à mensagem.
-- **FR-060** [US3]: Sistema DEVE alimentar o motor E004 com os itens com data extraídos, dedup por contrato e fonte, consultáveis em "ver alertas" e no painel E005.
-- **FR-061** [US3]: Sistema DEVE marcar a análise falha (provedor indisponível, timeout, arquivo não suportável) com anexo e mensagem intactos, retry manual e sem bloquear mensagens. [NEEDS CLARIFICATION: qual provedor de IA, modelo, custo e limites de uso?]
-- **FR-062** [US4]: Sistema DEVE abrir thread de mensagem ou card vinculada à tarefa quando aplicável, com reações rápidas visíveis aos participantes. [NEEDS CLARIFICATION: threads e reações entram no P1 do MVP ou permanecem P2?]
-- **FR-063** [US4]: Sistema DEVE avisar na sessão aberta sobre nova mensagem do contrato que segue e alerta gerado; push fora do app só se aprovada, com padrão in-app. [NEEDS CLARIFICATION: push no MVP ou só notificação in-app? qual provedor?]
+- **FR-060** [US3]: Sistema DEVE alimentar o motor E004 com os itens com data extraídos, com dedup por `(contract_id, source_kind, source_id)`; reprocessamento atualiza o alerta existente, consultável em "ver alertas" e no painel E005 sem duplicata.
+- **FR-061** [US3]: Sistema DEVE marcar a análise falha (extrator indisponível, timeout de 5 s, arquivo não suportável) com anexo e mensagem intactos, retry manual e sem bloquear mensagens. O extrator é local e determinístico, sem serviço externo, custo por documento ou saída de dados do domínio.
+- **FR-062** [US4]: Sistema DEVE abrir thread de mensagem ou card vinculada à tarefa quando aplicável, com reações rápidas visíveis aos participantes. Permanecem P2, fora do MVP: sem tabela, endpoint ou tela nesta entrega.
+- **FR-063** [US4]: Sistema DEVE avisar na sessão aberta sobre nova mensagem do contrato que segue e alerta gerado pelo evento da sala `domain_<id>`. O MVP usa só notificação in-app: sem push externo, provedor, chave ou permissão nova.
 
 ### Key Entities
 
@@ -112,22 +112,41 @@ Thread a partir de mensagem ou card, reações rápidas entre participantes e av
 ### Assumptions
 
 - Socket.io (E009), upload multipart (00005/00014) e motor de alertas (E004) são reutilizados como estão.
-- Provedor de IA externo configurado por ambiente; análise fora do caminho de requisição (decisão pendente no Clarify).
+- Extração local determinística no backend, fora do caminho de requisição, com timeout de 5 s e retry manual (Clarify 2026-11-21); nenhum dado contratual sai do domínio.
 - API em `/api/v2/*` com valores em PT; frontend só com tokens do ColorScheme; admin herda gestor; system_admin e visitante ficam de fora.
 
 ### Risks
 
-- **Custo e disponibilidade da IA** *(likelihood: high, impact: high)*: análise cara ou lenta inviabiliza o fluxo. Mitigação: assíncrona com retry manual e limites por domínio.
-- **Documentos a serviço externo** *(likelihood: medium, impact: high)*: dado contratual sai do ambiente. Mitigação: opt-in configurado e aviso na tela.
+- **Extração lenta ou incompleta** *(likelihood: high, impact: high)*: análise trava o canal ou perde campos. Mitigação: assíncrona com timeout de 5 s, retry manual e extração determinística local.
+- **Dados contratuais fora do domínio** *(likelihood: low, impact: high)*: vazamento por serviço externo. Mitigação: nenhum provedor externo; extração toda no backend.
 - **Vazamento entre contratos** *(likelihood: low, impact: high)*: prestador lê canal alheio. Mitigação: deny-by-default de 00002 e casos negativos na suíte.
+
+## Clarifications
+
+### Session 2026-11-21
+
+- Q: Qual provedor de IA, modelo, custo e limites para a análise (FR-061)? -> A: extrator local determinístico no backend, sem serviço externo, sem custo por documento, timeout de 5 s e retry manual; nenhum dado contratual sai do domínio.
+- Q: Threads e reações entram no P1 do MVP ou permanecem P2 (FR-062)? -> A: permanecem P2 (US4); fora do MVP, sem tabela nem endpoint nesta entrega.
+- Q: Push no MVP ou só notificação in-app (FR-063)? -> A: só in-app na sessão aberta via sala `domain_<id>`; nenhum provedor de push externo, nenhuma chave ou permissão nova.
+- Q: Como evitar duplicação dos alertas extraídos (FR-060)? -> A: dedup por `(contract_id, source_kind, source_id)` no motor E004; reprocessamento atualiza o alerta existente em vez de criar outro.
+- Q: Quem pode agir nos cards do chat (FR-057/FR-058)? -> A: gestor/admin veem cards de todo o contrato, mas concluir/iniciar só vale para tarefa atribuída ao próprio usuário; demais ações respondem 403.
+
+## Stress-Test Findings
+
+### Session 2026-11-21
+
+STF-001: [concurrent-trigger-ambiguity] (HIGH) — Affected: FR-059, FR-060, SC-004 — Análises concorrentes do mesmo anexo podem criar dois alertas. Resolução: dedup por `(contract_id, source_kind, source_id)` em E004; reprocessamento atualiza o registro existente.
+STF-002: [cross-requirement-contradiction] (HIGH) — Affected: FR-054, FR-055, SC-002 — Anexo de chat pelo upload existente poderia vazar em evidências e relatórios. Resolução: categoria `chat` distinta, filtrada explicitamente nas listagens de E003/E008.
+STF-003: [constraint-impossibility] (MEDIUM) — Affected: FR-052, FR-053, SC-001 — Sala por domínio entregaria mensagem a prestador desvinculado. Resolução: emissor verifica vínculo ativo no contrato e publica só para participantes elegíveis; cliente refilter pelo contrato.
+STF-004: [boundary-scale-stress] (MEDIUM) — Affected: FR-051, FR-059, SC-005 — Histórico sem teto e análise síncrona podem travar o canal. Resolução: paginação padrão 50, máximo 100 por página; análise assíncrona com timeout de 5 s e retry manual.
+STF-005: [cross-requirement-contradiction] (MEDIUM) — Affected: FR-057, FR-058, US2 — Visão de gestor nos cards poderia concluir tarefa de outro prestador. Resolução: ação no card restrita à própria tarefa; tentativa de terceiros responde 403 com histórico intacto.
 
 ## Implementation Signals
 
 - `NEW-ENTITY`: mensagens e análises no schema por domínio, migração preguiçosa como E004.
 - `NEW-API`: `/api/v2/contracts/:id/chat` (mensagens, menu, análises) sob guards E001; anexos pelo upload existente.
 - `NEW-UI`: tela de chat mobile-first com menu e cards, sobre `app_theme.dart`.
-- `NEW-WORKER`: job de análise com retry manual e ponte para `backend/src/services/alerts.js`.
-- `EXTERNAL-SERVICE` + `NEW-CONFIG`: provedor de IA (a definir no Clarify) com chave, limites e timeout.
+- `NEW-WORKER`: job de análise local determinística com timeout de 5 s, retry manual e ponte para `backend/src/services/alerts.js`.
 
 ## Success Criteria
 

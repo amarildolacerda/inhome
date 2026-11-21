@@ -68,6 +68,7 @@ app.use('/uploads', express.static(require('./middleware/upload').UPLOAD_DIR));
 // Routes
 const suggestionsRouter = require('./routes/suggestions'); // 00003: análise + sugestões
 const tasksRouter = require('./routes/tasks');
+const chatRouter = require('./routes/chat'); // 00016 E016: canal por contrato
 
 // v1 removido em 2026-10-17 — superfície única /api/v2
 // Exceção de nome: finalidades monta em /api/v2/purposes (segmento EN).
@@ -85,6 +86,7 @@ app.use('/api/v2/contracts', suggestionsRouter.nested);
 app.use('/api/v2/suggestions', suggestionsRouter);
 app.use('/api/v2/opencode', require('./routes/opencodeConfig'));
 app.use('/api/v2/contracts', tasksRouter.nested);
+app.use('/api/v2/contracts', chatRouter);
 app.use('/api/v2/tasks', tasksRouter);
 app.use('/api/v2/tasks', require('./routes/executionPlan'));
 app.use('/api/v2/tasks', require('./routes/comments'));

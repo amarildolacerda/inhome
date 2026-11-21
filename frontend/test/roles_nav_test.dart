@@ -61,6 +61,7 @@ void main() {
       'Usuários',
       'Convites',
       'Finalidades',
+      'Chat',
       'Auditoria',
     ]);
     expect(find.text('Minhas Tarefas'), findsNothing);
@@ -77,6 +78,7 @@ void main() {
       'Projetos',
       'Usuários',
       'Convites',
+      'Chat',
       'Auditoria',
     ]);
     expect(find.text('Finalidades'), findsNothing);
@@ -96,7 +98,7 @@ void main() {
       (tester) async {
     final labels = await openShellFor(tester, 'prestador');
 
-    expect(labels, ['Dashboard', 'Projetos', 'Minhas Tarefas']);
+    expect(labels, ['Dashboard', 'Projetos', 'Minhas Tarefas', 'Chat']);
     expect(find.text('Auditoria'), findsNothing);
     expect(find.text('Usuários'), findsNothing);
     expect(find.text('Finalidades'), findsNothing);

@@ -138,6 +138,14 @@ function listPanel(req, res) {
       });
     }
 
+    // 00016 (FR-060): itens extraídos de documentos do chat também aparecem
+    // no painel E005; a UNIQUE(contract_id, source_kind, source_id) garante
+    // que reprocessar o anexo atualiza a linha em vez de duplicá-la.
+    const extracted = db.all(
+      `SELECT ea.id, ea.contract_id, c.name AS contract_name, ea.title, ea.due_date, ea.status
+         FROM extracted_alerts ea JOIN contracts c ON c.id = ea.contract_id
+        ORDER BY ea.due_date, ea.id LIMIT 200`
+    );
     res.json({
       items: [...incompleteItems, ...complete],
       incomplete: incompleteTotal,
@@ -145,6 +153,7 @@ function listPanel(req, res) {
       limit,
       offset,
       windows,
+      extracted,
     });
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });

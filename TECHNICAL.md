@@ -3,8 +3,8 @@
 ## Status do estado atual
 
 - Repositório em desenvolvimento na branch `dev`.
-- Feature ativa: `E015` — convite temporário e papel visitante (link com validade, cadastro e reavaliação).
-- Situação: em progresso — planejamento concluído em 2026-11-18, implementação pendente; `E017` permanece concluído e validado (`dashboard.test.js`).
+- Última feature entregue: `E016` — chat colaborativo por contrato (mensagens, menu de cards e extração local de documentos).
+- Situação: conclusão em 2026-11-21 com QC PASS; `E015` permanece concluído e validado. Nenhuma épica pendente no `project-plan.md`.
 
 ## Arquitetura
 
@@ -237,6 +237,8 @@ frontend/lib/
 
 - `TECHNICAL.md`: revisado para refletir o stack real e a feature E017 em desenvolvimento.
 - `TECHNICAL.md`: status atualizado para `E015` em progresso em 2026-11-17, após refinamento do plano.
+- `TECHNICAL.md`: status atualizado para `E016` em progresso em 2026-11-21, após refinamento do plano.
+- `TECHNICAL.md`: status atualizado para `E016` concluído em 2026-11-21, após as suítes verdes e o QC.
 - `README.md`: atualizado com o comportamento de contratos perpétuos e do painel.
 
 ---

@@ -3,7 +3,7 @@
 Custom project TODOs. Agents read this file at session start.
 
 ## em execução
-   — (Wave 8: E015/E016 registrados no project-plan em 2026-11-16)
+   — (Wave 8 concluída: E015 em 2026-11-20 e E016 em 2026-11-21)
    
 ## Pending
 
@@ -15,7 +15,7 @@ Custom project TODOs. Agents read this file at session start.
 ### V2
 - [X] Épico E015 — Convite temporário e papel visitante (spec `00016-convite-visitante`): gestor/admin emitem link com validade, o convidado se cadastra como visitante e vê só as tarefas do contrato; reavaliação muda papel ou suspende o acesso. QC PASS (`.qc-passed`), 26/26 tasks, 7/7 FR P1 · backend 181/181 · smoke 183/183 · flutter 88/88 · audit 0 (2026-11-20)
 
-- [ ] a nivel de contrato permitir um chat (estrutura de recursos em `chat/resource.MD` — canal por contrato, anexos, threads por cláusula/tarefa, IA de análise de documentos, menu de tarefas no chat, mobile-first), no chat pode enviar  documentos/anexos para o contrato. Ao receber um documento usar IA para analisar o documento e mapear riscos, multas, seguros, vencimentos, local execução... usar as informações mapeadas para alimentar um sistema de alerta; no chat pode ter algumas opções pre-programdas: ver alertas, ver executados, ver proximas execução;
+- [X] Épico E016 — Chat colaborativo por contrato (spec `00017-chat-colaborativo-contrato`): canal com mensagens e anexos, cards de alertas/próximas/executadas e ações só na própria tarefa; extrator local determinístico de prazos, multas, seguros, riscos e local alimenta alertas deduplicados com retry manual. Threads e push externo ficam em P2. QC PASS (`.qc-passed`), 22/22 tasks, 11/11 FR P1 · backend 194/194 · smoke 183/183 · flutter 90/90 · audit 0 (2026-11-21). Origem: a nivel de contrato permitir um chat (estrutura em `chat/resource.MD`)
 
 
 ### V3 - avaliar entregas x `specs/plan/canvas_valor_usuario.png`

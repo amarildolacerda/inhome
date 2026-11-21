@@ -350,6 +350,73 @@ class ApiService {
     return value.whereType<num>().map((entry) => entry.toInt()).toList();
   }
 
+  // ---- Chat colaborativo por contrato (E016) -----------------------------
+
+  /// [FR-051]: histórico paginado do canal (50 por página, máx. 100).
+  Future<Map<String, dynamic>> getChatMessages(
+    int contractId, {
+    int limit = 50,
+    int offset = 0,
+  }) {
+    return get('/contracts/$contractId/chat/messages${_query({
+      'limit': limit,
+      'offset': offset,
+    })}');
+  }
+
+  /// [FR-051/054]: mensagem de texto e/ou anexo (base64) no mesmo request.
+  Future<Map<String, dynamic>> postChatMessage(
+    int contractId, {
+    String? body,
+    String? filename,
+    String? dataBase64,
+  }) {
+    final payload = <String, dynamic>{};
+    if (body != null) payload['body'] = body;
+    if (filename != null) payload['filename'] = filename;
+    if (dataBase64 != null) payload['dataBase64'] = dataBase64;
+    return post('/contracts/$contractId/chat/messages', body: payload);
+  }
+
+  /// [FR-059]: detalhe da análise de um anexo do chat.
+  Future<Map<String, dynamic>?> getChatAnalysis(int contractId, int messageId) async {
+    final result = await get('/contracts/$contractId/chat/messages/$messageId/analysis');
+    return _asNullableMap(result['analysis']);
+  }
+
+  /// [FR-061]: retry manual da extração; falha mantém a mensagem intacta.
+  Future<Map<String, dynamic>?> retryChatAnalysis(int contractId, int messageId) async {
+    final result = await post('/contracts/$contractId/chat/messages/$messageId/analysis/retry');
+    return _asNullableMap(result['analysis']);
+  }
+
+  /// [FR-056]: cards "ver alertas" do menu, incluindo os alertas extraídos.
+  Future<Map<String, dynamic>> getChatMenuAlerts(int contractId) {
+    return get('/contracts/$contractId/chat/menu/alerts');
+  }
+
+  /// [FR-056/058]: cards "ver próximas execuções" (escopo por papel no back).
+  Future<List<Map<String, dynamic>>> getChatMenuUpcoming(int contractId) async {
+    return _mapList((await get('/contracts/$contractId/chat/menu/upcoming'))['tasks']);
+  }
+
+  /// [FR-056/058]: cards "ver executadas".
+  Future<List<Map<String, dynamic>>> getChatMenuCompleted(int contractId) async {
+    return _mapList((await get('/contracts/$contractId/chat/menu/completed'))['tasks']);
+  }
+
+  /// [FR-057]: mover a própria tarefa pelo card; terceiro recebe 403.
+  Future<Map<String, dynamic>> postChatCardAction(
+    int contractId,
+    int taskId, {
+    required String status,
+    String? text,
+  }) {
+    final payload = <String, dynamic>{'status': status};
+    if (text != null) payload['text'] = text;
+    return post('/contracts/$contractId/chat/tasks/$taskId/action', body: payload);
+  }
+
   // ---- Workflow assistido por OpenCode (E0003, T029) ---------------------
 
   /// [FR-001]: GET /contracts/:id/definitions — última versão salva; null
@@ -738,6 +805,15 @@ class ApiService {
         _domainEventController.add(Map<String, dynamic>.from(payload));
       }
     });
+    // [E016 FR-052/060]: chat e extração na sala domain_<id>. O cliente
+    // refiltra pelo contrato aberto usando `contractId` do payload (STF-003).
+    for (final event in const ['chat_message', 'chat_analysis_updated']) {
+      current.on(event, (payload) {
+        if (payload is Map) {
+          _domainEventController.add(Map<String, dynamic>.from(payload));
+        }
+      });
+    }
     current.on('connect_error', (_) {});
     current.on('error', (_) {});
     current.on('disconnect', (_) {});

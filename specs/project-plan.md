@@ -76,7 +76,7 @@ dod_source: none
 > Pendências do TODO V2 registradas como specs em 2026-10-24: E015 fecha o ciclo de acesso temporário (estende E001 e E003) e E016 abre o canal por contrato com análise de documentos por IA (reutiliza E003, E004, E005, E009 e E012). Sem dependência entre si, mas sem `[P]`: ambos tocam a superfície de tarefas e guards. Ordem sugerida: E015 primeiro (escopo menor), depois E016.
 
 - [X] E015 [P1] [PRODUCT] {PRD:CAP-001,CAP-003} Convite temporário e papel visitante — link com validade, cadastro e reavaliação [→ Details](plan/E015.md)
-- [ ] E016 [P1] [PRODUCT] {PRD:CAP-003,CAP-004,CAP-008} Chat colaborativo por contrato — canal, cards e análise IA [→ Details](plan/E016.md)
+- [X] E016 [P1] [PRODUCT] {PRD:CAP-003,CAP-004,CAP-008} Chat colaborativo por contrato — canal, cards e análise IA [→ Details](plan/E016.md)
 
 ## Dependency Diagram
 
@@ -121,7 +121,7 @@ Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_
 | 5 | E012 | Sim | Concluída | 2026-10-23 | Decide e mantém `tasks` de E003 sob os guards de E001; `category` é coluna aditiva em anexos já entregues |
 | 6 | E013, E014 | Não | Concluída | 2026-10-30 | Só frontend, sem backend novo; sequenciais entre si por `app_theme.dart`/`main.dart` compartilhados |
 | 7 | E017 | Sim | Concluída | 2026-11-15 | Coluna aditiva em `contracts` de E002 e extensão do payload do dashboard; consome `tasks` de E003 e a lista de E005 |
-| 8 | E015, E016 | Não | Em execução | — | E015 entregue em 2026-11-20 (spec `00016`, QC PASS); E016 (spec `00017`, draft) permanece pendente |
+| 8 | E015, E016 | Não | Concluída | 2026-11-21 | E015 entregue em 2026-11-20 (spec `00016`, QC PASS) e E016 em 2026-11-21 (spec `00017`, QC PASS); última data é o `QC Passed` de E016 |
 
 > **Status**: derivado dos checkboxes da Epic Checklist (onda concluída = todos os épicos `[X]`); data = último `QC Passed` dos markers `.qc-passed` dos épicos da onda.
 
@@ -189,7 +189,7 @@ Sem DOD: extração de épicas operacionais pulada; subida do stack, cópia de s
 | `alert_events`, janelas de alerta 90/60/30/15 | E004 | E005, E010, E013 |
 | Arquivos em `backend/uploads/` | E003 | E008 (fotos no PDF) |
 | Tabela de convites com cadastros consumidos | E015 | — |
-| `chat_messages`, `chat_analyses` (itens com data → `alert_events`) | E016 | — |
+| `chat_messages`, `document_analyses`, `extracted_alerts` (itens com data alimentam o painel de alertas) | E016 | — |
 
 ### API Surfaces
 

@@ -56,7 +56,7 @@ function getAuditTask(req, res) {
       ...Task.decorate(db, row),
       classification: TaskClassification.getByTask(db, row.id),
       history: Task.history(db, row.id),
-      attachments: db.all('SELECT * FROM attachments WHERE task_id = ? ORDER BY id', [row.id]),
+      attachments: db.all("SELECT * FROM attachments WHERE task_id = ? AND category <> 'chat' ORDER BY id", [row.id]),
     });
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });

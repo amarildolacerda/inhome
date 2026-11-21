@@ -1,7 +1,46 @@
 # compact.MD — contexto compactado da sessão
 
-> Atualizado em [20/11] para restauração de contexto. Repo `/mnt/windows/git/inhome`, branch `dev`.
-> Estado anterior: HEAD `cdc0969` = `origin/dev`; stack Docker `inhome` up (backend:3001, frontend:80).
+> Atualizado em [21/11] para restauração de contexto. Repo `/mnt/windows/git/inhome`, branch `dev`.
+> Estado anterior: HEAD `2d47490` = `origin/dev`; stack Docker `inhome` up (backend:3001, frontend:80).
+
+## Sessão E — 21/11 (autopilot E016 completo)
+
+### Objetivo e resultado
+
+- Autopilot de E016 executado de ponta a ponta, sem interação: Specify → Clarify → Plan → Checklist → Tasks → Analyze → Implement → QC. Gates reais e log de 7 colunas em `specs/00017-chat-colaborativo-contrato/autopilot-log.md`.
+- `AUTOPILOT=true`; nenhuma pergunta ao usuário; Cursor IDE confirmada (`/usr/bin/cursor`, 3.30.14).
+- Feature auto-selecionada: primeiro épico unchecked do `project-plan.md`, E016 em `specs/00017-chat-colaborativo-contrato/`.
+
+### Decisões de Clarify
+
+- FR-061: extrator local determinístico, sem IA externa, sem custo, timeout 5 s e retry manual.
+- FR-062: threads e reações ficam em P2, fora do MVP (sem tabela, endpoint ou tela).
+- FR-063: notificação apenas in-app pela sala `domain_<id>`, sem push externo.
+- FR-060: dedup por `(contract_id, source_kind, source_id)`; reprocessamento atualiza a linha existente.
+- FR-057/058: ações no card apenas na própria tarefa; terceiro recebe 403.
+- 5 STF resolvidos inline (STF-001/002 HIGH, STF-003/004/005 MEDIUM).
+
+### Entregas
+
+- Backend: `chat_messages`, `document_analyses`, `extracted_alerts`, rebuild de `attachments` com `message_id` e categoria `chat`; `documentAnalysis.js` (extração de prazos, multas, seguros, riscos e local, dedup, retry); 8 endpoints em `routes/chat.js`; filtros em `attachments.js`/`audits.js`; alertas extraídos no painel E005.
+- Frontend: `chat_screen.dart` com histórico, composer, anexos, cards de alertas/próximas/executadas e retry; métodos e listeners em `api_service.dart`; entrada Chat no rail para admin/gestor/prestador.
+- Bugs corrigidos durante TDD: asserção de CHECK no `database.test.js`, `eligibleUserIds` sem parâmetros em `chat.js`, `emitChatMessage` blindado com `try/catch`, teste de análise ajustado para aguardar `setImmediate`.
+- UI: `NavigationRail.labelType` mudou para `selected` para acomodar a entrada sem overflow.
+- Docs: AN-001/AN-002 fechados em `TECHNICAL.md`/`README.md`; E016 `[X]` em `specs/project-plan.md` e `TODO.md`.
+
+### Evidências
+
+- `npm test` 194/194; `bash backend/test.sh` 183/183; `flutter test` 90/90; `flutter analyze` 0 issues; `npm audit --audit-level=high` 0 vulnerabilidades.
+- Testes novos: `database.test.js` 14/14, `documentAnalysis.test.js` 5/5, `chat.test.js` 7/7, `chat_screen_test.dart` 2/2.
+- Gates: Spec/Plan/Tasks válidos, 38/38 checklists, 22/22 tasks `[X]`, 11/11 P1.
+- QC full: `.completed`, `qc-report.md` (39 linhas de evidência) e `.qc-passed` com digests reais; `derive-completion-state` = `complete`, 0 issues.
+- `index.html` na raiz continua fora do commit (resíduo de build Flutter); `.qc-passed` de E015 segue re-assinado e não commitado.
+
+### Push
+
+- Comando com token: `git -c credential.helper='!f() { echo username=x-access-token; echo "password=$(cat .git_token)"; }; f' push origin dev`.
+- Marker de QC precisa ser re-assinado após o commit, porque o baseline muda; o digest de estado exclui `.completed`, `.qc-passed` e `qc-report.md` da feature.
+- Unit tests gate para `dev` → `main`: suíte verde no momento do push. Nunca promover para `main` neste run.
 
 ## Sessão D — 20/11 (autopilot E015 completo)
 

@@ -262,6 +262,60 @@ const EXECUTION_PLANS_DDL = `CREATE TABLE IF NOT EXISTS execution_plans (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`;
 
+// 00016 (E016): canal por contrato, análise de documento e alertas extraídos.
+// DDL em inglês, mesmo padrão das demais tabelas de domínio; chat_messages é
+// imutável e extracted_alerts tem a chave de dedup da Clarify do E016.
+const CHAT_MESSAGES_DDL = `CREATE TABLE IF NOT EXISTS chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    author_id INTEGER NOT NULL REFERENCES users(id),
+    body TEXT NOT NULL CHECK (length(body) <= 4000),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`;
+
+const DOCUMENT_ANALYSES_DDL = `CREATE TABLE IF NOT EXISTS document_analyses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id INTEGER NOT NULL UNIQUE REFERENCES chat_messages(id),
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    status TEXT NOT NULL CHECK (status IN ('pending','completed','failed')),
+    extracted_json TEXT,
+    error TEXT,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    started_at TEXT,
+    finished_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`;
+
+const EXTRACTED_ALERTS_DDL = `CREATE TABLE IF NOT EXISTS extracted_alerts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    source_kind TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    due_date TEXT,
+    status TEXT NOT NULL DEFAULT 'open',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (contract_id, source_kind, source_id)
+  )`;
+
+// Anexo de chat usa a mesma tabela, com mensagem como pai alternativo.
+// SQLite não altera CHECK: rebuild preguiçoso em migrateSchema preserva ids.
+const ATTACHMENTS_DDL = `CREATE TABLE IF NOT EXISTS attachments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER REFERENCES tasks(id),
+    comment_id INTEGER REFERENCES comments(id),
+    message_id INTEGER REFERENCES chat_messages(id),
+    kind TEXT NOT NULL DEFAULT 'file' CHECK (kind IN ('photo','file')),
+    path TEXT NOT NULL,
+    original_name TEXT,
+    uploaded_by INTEGER,
+    category TEXT NOT NULL DEFAULT 'evidence' CHECK (category IN ('evidence','documentation','chat')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    CHECK (task_id IS NOT NULL OR message_id IS NOT NULL)
+  )`;
+
 const DOMAIN_SCHEMA = [
   USERS_DDL,
   `CREATE TABLE IF NOT EXISTS purposes (
@@ -306,17 +360,10 @@ const DOMAIN_SCHEMA = [
     body TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
-  `CREATE TABLE IF NOT EXISTS attachments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    task_id INTEGER NOT NULL REFERENCES tasks(id),
-    comment_id INTEGER REFERENCES comments(id),
-    kind TEXT NOT NULL DEFAULT 'file' CHECK (kind IN ('photo','file')),
-    path TEXT NOT NULL,
-    original_name TEXT,
-    uploaded_by INTEGER,
-    category TEXT NOT NULL DEFAULT 'evidence' CHECK (category IN ('evidence','documentation')),
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`,
+  ATTACHMENTS_DDL,
+  CHAT_MESSAGES_DDL,
+  DOCUMENT_ANALYSES_DDL,
+  EXTRACTED_ALERTS_DDL,
   // --- 00003: Workflow Assistido OpenCode (7 tabelas novas) ---
   `CREATE TABLE IF NOT EXISTS contract_definitions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -380,6 +427,10 @@ const DOMAIN_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_cp_user ON contract_providers(user_id)',
   'CREATE INDEX IF NOT EXISTS idx_comments_task ON comments(task_id)',
   'CREATE INDEX IF NOT EXISTS idx_attachments_task ON attachments(task_id)',
+  'CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id)',
+  'CREATE INDEX IF NOT EXISTS idx_chat_messages_contract ON chat_messages(contract_id, created_at, id)',
+  'CREATE INDEX IF NOT EXISTS idx_document_analyses_message ON document_analyses(message_id)',
+  'CREATE INDEX IF NOT EXISTS idx_extracted_alerts_contract ON extracted_alerts(contract_id)',
   // --- 00003: hot paths + as duas invariantes de workflow ---
   'CREATE INDEX IF NOT EXISTS idx_contract_definitions_contract ON contract_definitions(contract_id)',
   'CREATE INDEX IF NOT EXISTS idx_task_suggestions_contract ON task_suggestions(contract_id)',
@@ -594,6 +645,26 @@ function migrateSchema(wrapper) {
         `ALTER TABLE attachments ADD COLUMN category TEXT NOT NULL DEFAULT 'evidence' CHECK (category IN ('evidence','documentation'))`
       );
     }
+
+    // 00016 (FR-054/055): widens the category CHECK to 'chat' and adds
+    // message_id as an alternative parent. Same copy → drop → rename pattern
+    // as the E011 role rebuild: ids and every existing row are preserved.
+    const attachmentsSql = wrapper.get(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'attachments'"
+    )?.sql;
+    if (attachmentsSql && (!attachmentsSql.includes("'chat'") || !attachmentsSql.includes('message_id'))) {
+      const present = wrapper
+        .all('PRAGMA table_info(attachments)')
+        .map((column) => column.name)
+        .filter((name) => name !== 'message_id');
+      const temp = 'attachments_e016';
+      wrapper.transaction((tx) => {
+        tx.run(ATTACHMENTS_DDL.replace('CREATE TABLE IF NOT EXISTS attachments', `CREATE TABLE ${temp}`));
+        tx.run(`INSERT INTO ${temp}(${present.join(', ')}) SELECT ${present.join(', ')} FROM attachments`);
+        tx.run('DROP TABLE attachments');
+        tx.run(`ALTER TABLE ${temp} RENAME TO attachments`);
+      });
+    }
   }
 
   // Fase 3 da convenção de nomenclatura (2026-10-12): os 6 enums de dado
@@ -726,4 +797,8 @@ module.exports = {
   createDomainDb,
   ensureIndexes,
   resetDatabaseCache,
+  CHAT_MESSAGES_DDL,
+  DOCUMENT_ANALYSES_DDL,
+  EXTRACTED_ALERTS_DDL,
+  ATTACHMENTS_DDL,
 };
