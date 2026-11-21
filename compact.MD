@@ -1,7 +1,28 @@
 # compact.MD — contexto compactado da sessão
 
-> Atualizado em [15/11 11:45] para restauração de contexto. Repo `/mnt/windows/git/inhome`, branch `dev`.
-> Estado atual: HEAD `cdc0969` = `origin/dev` (em sincronia). Stack Docker `inhome` up (backend:3001, frontend:80). Duas sessões paralelas em 15/11: (A) `run.sh`, (B) fix de manutenção no mesmo estado — resumo das duas abaixo.
+> Atualizado em [20/11] para restauração de contexto. Repo `/mnt/windows/git/inhome`, branch `dev`.
+> Estado anterior: HEAD `cdc0969` = `origin/dev`; stack Docker `inhome` up (backend:3001, frontend:80).
+
+## Sessão C — 20/11 (Cursor + commit E015)
+
+### Contexto
+
+- Sessão movida para `/home/kza/git/inhome` (path real `/mnt/windows/git/inhome`). Lidos `TODO.md` e `compact.MD` no início.
+- `TODO.md`: em execução Wave 8 (E015/E016); pendências V1 (`users` CHECK) e V2 (convite visitante, chat por contrato).
+
+### Cursor
+
+- `curl https://cursor.com/install -fsS | bash` instala o CLI `cursor-agent`, não o IDE. `cursor-agent`/`agent` estão em `~/.local/bin` e no PATH; `cursor` não existia.
+- O `.deb` baixado antes era VS Code 1.147.0 (`code` no PATH e no menu).
+- IDE Cursor 3.30.14 baixada para `/tmp/opencode/cursor_3.30.14_amd64.deb`; instalação via `sudo apt install` rodou em background. Verificar `cursor --version` e entrada no menu quando a execução terminar.
+
+### Commit em `dev`
+
+- Autopilot de E015 (`00016-convite-visitante`) parou no início de Tasks: Specify/Clarify/Plan/Checklist concluídos, `tasks.md` ainda não existe.
+- Artefatos refinados: `spec.md` 10214 B com 5 respostas de Clarify e STF-006..010 resolvidos; `plan.md` 10233 B com AD-009; `openapi.yaml`, `data-model.md` e `sad.md` alinhados; `TECHNICAL.md` marca E015 em progresso.
+- Checklists 3/3 (CHL001 31/31, CHL002 28/28, CHL003 28/28), 87/87 itens aprovados.
+- `index.html` na raiz é resíduo do build Flutter (`frontend/build/web/index.html`); deixado fora do commit.
+- Push usa o token de `.git_token` (gitignored): `git -c credential.helper='!f() { echo username=x-access-token; echo "password=$(cat .git_token)"; }; f' push origin dev`.
 
 ## Sessão A — `run.sh` (preparar e subir o ambiente)
 

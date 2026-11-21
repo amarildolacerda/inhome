@@ -3,8 +3,8 @@
 ## Status do estado atual
 
 - Repositório em desenvolvimento na branch `dev`.
-- Feature ativa: `E017` — indicadores do dashboard para contratos perpétuos.
-- Situação: implementação validada no ponto de regressão do dashboard (`dashboard.test.js`), com contrato perpétuo ignorado em incompletos e janelas de alerta, mas mantendo contagem de tarefas vencidas.
+- Feature ativa: `E015` — convite temporário e papel visitante (link com validade, cadastro e reavaliação).
+- Situação: em progresso — planejamento concluído em 2026-11-18, implementação pendente; `E017` permanece concluído e validado (`dashboard.test.js`).
 
 ## Arquitetura
 
@@ -236,6 +236,7 @@ frontend/lib/
 ## Atualização de documentação
 
 - `TECHNICAL.md`: revisado para refletir o stack real e a feature E017 em desenvolvimento.
+- `TECHNICAL.md`: status atualizado para `E015` em progresso em 2026-11-17, após refinamento do plano.
 - `README.md`: atualizado com o comportamento de contratos perpétuos e do painel.
 
 ---

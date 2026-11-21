@@ -8,7 +8,8 @@ info:
 
     Escopo: rotas de convite operam no domínio do token (`authenticateToken` +
     `requireRole('admin','gestor')`); o cadastro é público com rate limit por IP
-    (429, janela fixa, em memória). Erros sempre `{ "error": "..." }`.
+    (429: 10 tentativas por IP a cada 60 s, a 11ª recusa; janela em memória).
+    Erros sempre `{ "error": "..." }`.
 
     Token: opaco ≥ 128 bits (base64url, 16 bytes), exposto apenas no 201 da
     emissão — nunca em listagem, erro ou log. Recusa uniforme (FR-046): token
@@ -21,8 +22,9 @@ info:
     Nota — rotas existentes mudam de comportamento (FR-047, contrato não
     redefinido aqui): GET /api/v2/tasks e GET /api/v2/tasks/:id passam a aceitar
     o papel `visitante`; a listagem filtra e o detalhe responde 404 para tarefa
-    fora do contrato do convite; a guarda revalida o convite a cada requisição
-    (convite revogado/expirado nega em T+0); demais rotas fora da matriz do
+    fora do contrato do convite; a guarda revalida convite OU reavaliação
+    registrada a cada requisição (convite revogado/expirado sem reavaliação
+    nega em T+0, após gravar a suspensão); demais rotas fora da matriz do
     visitante → 403. Contrato encerrado mantém tarefas visíveis.
 
     Nota — reavaliação (FR-049: troca de papel/suspensão) reusa a superfície de
@@ -45,7 +47,8 @@ paths:
       operationId: createInvite
       description: |
         Validade fixada no ato (24 h / 7 d / 30 d); expiração absoluta =
-        criação + prazo, sem coluna de duração. Grava evento `emission` no
+        criação + prazo, sem coluna de duração. Contrato encerrado ou de outro
+        domínio → 409, sem escrita. Grava evento `emission` no
         access_history (user_id NULL, author_id = emissor) na mesma transação.
         O token aparece só nesta resposta.
       requestBody:
@@ -81,6 +84,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "409":
+          description: "Contrato encerrado — convite não emitido, sem escrita"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     get:
       tags: [Invites]
       summary: "Listar convites do domínio do token"
@@ -89,6 +98,9 @@ paths:
         Estado derivado a cada requisição (sem coluna persistida): revogado =
         revoked_at IS NOT NULL; expirado = revoked_at IS NULL AND expires_at <=
         agora; precedência revogado > expirado > ativo. Token nunca listado.
+        Na 1ª observação (listagem ou guarda), convite expirado suspende os
+        visitantes sem reavaliação vigente (cause = 'expired',
+        author_id = emissor); sem job de expiração.
       responses:
         "200":
           description: "Convites do domínio com contrato, emissor, expiração, estado e cadastros"
@@ -113,7 +125,8 @@ paths:
       operationId: revokeInvite
       description: |
         Grava revoked_at + revoked_by (ator) na mesma transação e suspende cada
-        visitante do convite (users.active = 0) com uma linha `suspension` por
+        visitante do convite sem reavaliação vigente (somente papel
+        `visitante`, users.active = 0) com uma linha `suspension` por
         visitante (cause = 'revoked', author_id = ator); a suspensão prevalece
         sobre mudança de papel concorrente. Já revogado → 200 idempotente,
         sem novas linhas; expirado → 409 (revogação só antes do vencimento).
@@ -156,8 +169,10 @@ paths:
       operationId: registerByInvite
       security: []
       description: |
-        Sem token. Rate limit por IP: 429 em janela fixa, contador em memória.
-        Cria usuário com role `visitante` no domínio do emissor; `username` é
+        Sem token. Rate limit por IP: 10 tentativas a cada 60 s, a 11ª → 429
+        (contador em memória). Cria usuário com role `visitante` no domínio do
+        emissor; contrato encerrado após a emissão não recusa (só o token
+        vale); `username` é
         derivado do e-mail no servidor (local part + sufixo numérico em colisão)
         e NÃO é aceito no corpo. Consumo do convite (linha em invite_emails) e
         evento `registration` no access_history (user_id = author_id = novo
@@ -180,7 +195,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Session"
         "400":
-          description: "Campos ausentes ou inválidos (name, email, password)"
+          description: "Campos ausentes ou inválidos (name, email, password com menos de 6 caracteres)"
           content:
             application/json:
               schema:
@@ -241,7 +256,7 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
     RateLimited:
-      description: "Rate limit por IP excedido no cadastro público"
+      description: "10 tentativas por IP a cada 60 s excedidas no cadastro público; a 11ª → 429"
       content:
         application/json:
           schema:
@@ -324,6 +339,8 @@ components:
           description: "Gravado em minúsculas; dedup UNIQUE por domínio"
         password:
           type: string
+          minLength: 6
+          description: "Mínimo 6 caracteres (FR-046)"
       description: "`username` não é aceito: derivado do e-mail no servidor (FR-046)"
     PublicUser:
       type: object

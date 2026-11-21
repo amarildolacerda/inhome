@@ -11,10 +11,10 @@
 - **Sources**: https://nodejs.org/api/crypto.html#crypto_randombytes_size_callback
 
 ## Rate limit por IP sem dependência nova
-- **Decision**: middleware próprio de janela fixa em memória (Map IP→contador, janela 60 s, teto único na rota de cadastro), resposta 429.
+- **Decision**: middleware próprio de janela fixa em memória (Map IP→contador, janela 60 s, teto 10 só na rota de cadastro), resposta 429.
 - **Rationale**: uma rota pública; evitar dependência nova para um teto por IP.
 - **Rejected**: express-rate-limit (dependência nova para um teto); limite por convite (gira junto com o token).
-- **Pitfalls**: contador por processo zera no restart (aceitável); não aplicar à emissão autenticada.
+- **Pitfalls**: contador por processo zera no restart; não aplicar à emissão autenticada.
 - **Sources**: https://cheatsheetseries.owasp.org/cheatsheets/Rate_Limiting_Cheat_Sheet.html
 
 ## Username derivado do e-mail

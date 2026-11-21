@@ -1,6 +1,6 @@
 # Implementation Plan: Convite temporário e papel visitante (00016)
 
-**Branch**: dev · **Date**: 2026-11-16 · **Spec**: `spec.md` · **Epic**: E015
+**Branch**: dev · **Date**: 2026-11-18 · **Spec**: `spec.md` · **Epic**: E015
 
 ## Summary
 
@@ -12,15 +12,15 @@
 
 | Regra | Status |
 |---|---|
-| I — `dev`, `main` intocada | PASS — plano para `dev`; 0 promoção |
-| II — suíte verde antes de promoção | PASS — `npm test`, `test.sh`, `flutter test` |
-| III — TODO intake | PASS — E015 em execução |
+| I — `dev`, `main` intocada | PASS |
+| II — suíte verde antes de promoção | PASS |
+| III — TODO intake | PASS |
 | IV — saída concisa | PASS |
-| Stack + PRESERVE_EXISTING_LAYOUT | PASS — `database.js`, `auth.js`, `tasks.js`, `users.js` estendidos; 0 deps novas |
-| QC mínimo (lint, segurança, unit) | PASS — `flutter analyze`, `npm audit`, `npm test` |
-| Complexity Tracking | N/A — tabelas novas + rebuild de CHECK (E011) |
+| Stack + PRESERVE_EXISTING_LAYOUT | PASS — 4 arquivos estendidos; 0 deps novas |
+| QC mínimo (lint, segurança, unit) | PASS |
+| Complexity Tracking | N/A — tabelas novas + rebuild CHECK (E011) |
 
-**Instructions Check (2026-11-16): PASS** — Policy Auditor (Step 5.1): I–IV, stack, layout, QC, tamanho, cobertura 7/7; violações: nenhuma. Pós-plano: `TECHNICAL.md` → in progress.
+**Instructions Check (2026-11-18): PASS** — 0 violações.
 
 ## Technical Context
 
@@ -33,7 +33,7 @@
 | Project Type / Mode | web multi-tenant, brownfield |
 | Perf. Goals | validade e escopo derivados por request; rate limit em memória |
 | Constraints | token ≥128 bits fora de logs; recusa uniforme; `/api/v2/*` em PT |
-| Scale / Scope | 3 US (P1) · 7 FR (P1) · 4 endpoints · 3 tabelas · 6 BE + 3 FE |
+| Scale / Scope | 3 US · 7 FR (P1) · 4 endpoints · 3 tabelas · 6 BE + 3 FE |
 
 ## Architecture
 
@@ -57,12 +57,13 @@ C4Container
 |----|---------|--------|-----------|----------|
 | AD-001 | Estado do convite | enum / derivação | `revoked_at`+`expires_at` | STF-003: nega em T+0 sem job |
 | AD-002 | Token | JWT / UUID / opaco | `randomBytes(16)` base64url | ≥128 bits, revogável |
-| AD-003 | Rate limit | lib / janela própria | janela em memória, 429 | 0 dependência nova |
+| AD-003 | Rate limit | lib / janela própria | janela em memória, 11ª → 429 | 0 dependência nova |
 | AD-004 | Username | campo / derivado | local part + sufixo | `users.username` UNIQUE (E011) |
 | AD-005 | Escopo do visitante | coluna / join por request | `invite_emails`→`invites.contract_id` | sem cache (STF-003) |
 | AD-006 | Papel visitante | tabela / CHECK | CHECK `users.role` + rebuild | E011 preserva ids e REFERENCES |
 | AD-007 | Histórico de acesso | `entity_history` / própria | `access_history` própria | `entity_history` versiona snapshot |
 | AD-008 | Recusa de token | distintos / uniforme | 409 idêntico nos 3 casos | não vaza existência |
+| AD-009 | Reativação | só convite / convite ou reavaliação | reavaliação ou convite vigente; vale até nova suspensão | STF-006/008 |
 
 ## Data Model Summary
 
@@ -79,12 +80,12 @@ C4Container
 
 | Method | Path | Purpose | Auth | Req/Res |
 |--------|------|---------|------|---------|
-| POST | `/api/v2/invites` | emitir; token só no 201; `emission` | JWT · admin/gestor | `{contract_id, validity}` → `{id, url, expires_at}` |
+| POST | `/api/v2/invites` | emitir; contrato encerrado → 409; token só no 201; `emission` | JWT · admin/gestor | `{contract_id, validity}` → `{id, url, expires_at}` |
 | GET | `/api/v2/invites` | lista com estado derivado e cadastros; sem token | JWT · admin/gestor | → `invites[]` |
 | DELETE | `/api/v2/invites/:id` | revogar + suspender visitantes; expirado → 409 | JWT · admin/gestor | 200 idempotente |
 | POST | `/api/v2/invites/:token/register` | cadastro público; username derivado | público; rate limit → 429 | `{name,email,password}` → sessão |
 
-Nota FR-047: `GET /api/v2/tasks[/:id]` ganha papel `visitante` escopado ao convite (fora → 404; demais → 403; revalida por request); contrato não redefinido.
+Nota FR-047: `GET /api/v2/tasks[/:id]` ganha papel `visitante` escopado ao convite (fora → 404; demais → 403; revalida convite ou reavaliação registrada); contrato não redefinido.
 
 **Detalhe**: `contracts/openapi.yaml`
 
@@ -115,7 +116,7 @@ Nota FR-047: `GET /api/v2/tasks[/:id]` ganha papel `visitante` escopado ao convi
 |----------------|---------|----------|-------|
 | Token inválido/expirado/revogado | recusa uniforme, corpo idêntico | 409 `{error}` | não |
 | E-mail no domínio | UNIQUE na mesma transação | 409; convite não consumido | não |
-| Rate limit por IP | janela fixa em memória | 429 | 60 s |
+| Rate limit por IP | janela de 10 por 60 s em memória | a 11ª → 429 | 60 s |
 | Auth/domínio/papel | inalterado (00002) | 401/403/404 | não |
 | Migração | `PRAGMA table_info` + rebuild CHECK (E011) | startup falha se SQL inválido | não |
 
@@ -123,9 +124,8 @@ Nota FR-047: `GET /api/v2/tasks[/:id]` ganha papel `visitante` escopado ao convi
 
 | Risk (from spec) | L | I | Mitigation | Owner |
 |---|---|---|---|---|
-| Vazamento de escopo | M | H | deny-by-default 00002 FR-005 + derivação por request + casos negativos | `auth.js`, `tasks.js`, `invites.test.js` |
-| Link como credencial longa | L | M | opções curtas, revogação e expiração obrigatórias | `invites.js` |
-| Papel novo na base | L | M | rebuild in-place do CHECK (E011) + teste | `database.js` |
+| Vazamento de escopo | M | H | deny-by-default 00002 FR-005 + derivação por request | `auth.js`, `tasks.js` |
+| Link como credencial longa | L | M | opções curtas, revogação e expiração | `invites.js` |
 | Abuso do cadastro aberto | L | M | rate limit 429 + `UNIQUE` por e-mail | `invites.js` |
 
 ## Requirement Coverage Map
@@ -137,8 +137,8 @@ Nota FR-047: `GET /api/v2/tasks[/:id]` ganha papel `visitante` escopado ao convi
 | FR-046 | backend/src/routes/invites.js, backend/src/models/User.js | `registerByToken`, `User.create`, `deriveUsername` | AD-003, AD-004, AD-008, STF-002 |
 | FR-047 | backend/src/routes/tasks.js, backend/src/middleware/auth.js, frontend/lib/screens/tasks_screen.dart | `canSeeTask`, `visitorScope`, listagem filtrada | AD-005, STF-003 |
 | FR-048 | backend/src/middleware/auth.js, backend/src/config/database.js | `requireRole`, CHECK `users.role` com `visitante` | AD-006 |
-| FR-049 | backend/src/routes/users.js, backend/src/models/AccessHistory.js | `reevaluateVisitor`, `assertActiveVisitor` | AD-007, STF-001 |
-| FR-050 | backend/src/models/AccessHistory.js | `recordAccess` (emission/registration/reevaluation/suspension) | AD-007 |
+| FR-049 | backend/src/routes/users.js, backend/src/models/AccessHistory.js, frontend/lib/screens/users_screen.dart | `reevaluateVisitor`, `assertActiveVisitor`, `_reavaliarDialog` | AD-007, AD-009, STF-001 |
+| FR-050 | backend/src/models/AccessHistory.js, frontend/lib/screens/users_screen.dart | `recordAccess` (emission/registration/reevaluation/suspension), `_historicoList` | AD-007 |
 
 ## Project Structure
 
@@ -164,5 +164,5 @@ Nota FR-047: `GET /api/v2/tasks[/:id]` ganha papel `visitante` escopado ao convi
 - **[HINT-001]** Ordem: stubs RED → migração → modelos → rotas → guards → reavaliação → telas → `flutter analyze`/`test` → `npm test` → `test.sh`.
 - **[HINT-002]** Estado do convite sempre derivado; nunca gravar coluna de estado (STF-003).
 - **[HINT-003]** Recusa do token idêntica nos 3 casos; e-mail duplicado → 409 sem consumo (STF-002).
-- **[HINT-004]** Suspensão na mesma transação, autor por causa (revogação→ator, expiração→emissor); promoção exige `active=1`.
+- **[HINT-004]** Suspender só visitantes sem reavaliação vigente, na mesma transação; autor por causa (revogação→ator, expiração→emissor); promoção revalida no commit; reativação vale até nova suspensão.
 - **[HINT-005]** Token só no 201; nunca em listagem, erro ou log.
