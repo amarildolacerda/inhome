@@ -1286,3 +1286,60 @@ test('FR-035 domínio estrangeiro/suspenso 403', async () => {
     'sem histórico novo'
   );
 });
+
+// 00016 FR-047 (stub do plano → GREEN): visitante vê só as tarefas do contrato
+// do convite; fora do escopo → 404, demais rotas fora da matriz → 403.
+test('FR-047 visitante vê só tarefas do contrato do convite', async () => {
+  const sys = await request(app).post('/api/v2/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  const enabled = await request(app)
+    .post('/api/v2/domains/enable')
+    .set(as(sys.body.token))
+    .send({
+      name: 'E015 Escopo',
+      adminName: 'Admin Escopo',
+      adminEmail: 'adm@escopo.e015.test',
+      adminPassword: 'Secret1!',
+    });
+  assert.strictEqual(enabled.status, 201, JSON.stringify(enabled.body));
+  const did = enabled.body.domain.id;
+  const adm = await login('adm@escopo.e015.test', 'Secret1!', did);
+  const db = getDomainDb(did);
+  for (const [name, status] of [['C-visivel', 1], ['C-fora', 1]]) {
+    db.run(
+      'INSERT INTO contracts(name, start_date, forecast_date, status) VALUES (?, ?, ?, ?)',
+      [name, '2026-01-01', '2026-12-31', status]
+    );
+  }
+  const c1 = db.get("SELECT id FROM contracts WHERE name = 'C-visivel'").id;
+  const c2 = db.get("SELECT id FROM contracts WHERE name = 'C-fora'").id;
+  db.run("INSERT INTO tasks(contract_id, title) VALUES (?, 'Dentro')", [c1]);
+  db.run("INSERT INTO tasks(contract_id, title) VALUES (?, 'Fora')", [c2]);
+  const tIn = db.get("SELECT id FROM tasks WHERE title = 'Dentro'").id;
+  const tOut = db.get("SELECT id FROM tasks WHERE title = 'Fora'").id;
+
+  const invite = await request(app)
+    .post('/api/v2/invites')
+    .set(as(adm))
+    .send({ contract_id: c1, validity: '7d' });
+  assert.strictEqual(invite.status, 201, JSON.stringify(invite.body));
+  const reg = await request(app)
+    .post(`/api/v2/invites/${invite.body.token}/register`)
+    .send({ name: 'Visitante Escopo', email: 'vis@escopo.e015.test', password: 'Secret1!' });
+  assert.strictEqual(reg.status, 201, JSON.stringify(reg.body));
+  const vis = await login('vis@escopo.e015.test', 'Secret1!', did);
+
+  const list = await request(app).get('/api/v2/tasks').set(as(vis));
+  assert.strictEqual(list.status, 200, JSON.stringify(list.body));
+  assert.deepStrictEqual(list.body.tasks.map((t) => t.id), [tIn], 'só tarefas do contrato');
+  const detailOut = await request(app).get(`/api/v2/tasks/${tOut}`).set(as(vis));
+  assert.strictEqual(detailOut.status, 404, 'fora do contrato → 404');
+  const detailIn = await request(app).get(`/api/v2/tasks/${tIn}`).set(as(vis));
+  assert.strictEqual(detailIn.status, 200);
+
+  // Demais rotas fora da matriz: visitante não edita tarefas.
+  const patch = await request(app)
+    .patch(`/api/v2/tasks/${tIn}/status`)
+    .set(as(vis))
+    .send({ status: 'Em Progresso' });
+  assert.strictEqual(patch.status, 403);
+});

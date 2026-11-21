@@ -3,6 +3,34 @@
 > Atualizado em [20/11] para restauração de contexto. Repo `/mnt/windows/git/inhome`, branch `dev`.
 > Estado anterior: HEAD `cdc0969` = `origin/dev`; stack Docker `inhome` up (backend:3001, frontend:80).
 
+## Sessão D — 20/11 (autopilot E015 completo)
+
+### Objetivo e resultado
+
+- Autopilot de E015 executado de ponta a ponta, sem interação: Specify → Clarify → Plan → Checklist → Tasks → Analyze → Implement → QC. Gates reais, log estruturado em `specs/00016-convite-visitante/autopilot-log.md`.
+- `AUTOPILOT=true`; nenhuma pergunta ao usuário; decisões semânticas do Spec Validator registradas como `skipped` (exigiriam mudar requisitos/IDs).
+- Cursor IDE confirmado: `/usr/bin/cursor`, versão `3.30.14`, entrada em `/usr/share/applications/cursor.desktop`. O instalador `curl https://cursor.com/install` traz só o `cursor-agent`.
+
+### Entregas
+
+- Backend: 3 tabelas + CHECK `visitante` em `config/database.js`; `Invite.js`, `AccessHistory.js`; 4 endpoints em `routes/invites.js`; `visitorScope` e revalidação em `middleware/auth.js`; escopo em `routes/tasks.js`; reavaliação e histórico em `routes/users.js`.
+- Frontend: `invites_screen.dart`, `invite_register_screen.dart`, filtro de escopo em `tasks_screen.dart`, reavaliação/histórico em `users_screen.dart`, rotas e nav por papel em `main.dart`, `applyInviteSession` em `api_service.dart`.
+- Segurança: token opaco (`randomBytes(16)` base64url) só no 201; estado derivado; rate limit em memória; histórico append-only; token nunca em listagem/erro/log.
+- Provenance: stubs sem caminho de `.test.js` e T021 reduzido a `{FR-049}` para casar com o coverage map do `plan.md` (que tinha só 33 B de margem); 26/26 tasks `[X]`, todos os gates válidos.
+- QC: `.completed`, `qc-report.md` e `.qc-passed` com digests reais; `derive-completion-state` = `complete`, 0 issues. E015 marcado `[X]` em `specs/project-plan.md`.
+
+### Evidências
+
+- `npm test` 181/181; `backend/test.sh` 183/183; `flutter test` 88/88; `flutter analyze lib test` 0 issues; `npm audit --audit-level=high` 0 vulnerabilidades.
+- Dev server na 3001 precisa parar antes de `npm test` e ser restaurado depois (`nohup node src/server.js >/dev/null 2>&1 &`).
+- `index.html` na raiz continua fora do commit (resíduo de build Flutter).
+
+### Push
+
+- Commit anterior `fd33679` (clarify/plan/checklists) já em `origin/dev`.
+- Push com token: `git -c credential.helper='!f() { echo username=x-access-token; echo "password=$(cat .git_token)"; }; f' push origin dev`.
+- Unit tests gate para `dev` → `main`: suíte verde no momento do push.
+
 ## Sessão C — 20/11 (Cursor + commit E015)
 
 ### Contexto

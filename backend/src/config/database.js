@@ -139,10 +139,49 @@ const USERS_DDL = `CREATE TABLE IF NOT EXISTS users (
     email TEXT NOT NULL UNIQUE,
     username TEXT UNIQUE,
     password_hash TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('admin','gestor','prestador','auditor')),
+    role TEXT NOT NULL CHECK (role IN ('admin','gestor','prestador','auditor','visitante')),
     active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`;
+
+// 00016 (FR-044/045/050, AD-001/002/007): convites com estado derivado,
+// ledger de e-mails consumidos e histórico de acesso append-only. DDL em
+// inglês, mesmo padrão das demais tabelas de domínio; token é credencial
+// (UNIQUE) e nunca é gravado em log.
+const INVITES_DDL = `CREATE TABLE IF NOT EXISTS invites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token TEXT NOT NULL UNIQUE,
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    issued_by INTEGER NOT NULL REFERENCES users(id),
+    expires_at TEXT NOT NULL,
+    revoked_at TEXT,
+    revoked_by INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    CHECK ((revoked_at IS NULL) = (revoked_by IS NULL))
+  )`;
+
+const INVITE_EMAILS_DDL = `CREATE TABLE IF NOT EXISTS invite_emails (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    invite_id INTEGER NOT NULL REFERENCES invites(id),
+    email TEXT NOT NULL,
+    user_id INTEGER NOT NULL UNIQUE REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (invite_id, email)
+  )`;
+
+const ACCESS_HISTORY_DDL = `CREATE TABLE IF NOT EXISTS access_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event TEXT NOT NULL CHECK (event IN ('emission','registration','reevaluation','suspension')),
+    invite_id INTEGER NOT NULL REFERENCES invites(id),
+    user_id INTEGER REFERENCES users(id),
+    author_id INTEGER NOT NULL REFERENCES users(id),
+    from_role TEXT,
+    to_role TEXT,
+    active_before INTEGER CHECK (active_before IN (0,1)),
+    active_after INTEGER CHECK (active_after IN (0,1)),
+    cause TEXT CHECK (cause IN ('revoked','expired')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`;
 
 // Fase 3 da convenção de nomenclatura (2026-10-12): os 6 enums de dado são
@@ -233,6 +272,11 @@ const DOMAIN_SCHEMA = [
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
   CONTRACTS_DDL,
+  // 00016: convites, ledger de e-mails e histórico de acesso (CREATE IF NOT
+  // EXISTS cobre domínios novos e a abertura de bancos legados).
+  INVITES_DDL,
+  INVITE_EMAILS_DDL,
+  ACCESS_HISTORY_DDL,
   `CREATE TABLE IF NOT EXISTS contract_providers (
     contract_id INTEGER NOT NULL REFERENCES contracts(id),
     user_id INTEGER NOT NULL REFERENCES users(id),
@@ -356,6 +400,10 @@ const DOMAIN_INDEXES = [
   // --- 00011 E005: hot sort da página do painel (AD-005) ---
   'CREATE INDEX IF NOT EXISTS idx_contracts_forecast ON contracts(forecast_date)',
   'CREATE INDEX IF NOT EXISTS idx_entity_history_entity ON entity_history(entity_type, entity_id)',
+  // --- 00016 E015: hot paths de convite/escopo/histórico (data-model.md) ---
+  'CREATE INDEX IF NOT EXISTS idx_invites_contract ON invites(contract_id)',
+  'CREATE INDEX IF NOT EXISTS idx_access_history_invite ON access_history(invite_id)',
+  'CREATE INDEX IF NOT EXISTS idx_access_history_user ON access_history(user_id)',
 ];
 
 function ensureIndexes(wrapper) {
@@ -494,7 +542,13 @@ function migrateSchema(wrapper) {
     const usersSql = wrapper.get(
       "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'"
     )?.sql;
-    if (usersSql && usersSql.includes("'prestador'") && !usersSql.includes("'auditor'")) {
+    // 00016: o mesmo rebuild também alarga o CHECK para `visitante` em bancos
+    // que já tinham `auditor` (guarda aditiva: dispara uma vez por arquivo).
+    if (
+      usersSql &&
+      usersSql.includes("'prestador'") &&
+      (!usersSql.includes("'auditor'") || !usersSql.includes("'visitante'"))
+    ) {
       wrapper.run(
         USERS_DDL.replace('CREATE TABLE IF NOT EXISTS users', 'CREATE TABLE users_e011')
       );

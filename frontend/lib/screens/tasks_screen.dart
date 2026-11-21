@@ -13,17 +13,25 @@ import '../widgets/task_list_tile.dart';
 /// no canal do contrato (ContractDetailScreen) — sem FAB nesta tela: a rota de
 /// criação é POST /contracts/:id/tasks, exclusiva de admin/gestor.
 class TasksScreen extends StatefulWidget {
-  const TasksScreen({super.key});
+  const TasksScreen({super.key, this.api});
+
+  /// Fachada de API injetável — testes usam um fake sem rede.
+  final ApiService? api;
 
   @override
   State<TasksScreen> createState() => _TasksScreenState();
 }
 
 class _TasksScreenState extends State<TasksScreen> {
-  final api = ApiService();
+  late final ApiService api = widget.api ?? ApiService();
   List<Task> _tasks = [];
   bool _loading = true;
   String _filterStatus = 'all';
+  String? _role;
+
+  /// [FR-047] visitante só opera no contrato do convite. O backend já escopa
+  /// GET /tasks; o filtro abaixo é defesa adicional e nunca substitui a guarda.
+  int? _scopeContractId;
   StreamSubscription<Map<String, dynamic>>? _eventsSub;
 
   @override
@@ -64,12 +72,20 @@ class _TasksScreenState extends State<TasksScreen> {
 
   Future<void> _loadTasks() async {
     try {
+      final roleFuture = api.role;
       final result = await api.get('/tasks');
+      final role = await roleFuture;
       final tasks = (result['tasks'] as List)
           .map((t) => Task.fromJson(t))
           .toList();
       if (!mounted) return;
+      // Derivado do próprio payload escopado: nenhum contrato vai no JWT.
+      final scope = role == 'visitante' && tasks.isNotEmpty
+          ? tasks.first.contractId
+          : null;
       setState(() {
+        _role = role;
+        _scopeContractId = scope;
         _tasks = tasks;
         _loading = false;
       });
@@ -80,10 +96,17 @@ class _TasksScreenState extends State<TasksScreen> {
     }
   }
 
+  bool get _isVisitor => _role == 'visitante';
+
   /// 'all' devolve a fila inteira; os outros valores seguem [Task.flow].
+  /// Para visitante, restringe ao contrato do convite antes do filtro de status.
   List<Task> get _filteredTasks {
-    if (_filterStatus == 'all') return _tasks;
-    return _tasks.where((t) => t.status == _filterStatus).toList();
+    var list = _tasks;
+    if (_isVisitor && _scopeContractId != null) {
+      list = list.where((t) => t.contractId == _scopeContractId).toList();
+    }
+    if (_filterStatus == 'all') return list;
+    return list.where((t) => t.status == _filterStatus).toList();
   }
 
   void _snack(String message) {
@@ -114,32 +137,56 @@ class _TasksScreenState extends State<TasksScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.all(24),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Flexible(
-                  child: Text(
-                    'Minhas Tarefas',
-                    style: Theme.of(context).textTheme.headlineLarge,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const Spacer(),
-                // Valores em português: o backend só grava o fluxo de Task.flow
-                // (os rótulos 'A Fazer'/'Progresso'/'Feito' continuam).
-                SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'all', label: Text('Todas')),
-                    ButtonSegment(value: Task.toDo, label: Text('A Fazer')),
-                    ButtonSegment(
-                      value: Task.inProgress,
-                      label: Text('Progresso'),
+                Row(
+                  children: [
+                    Flexible(
+                      flex: 1,
+                      child: Text(
+                        'Minhas Tarefas',
+                        style: Theme.of(context).textTheme.headlineLarge,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    ButtonSegment(value: Task.done, label: Text('Feito')),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      flex: 3,
+                      // Em largura estreita o filtro rola em vez de estourar.
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        // Valores em português: o backend só grava o fluxo de
+                        // Task.flow (os rótulos 'A Fazer'/'Feito' continuam).
+                        child: SegmentedButton<String>(
+                          segments: const [
+                            ButtonSegment(value: 'all', label: Text('Todas')),
+                            ButtonSegment(
+                                value: Task.toDo, label: Text('A Fazer')),
+                            ButtonSegment(
+                              value: Task.inProgress,
+                              label: Text('Progresso'),
+                            ),
+                            ButtonSegment(value: Task.done, label: Text('Feito')),
+                          ],
+                          selected: {_filterStatus},
+                          onSelectionChanged: (s) =>
+                              setState(() => _filterStatus = s.first),
+                        ),
+                      ),
+                    ),
                   ],
-                  selected: {_filterStatus},
-                  onSelectionChanged: (s) =>
-                      setState(() => _filterStatus = s.first),
                 ),
+                // [FR-047] escopo visível para o visitante: a guarda do backend
+                // já limita a listagem ao contrato do convite.
+                if (_isVisitor)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Escopo do convite: apenas as tarefas deste contrato',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
               ],
             ),
           ),

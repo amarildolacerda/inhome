@@ -944,3 +944,43 @@ test('00014 category migration: additive column, counts preserved, idempotent', 
     'fresh DDL também valida'
   );
 });
+
+// 00016 E015 (T001): 3 tabelas novas + CHECK de users alargado por rebuild
+// in-place no padrão E011 (ids/REFERENCES preservados).
+test('00016 migrateSchema convites e CHECK visitante', async () => {
+  const SQL = await database.initSqlDriver();
+  await database.initDatabase();
+
+  const fresh = database.createDomainDb(991);
+  for (const table of ['invites', 'invite_emails', 'access_history']) {
+    assert.ok(
+      fresh.get("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", [table]),
+      `${table} criada`
+    );
+  }
+  const freshSql = fresh.get("SELECT sql FROM sqlite_master WHERE name='users'").sql;
+  assert.match(freshSql, /visitante/);
+  fresh.run("INSERT INTO users(name, email, password_hash, role) VALUES ('V','v@991.test','h','visitante')");
+
+  // Domínio legado (CHECK sem visitante) é reconstruído na abertura.
+  const legacyFile = path.join(dataDir, 'domains', '992.db');
+  const legacy = new SQL.Database();
+  legacy.run(`CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE,
+    username TEXT UNIQUE, password_hash TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('admin','gestor','prestador','auditor')),
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  legacy.run("INSERT INTO users(id, name, email, password_hash, role) VALUES (7,'Legado','l@992.test','h','gestor')");
+  fs.writeFileSync(legacyFile, Buffer.from(legacy.export()));
+
+  const migrated = database.getDomainDb(992);
+  const migratedSql = migrated.get("SELECT sql FROM sqlite_master WHERE name='users'").sql;
+  assert.match(migratedSql, /visitante/, 'CHECK alargado no rebuild');
+  assert.strictEqual(migrated.get('SELECT id FROM users WHERE email = ?', ['l@992.test']).id, 7, 'id preservado');
+  migrated.run("INSERT INTO users(name, email, password_hash, role) VALUES ('V','v2@992.test','h','visitante')");
+  assert.ok(migrated.get("SELECT id FROM users WHERE role = 'visitante'"));
+  assert.ok(migrated.get("SELECT name FROM sqlite_master WHERE type='table' AND name='invites'"));
+});

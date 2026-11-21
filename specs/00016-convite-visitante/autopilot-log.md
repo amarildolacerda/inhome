@@ -160,3 +160,40 @@
 2026-11-19 00:15:18 | Checklist | phase_complete | Fila de checklists concluída: CHL001 31/31, CHL002 28/28, CHL003 28/28 | 4 emendas (spec 2, data-model 1, openapi 1) revalidadas | output artifact verified | [checklists/](checklists/)
 --- | --- | --- | --- | --- | --- | ---
 2026-11-19 00:15:28 | autopilot | phase_start | Phase 5 — Tasks | autopilot-pipeline | gate Plan → Tasks (Plan Validator); plan.md existe (10233 B) | - |
+
+## Run 2026-11-20 22:00:25
+
+| Timestamp | Phase | Event | Detail | Outcome | Rationale | Artifacts |
+|-----------|-------|-------|--------|---------|-----------|-----------|
+
+| 22:00:25 | Gate | gate_check | Autopilot permission `**Enabled**: true` | PASS | config authorizes unattended run | [.github/sddp-config.md](../../.github/sddp-config.md) |
+| 22:00:25 | Gate | gate_check | Product Document `specs/prd.md` planning-ready + project-plan freshness | PASS | validator valid=true, capability digest `79217e…00ca`, projectPlanFreshness.valid=true | [specs/prd.md](../prd.md), [specs/project-plan.md](../project-plan.md) |
+| 22:00:25 | Gate | epic_update | Auto-selected epic E015 | Convite temporário e papel visitante — link com validade, cadastro e reavaliação | first unchecked epic in document order | [specs/project-plan.md](../project-plan.md), [specs/plan/E015.md](../plan/E015.md) |
+| 22:02:35 | Gate | gate_check | Technical Context Document `specs/sad.md` planning-ready | PASS | validator valid=true, 5/5 categories, 7 boundaries, 7 flows, architectureDigest `e038e5…89d4` | [specs/sad.md](../sad.md) |
+| 22:02:35 | Gate | gate_check | Feature complete check (live derive-completion-state) | implementation-pending | no QC evidence; full pipeline required | — |
+| 22:02:35 | Gate | gate_check | Context Gatherer full-mode report retained as PIPELINE_CONTEXT | FEATURE_DIR=specs/00016-convite-visitante | `epic_id: E015` matched existing workspace; CONTEXT_BLOCKED=false | [spec.md](spec.md) |
+| 22:02:40 | Tasks | phase_start | Begin tasks generation | running | autopilot pipeline phase 5 | [plan.md](plan.md) |
+| 22:04:10 | Tasks | gate_check | Plan → Tasks gate (Plan Validator) | PASS 13/13 | evaluatePlanGate valid, 7/7 P1 com path+symbol, AD-001..009 sem órfãos, npm ls/dry-run OK, 0 falhas | [plan.md](plan.md), [spec.md](spec.md) |
+| 22:08:10 | Tasks | phase_complete | tasks.md created by WBS Generator | 26 tasks, 5 phases, 5989 B | parser valid=true 0 errors, evaluateTasksGate valid, provenance valid, 7/7 P1 com stub+impl, 3 US cobertas | [tasks.md](tasks.md) |
+| 22:08:15 | Analyze | phase_start | Begin cross-artifact compliance analysis | running | autopilot pipeline phase 6 | [tasks.md](tasks.md) |
+| 22:10:20 | Analyze | gate_check | Policy Auditor (spec.md, plan.md, tasks.md) | PASS | 3/3 artefatos, 0 violações; margens 27 B / 33 B / 156 B | [spec.md](spec.md), [plan.md](plan.md), [tasks.md](tasks.md) |
+| 22:10:25 | Analyze | gate_check | Spec Validator read-only | PASS 31/31 | evaluateSpecGate valid=true, 7/7 P1, 0 markers, 5 STF resolvidos | [spec.md](spec.md) |
+| 22:11:00 | Analyze | decision | Recomendações semânticas do Spec Validator puladas | skipped | FR-047/048, FR-045/049, FR-050, FR-046, STF-001/002 exigem julgamento de requisitos; mudariam spec/IDs | [spec.md](spec.md) |
+| 22:11:30 | Analyze | decision | AN-001 auto-remediation aplicada | applied | T011 descrição reescrita para parser extrair backend/src/models/User.js | [tasks.md](tasks.md), [analysis-report.md](analysis-report.md) |
+| 22:11:47 | Analyze | gate_check | Revalidação pós-remediação | PASS | parser valid=true 0 errors, T011.filePath correto, tasksGate valid, provenance valid, 6001 B ≤ 6144 | [tasks.md](tasks.md) |
+| 22:11:47 | Analyze | phase_complete | analysis-report.md escrito | 1 finding MEDIUM (AN-001) | 7/7 P1 cobertos, 0 cycles, 0 broken edges, 0 CRITICAL | [analysis-report.md](analysis-report.md) |
+| 22:11:50 | Implement | phase_start | Begin implementation phase | running | autopilot pipeline phases 7+ | [tasks.md](tasks.md) |
+| 22:13:00 | Implement | gate_check | Tasks → Implement gate (Tasks Validator) | PASS 20/20 | parser valid 26/26, evaluateTasksGate valid, provenance valid, 6001 B, 7/7 P1, 0 cycles/dangles | [tasks.md](tasks.md) |
+| 22:28:26 | Implement | phase_progress | Backend implementado (T001-T007, T009-T014, T016-T021, T024-T026) | 181/181 testes | npm test verde; migração 3 tabelas + CHECK visitante, 4 endpoints, guard/escopo, reavaliação; dev server 3001 restaurado | [tasks.md](tasks.md) |
+| 22:44:10 | Implement | phase_progress | Frontend implementado e suíte completa verde | 181/181 unit, 183/183 smoke, 88/88 flutter | analyze 0 issues, audit 0 vulnerabilidades; telas de convite/cadastro, escopo visitante, reavaliação e histórico | [tasks.md](tasks.md) |
+| 22:45:30 | Implement | decision | Provenance remediation sem tocar plan.md (33 B de margem) | applied | stubs sem caminho de .test.js e T021 reduzido para {FR-049}; parser/evaluateTasksGate/evaluateCheckedTaskProvenance válidos | [tasks.md](tasks.md), [plan.md](plan.md) |
+| 22:46:20 | Implement | gate_check | Revalidação final de tasks.md | PASS 26/26 | parser valid=true 0 errors, 6041 B ≤ 6144, 7/7 P1, provenance válida, 0 ciclos | [tasks.md](tasks.md) |
+| 22:48:00 | Implement | phase_complete | Implementação concluída sem bugs CRITICAL/ERROR | 26/26 tasks `- [X]` | bateria real: unit 181/181, smoke 183/183, flutter 88/88, analyze 0, audit 0 | [tasks.md](tasks.md) |
+| 22:49:10 | QC | phase_start | Iniciar Quality Control full-mode | running | gate `.completed` e tasks checking; veredito depende de evidência real | [tasks.md](tasks.md) |
+| 22:50:10 | QC | gate_check | Gate `.completed` + tasks checking | PASS | `.completed` presente, 26/26 `[X]`, nenhum bug CRITICAL/ERROR | [.completed](.completed), [tasks.md](tasks.md) |
+| 22:50:40 | QC | gate_check | Policy Auditor + QC Auditor + Story Verifier (inline) | PASS | 0 violações de `project-instructions.md`; 7/7 FR, 3/3 US, 5/5 SC; bateria verde | [qc-report.md](qc-report.md) |
+| 22:51:00 | QC | decision | Browser probe 6.0 sem ferramenta; fallback 6c não acionado | skipped | cenários observáveis por API e widget tests; nenhuma atestação humana pendente | [qc-report.md](qc-report.md) |
+| 22:51:30 | QC | phase_complete | QC PASS com evidência real | PASS | unit 181/181, smoke 183/183, flutter 88/88, analyze 0, audit 0; digests de report/evidence/baseline/repo validados | [qc-report.md](qc-report.md), [.qc-passed](.qc-passed) |
+| 22:52:00 | autopilot | gate_check | derive-completion-state | PASS complete | IMPLEMENTATION_COMPLETE=true, QC_COMPLETE=true, 0 issues | [scripts/derive-completion-state.mjs](../../scripts/derive-completion-state.mjs) |
+| 22:52:20 | autopilot | decision | Épico E015 marcado como concluído no plano | applied | checkbox `[X]` e nota da onda 8 atualizada | [project-plan.md](../project-plan.md) |
+| 22:52:40 | autopilot | run_summary | Pipeline autopilot de E015 concluído | PASS | Specify→Clarify→Plan→Checklist→Tasks→Analyze→Implement→QC; 26 tasks, 7 FR P1, 0 perguntas; commit/push em `dev` | [autopilot-log.md](autopilot-log.md) |

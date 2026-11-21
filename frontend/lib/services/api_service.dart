@@ -242,6 +242,39 @@ class ApiService {
     return user;
   }
 
+  /// [FR-046]: o cadastro público por convite devolve o mesmo envelope de
+  /// /auth/login ({user, token, domainId}). Persiste a sessão pelo mesmo
+  /// caminho, para que o shell resolva papel e domínio sem novo login.
+  Future<Map<String, dynamic>> applyInviteSession(Map<String, dynamic> result) async {
+    final sessionToken = result['token'];
+    if (sessionToken is String && sessionToken.isNotEmpty) {
+      await saveToken(sessionToken);
+    }
+
+    final user = _asMap(result['user']);
+    final sessionDomain = result['domainId'];
+    final domain = sessionDomain is num ? sessionDomain.toInt() : null;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('auth_user', jsonEncode(user));
+    final sessionRole = user['role'];
+    if (sessionRole is String) {
+      await prefs.setString('auth_role', sessionRole);
+    } else {
+      await prefs.remove('auth_role');
+    }
+    if (domain != null) {
+      await prefs.setInt('auth_domain', domain);
+    } else {
+      await prefs.remove('auth_domain');
+    }
+
+    _currentUser = user;
+    _currentRole = sessionRole is String ? sessionRole : null;
+    _currentDomainId = domain;
+    return user;
+  }
+
   /// [FR-016]: GET /search/contracts — q, status, finalidade, prestador e paging.
   Future<List<Map<String, dynamic>>> searchContracts({
     String? q,

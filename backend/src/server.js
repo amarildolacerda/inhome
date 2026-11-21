@@ -74,6 +74,8 @@ const tasksRouter = require('./routes/tasks');
 app.use('/api/v2/auth', require('./routes/auth'));
 app.use('/api/v2/domains', require('./routes/domains'));
 app.use('/api/v2/users', require('./routes/users'));
+// 00016 E015: convites de acesso temporário e cadastro público de visitante.
+app.use('/api/v2/invites', require('./routes/invites'));
 app.use('/api/v2/purposes', require('./routes/finalidades'));
 app.use('/api/v2/contracts', require('./routes/contracts'));
 app.use('/api/v2/contracts', require('./routes/definitions'));

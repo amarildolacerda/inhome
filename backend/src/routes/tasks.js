@@ -52,7 +52,12 @@ function getTaskOr404(db, id) {
 }
 
 // Prestador: only tasks assigned to them. Admin/gestor: whole domain (FR-013).
-function canSeeTask(user, task) {
+// 00016 (FR-047): visitante sees only the contract of its invite; the scope is
+// derived per request in auth.js and never comes from the session payload.
+function canSeeTask(user, task, scope) {
+  if (user.role === 'visitante') {
+    return Boolean(scope && task.contract_id === scope.contractId);
+  }
   if (user.role === 'prestador') return task.assignee_id === user.id;
   return true;
 }
@@ -157,6 +162,9 @@ function listTasks(req, res) {
     } else {
       rows = db.all('SELECT * FROM tasks ORDER BY id');
     }
+    if (req.user.role === 'visitante') {
+      rows = rows.filter((row) => canSeeTask(req.user, row, req.user.scope));
+    }
     const activeByContract = new Map();
     const tasks = rows.map((row) => {
       if (!activeByContract.has(row.contract_id)) {
@@ -182,7 +190,7 @@ function getTask(req, res) {
   try {
     const db = getDomainDb(req.user.domainId);
     const task = Task.findById(db, req.params.id);
-    if (!task || !canSeeTask(req.user, task)) {
+    if (!task || !canSeeTask(req.user, task, req.user.scope)) {
       return res.status(404).json({ error: 'Task not found' });
     }
     res.json({ task, history: Task.history(db, task.id) });
@@ -301,7 +309,7 @@ async function completeTask(req, res) {
     const db = getDomainDb(req.user.domainId);
     const row = getTaskOr404(db, req.params.id);
     // Alheia invisível (FR-013): other prestadores get 404, not 403.
-    if (!canSeeTask(req.user, row)) {
+    if (!canSeeTask(req.user, row, req.user.scope)) {
       return res.status(404).json({ error: 'Task not found' });
     }
     if (req.user.role !== 'prestador' || row.assignee_id !== req.user.id) {
@@ -523,8 +531,8 @@ async function reopenTask(req, res) {
 router.use(authenticateToken);
 // AD-002 (FR-010, E003): domainId estrangeiro → 403 antes de qualquer consulta.
 router.use(scopeDomain());
-router.get('/', requireRole('admin', 'gestor', 'prestador'), listTasks);
-router.get('/:id', requireRole('admin', 'gestor', 'prestador'), getTask);
+router.get('/', requireRole('admin', 'gestor', 'prestador', 'visitante'), listTasks);
+router.get('/:id', requireRole('admin', 'gestor', 'prestador', 'visitante'), getTask);
 router.put('/:id', requireRole('admin', 'gestor'), updateTaskFields);
 router.patch('/:id/status', requireRole('admin', 'gestor', 'prestador'), updateTaskStatus);
 router.post('/:id/complete', requireRole('admin', 'gestor', 'prestador'), completeTask);

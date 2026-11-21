@@ -318,3 +318,100 @@ test('FR-005 auditor in role enum', async () => {
     });
   assert.strictEqual(unknown.status, 400, JSON.stringify(unknown.body));
 });
+
+// 00016 FR-049 (stub do plano → GREEN): reavaliação com precedência, revalidação
+// no commit e histórico de autor/papéis/data.
+test('FR-049 reavaliação com precedência', async () => {
+  const sys = await request(app).post('/api/v2/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  const enabled = await request(app)
+    .post('/api/v2/domains/enable')
+    .set('Authorization', `Bearer ${sys.body.token}`)
+    .send({
+      name: 'E015 Reavaliacao',
+      adminName: 'Admin Reav',
+      adminEmail: 'adm@reav.e015.test',
+      adminPassword: 'Secret1!',
+    });
+  const did = enabled.body.domain.id;
+  const adm = await request(app)
+    .post('/api/v2/auth/login')
+    .send({ email: 'adm@reav.e015.test', password: 'Secret1!', domainId: did });
+  const gest = await request(app)
+    .post('/api/v2/users')
+    .set('Authorization', `Bearer ${adm.body.token}`)
+    .send({ name: 'Gestor Reav', email: 'gest@reav.e015.test', password: 'Secret1!', role: 'gestor', username: 'gestreav' });
+  const gestToken = await request(app)
+    .post('/api/v2/auth/login')
+    .send({ email: 'gest@reav.e015.test', password: 'Secret1!', domainId: did });
+
+  const db = require('../config/database').getDomainDb(did);
+  db.run("INSERT INTO contracts(name, start_date, forecast_date) VALUES ('C-reav','2026-01-01','2026-12-31')");
+  const cid = db.get("SELECT id FROM contracts WHERE name = 'C-reav'").id;
+  const inv = await request(app)
+    .post('/api/v2/invites')
+    .set('Authorization', `Bearer ${adm.body.token}`)
+    .send({ contract_id: cid, validity: '7d' });
+  const reg = await request(app)
+    .post(`/api/v2/invites/${inv.body.token}/register`)
+    .send({ name: 'Vis Reav', email: 'vis@reav.e015.test', password: 'Secret1!' });
+  const visitorId = reg.body.user.id;
+
+  // Promoção a prestador reorienta a matriz e grava autor/papéis/data.
+  const promote = await request(app)
+    .put(`/api/v2/users/${visitorId}`)
+    .set('Authorization', `Bearer ${gestToken.body.token}`)
+    .send({ role: 'prestador' });
+  assert.strictEqual(promote.status, 200, JSON.stringify(promote.body));
+  assert.strictEqual(promote.body.user.role, 'prestador');
+  const reeval = db.get("SELECT * FROM access_history WHERE event = 'reevaluation'");
+  assert.strictEqual(reeval.from_role, 'visitante');
+  assert.strictEqual(reeval.to_role, 'prestador');
+  assert.strictEqual(reeval.author_id, gest.body.user.id);
+  assert.ok(reeval.created_at);
+
+  // FR-050: leitura do histórico para admin/gestor, sem token do convite.
+  const historyRes = await request(app)
+    .get(`/api/v2/users/${visitorId}/access-history`)
+    .set('Authorization', `Bearer ${adm.body.token}`);
+  assert.strictEqual(historyRes.status, 200, JSON.stringify(historyRes.body));
+  assert.ok(historyRes.body.history.some((h) => h.event === 'reevaluation'));
+  assert.ok(historyRes.body.history.every((h) => h.token === undefined));
+
+  // Gestor não atribui admin/gestor; visitante promovido não é mais alvo.
+  const reg2 = await request(app)
+    .post(`/api/v2/invites/${inv.body.token}/register`)
+    .send({ name: 'Vis 2', email: 'vis2@reav.e015.test', password: 'Secret1!' });
+  assert.strictEqual(reg2.status, 201);
+  const forbidden = await request(app)
+    .put(`/api/v2/users/${reg2.body.user.id}`)
+    .set('Authorization', `Bearer ${gestToken.body.token}`)
+    .send({ role: 'admin' });
+  assert.strictEqual(forbidden.status, 403);
+
+  // Suspensão manual nega login; reavaliação vigente protege da revogação.
+  const suspend = await request(app)
+    .put(`/api/v2/users/${reg2.body.user.id}`)
+    .set('Authorization', `Bearer ${gestToken.body.token}`)
+    .send({ active: false });
+  assert.strictEqual(suspend.status, 200, JSON.stringify(suspend.body));
+  assert.strictEqual(suspend.body.user.active, 0);
+  const denied = await request(app)
+    .post('/api/v2/auth/login')
+    .send({ email: 'vis2@reav.e015.test', password: 'Secret1!', domainId: did });
+  assert.strictEqual(denied.status, 401);
+
+  // Promoção com convite expirado sem reavaliação prévia é recusada no commit.
+  const inv3 = await request(app)
+    .post('/api/v2/invites')
+    .set('Authorization', `Bearer ${adm.body.token}`)
+    .send({ contract_id: cid, validity: '7d' });
+  const reg3 = await request(app)
+    .post(`/api/v2/invites/${inv3.body.token}/register`)
+    .send({ name: 'Vis 3', email: 'vis3@reav.e015.test', password: 'Secret1!' });
+  db.run("UPDATE invites SET expires_at = '2000-01-01 00:00:00' WHERE id = ?", [inv3.body.id]);
+  const refused = await request(app)
+    .put(`/api/v2/users/${reg3.body.user.id}`)
+    .set('Authorization', `Bearer ${adm.body.token}`)
+    .send({ role: 'prestador' });
+  assert.strictEqual(refused.status, 409, JSON.stringify(refused.body));
+});

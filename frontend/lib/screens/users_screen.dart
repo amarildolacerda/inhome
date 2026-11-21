@@ -22,9 +22,15 @@ class _UsersScreenState extends State<UsersScreen> {
     'admin': 'Administrador',
     'gestor': 'Gestor',
     'prestador': 'Prestador',
+    'auditor': 'Auditor',
+    'visitante': 'Visitante',
   };
 
   bool get _isAdmin => _role == 'admin';
+
+  /// [FR-049] gestor também reavalia visitantes; os demais papéis seguem sob
+  /// gestão exclusiva de admin.
+  bool get _canReevaluate => _role == 'admin' || _role == 'gestor';
 
   @override
   void initState() {
@@ -99,12 +105,100 @@ class _UsersScreenState extends State<UsersScreen> {
     }
   }
 
+  /// [FR-049] abre o diálogo de reavaliação (papel ativo) e recarrega a lista.
+  Future<void> _reavaliarDialog(Map<String, dynamic> user) async {
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => _ReavaliarDialog(api: api, user: user),
+    );
+    if (saved == true && mounted) {
+      _loadUsers();
+    }
+  }
+
+  /// [FR-050] projeção somente leitura do histórico de acesso: eventos, autor,
+  /// papéis e data — sem token de convite.
+  Future<void> _historicoList(Map<String, dynamic> user) async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Histórico de acesso — ${user['name'] ?? ''}'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: FutureBuilder<Map<String, dynamic>>(
+            future: api.get('/users/${user['id']}/access-history'),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return Text(snapshot.error.toString());
+              }
+              final rows = List<Map<String, dynamic>>.from(
+                (snapshot.data?['history'] ?? []) as List,
+              );
+              if (rows.isEmpty) {
+                return const Text('Nenhum evento registrado');
+              }
+              return ListView.separated(
+                shrinkWrap: true,
+                itemCount: rows.length,
+                separatorBuilder: (_, __) => const Divider(),
+                itemBuilder: (context, index) {
+                  final row = rows[index];
+                  final transition = row['from_role'] != null
+                      ? '${row['from_role']} → ${row['to_role'] ?? ''}'
+                      : (row['to_role'] ?? '').toString();
+                  return ListTile(
+                    dense: true,
+                    title: Text(_eventLabel('${row['event']}')),
+                    subtitle: Text(
+                      [
+                        if (transition.isNotEmpty) transition,
+                        if (row['cause'] != null) 'Motivo: ${row['cause']}',
+                        'Autor: #${row['author_id']}',
+                        '${row['created_at'] ?? ''}',
+                      ].join(' · '),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _eventLabel(String event) {
+    switch (event) {
+      case 'emission':
+        return 'Convite emitido';
+      case 'registration':
+        return 'Cadastro';
+      case 'reevaluation':
+        return 'Reavaliação';
+      case 'suspension':
+        return 'Suspensão';
+      default:
+        return event;
+    }
+  }
+
   Color _roleColor(String? role) {
     switch (role) {
       case 'admin':
         return Colors.red.shade100;
       case 'gestor':
         return Colors.blue.shade100;
+      case 'visitante':
+        return Colors.orange.shade100;
       default:
         return Colors.green.shade100;
     }
@@ -191,6 +285,21 @@ class _UsersScreenState extends State<UsersScreen> {
                                       onPressed: () => _deleteUser(user),
                                     ),
                                   ],
+                                  if (user['role'] == 'visitante' &&
+                                      _canReevaluate) ...[
+                                    const SizedBox(width: 4),
+                                    IconButton(
+                                      tooltip: 'Reavaliar visitante',
+                                      icon: const Icon(Icons.swap_horiz_outlined),
+                                      onPressed: () => _reavaliarDialog(user),
+                                    ),
+                                  ],
+                                  if (_canReevaluate)
+                                    IconButton(
+                                      tooltip: 'Histórico de acesso',
+                                      icon: const Icon(Icons.history),
+                                      onPressed: () => _historicoList(user),
+                                    ),
                                 ],
                               ),
                             ),
@@ -419,6 +528,120 @@ class _UserDialogState extends State<_UserDialog> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : Text(_isEdit ? 'Salvar' : 'Criar'),
+        ),
+      ],
+    );
+  }
+}
+
+/// [FR-049] Reavaliação de visitante: troca de papel, suspensão ou reativação
+/// pela mesma rota. Gestor e admin usam este diálogo; o backend grava autor,
+/// papéis e data no histórico e revalida o convite no commit.
+class _ReavaliarDialog extends StatefulWidget {
+  const _ReavaliarDialog({required this.api, required this.user});
+
+  final ApiService api;
+  final Map<String, dynamic> user;
+
+  @override
+  State<_ReavaliarDialog> createState() => _ReavaliarDialogState();
+}
+
+class _ReavaliarDialogState extends State<_ReavaliarDialog> {
+  static const List<String> _roles = ['visitante', 'prestador', 'auditor'];
+  static const Map<String, String> _labels = {
+    'visitante': 'Visitante',
+    'prestador': 'Prestador',
+    'auditor': 'Auditor',
+  };
+
+  String? _role;
+  bool _active = true;
+  bool _submitting = false;
+  String? _apiError;
+
+  @override
+  void initState() {
+    super.initState();
+    _role = widget.user['role'] as String?;
+    _active = widget.user['active'] == null || widget.user['active'] == 1;
+  }
+
+  Future<void> _submit() async {
+    setState(() {
+      _submitting = true;
+      _apiError = null;
+    });
+    try {
+      await widget.api.put(
+        '/users/${widget.user['id']}/reevaluate',
+        body: {'role': _role, 'active': _active},
+      );
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _apiError = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Reavaliar ${widget.user['name'] ?? ''}'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_apiError != null) ...[
+              Text(
+                _apiError!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+              const SizedBox(height: 12),
+            ],
+            DropdownButtonFormField<String>(
+              initialValue: _role,
+              decoration: const InputDecoration(
+                labelText: 'Papel',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                for (final role in _roles)
+                  DropdownMenuItem<String>(
+                    value: role,
+                    child: Text(_labels[role] ?? role),
+                  ),
+              ],
+              onChanged: (value) => setState(() => _role = value),
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              title: const Text('Acesso ativo'),
+              subtitle: const Text('Desligue para suspender o visitante'),
+              value: _active,
+              onChanged: (value) => setState(() => _active = value),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _submitting ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _submitting ? null : _submit,
+          child: _submitting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Salvar'),
         ),
       ],
     );
