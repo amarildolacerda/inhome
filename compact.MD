@@ -38,6 +38,7 @@
 
 ### Push
 
+- Commit `d3ada7e` (E016 completo, 36 arquivos) em `origin/dev`; push confirmado por `git ls-remote`. `main` intocada.
 - Comando com token: `git -c credential.helper='!f() { echo username=x-access-token; echo "password=$(cat .git_token)"; }; f' push origin dev`.
 - Marker de QC precisa ser re-assinado após o commit, porque o baseline muda; o digest de estado exclui `.completed`, `.qc-passed` e `qc-report.md` da feature.
 - Unit tests gate para `dev` → `main`: suíte verde no momento do push. Nunca promover para `main` neste run.
