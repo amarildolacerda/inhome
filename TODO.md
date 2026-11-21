@@ -13,7 +13,7 @@ Custom project TODOs. Agents read this file at session start.
 - [ ] `users` CHECK — alinhar a prosa do spec com o rebuild da tabela (`WARNING` não-bloqueante do QC de 00013, `specs/00013-e011-auditoria-classificacao`); decidido adiar em 2026-10-11. Pendência técnica, não pedida pelo usuário (2026-10-23)
 
 ### V2
-- [ ] (spec `00016-convite-visitante` gerada) permitir que gestor e administradores gerem link de acesso para convidado por tempo determinado (validade temporaria), o convidado ao entrar se cadastra como usuario visitante; a posteriore o gestor/admin pode reavaliar a participação do visitante mudando seu papel ou suspendendo seu acesso
+- [X] Épico E015 — Convite temporário e papel visitante (spec `00016-convite-visitante`): gestor/admin emitem link com validade, o convidado se cadastra como visitante e vê só as tarefas do contrato; reavaliação muda papel ou suspende o acesso. QC PASS (`.qc-passed`), 26/26 tasks, 7/7 FR P1 · backend 181/181 · smoke 183/183 · flutter 88/88 · audit 0 (2026-11-20)
 
 - [ ] a nivel de contrato permitir um chat (estrutura de recursos em `chat/resource.MD` — canal por contrato, anexos, threads por cláusula/tarefa, IA de análise de documentos, menu de tarefas no chat, mobile-first), no chat pode enviar  documentos/anexos para o contrato. Ao receber um documento usar IA para analisar o documento e mapear riscos, multas, seguros, vencimentos, local execução... usar as informações mapeadas para alimentar um sistema de alerta; no chat pode ter algumas opções pre-programdas: ver alertas, ver executados, ver proximas execução;
 
