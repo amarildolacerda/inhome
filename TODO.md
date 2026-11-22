@@ -19,6 +19,7 @@ Custom project TODOs. Agents read this file at session start.
 
 
 ### V3 - avaliar entregas x `specs/plan/canvas_valor_usuario.png`
+- [X] Avaliação V3 concluída (2026-11-22) — relatório em `specs/avaliacao-valor-v3.md`: 7/15 recursos completos, 5/15 parciais, 2/15 não entregues, 1/15 fora de escopo; lacuna de maior valor é previsibilidade financeira (pagamentos e custos). Canvas real em `specs/canvas_valor_usuario.png`.
 
 ## Done
 

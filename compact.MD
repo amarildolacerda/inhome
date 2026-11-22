@@ -42,6 +42,13 @@
 - Commits `d3ada7e` (E016 completo, 36 arquivos) e `6d4984e` (log do run) em `origin/dev`; `main` intocada.
 - Commit `a03ec0d`: revalidação full do QC de E015 no HEAD de E016 (unit 194/194, smoke 183/183, flutter 90/90, analyze 0, audit 0), 7 digests do manifesto de E015 atualizados, log de revalidação e markers re-assinados. Push confirmado. `origin/dev` = `a03ec0dd95f5061c74b9849b9b95a89dbca9715b`.
 - Estado final: ambos E015 e E016 com `derive-completion-state` = `complete`; markers `.qc-passed` re-assinados localmente após o último commit (baseline muda a cada commit — padrão do repo). `index.html` residual não existe mais na raiz.
+
+## V3 — avaliação de valor (22/11)
+
+- Concluída: `specs/avaliacao-valor-v3.md` mapeia 17 épicas contra o canvas `specs/canvas_valor_usuario.png` (OCR; imagem gerada por IA, sem versão textual).
+- Resultado: 7/15 recursos completos, 5/15 parciais, 2/15 não entregues, 1/15 fora de escopo (PDD-009); 12/15 com alguma cobertura.
+- Maior lacuna: previsibilidade financeira (controle de pagamentos e relatórios de custos). Candidato a nova épica P1, depende de decidir o que é "custo" no domínio.
+- O canvas referenced no TODO como `specs/plan/canvas_valor_usuario.png` está na raiz de `specs/`; corrigido no próprio TODO.
 - Comando com token: `git -c credential.helper='!f() { echo username=x-access-token; echo "password=$(cat .git_token)"; }; f' push origin dev`.
 - Marker de QC precisa ser re-assinado após o commit, porque o baseline muda; o digest de estado exclui `.completed`, `.qc-passed` e `qc-report.md` da feature.
 - Unit tests gate para `dev` → `main`: suíte verde no momento do push. Nunca promover para `main` neste run.
