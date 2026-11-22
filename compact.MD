@@ -30,8 +30,10 @@
 
 ### Push
 
-- Pendente no ponto de retomada: commitar e pushar em `dev`; `main` intocada.
-- Push com token: `git -c credential.helper='!f() { echo username=x-access-token; echo "password=$(cat .git_token)"; }; f' push origin dev`.
+- Commits `368cfb1` (E018 completo) e `4705b86` (revalidação de QC de E015/E016) em `origin/dev`; `main` intocada em `3c00d744`.
+- Push com token: `git -c credential.helper='!f() { echo username=x-access-token; echo "password=$(cat .git_token)"; }; f' push origin dev` → `5aeb2db..4705b86  dev -> dev`.
+- Revalidação cruzada: digests dos manifestos de E015 (5 linhas) e E016 (9 linhas) recalculados contra os arquivos alterados por E018; E015, E016 e E018 com `derive-completion-state` = `complete`.
+- Markers `.qc-passed` re-assinados localmente após o push (baseline muda a cada commit — padrão do repo). `index.html` residual continua fora do commit.
 
 ## Sessão E — 21/11 (autopilot E016 completo)
 
