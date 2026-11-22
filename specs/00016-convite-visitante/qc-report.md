@@ -1,27 +1,27 @@
 # QC Report: Convite temporário e papel visitante (00016)
 
-**Date**: 2026-11-21T01:50:00Z
+**Date**: 2026-11-22T00:06:00Z
 **Feature Directory**: specs/00016-convite-visitante
 **Overall Verdict**: PASS
 
 ## QC Scope Baseline
-- Baseline Commit: fd336796a6eb888f90859a21de1cdf4345ed9659
+- Baseline Commit: 6d4984ebf6315fd42d08398fcd507522a997eda0
 - Mode: Full
-- Prior Baseline: N/A (primeiro QC da feature; nenhum `qc-report.md` anterior)
+- Prior Baseline: fd336796a6eb888f90859a21de1cdf4345ed9659 (QC original de E015, reexecutado no HEAD atual após E016)
 - Changed Files: N/A (full run)
 - Test Selection: suíte completa (unit, smoke, flutter, analyze, audit) + revalidação dos gates de tasks
-- Scope Safety: primeira execução completa da feature — nenhum escopo herdado a validar. Policy Auditor, QC Auditor e Story Verifier executados inline: delegação de subagentes indisponível no harness.
+- Scope Safety: reexecução completa da feature no HEAD atual — E016 alterou superfície compartilhada; nenhum escopo herdado a validar. Policy Auditor, QC Auditor e Story Verifier executados inline: delegação de subagentes indisponível no harness.
 
 ## Changes from Prior Run
-- N/A — primeiro QC de `00016`.
+- Reexecução full em 2026-11-21 após E016: 7 digests de evidência atualizados (`database.js`, `database.test.js`, `server.js`, `main.dart`, `api_service.dart`, `roles_nav_test.dart`, `project-plan.md`); a lógica funcional de E015 não mudou.
 
 ## Summary
 | Check | Status | Details |
 |-------|--------|---------|
-| Unit tests | PASSED | `npm test` 181/181, 0 fail (dev server parado durante a execução) |
+| Unit tests | PASSED | `npm test` 194/194, 0 fail (dev server parado durante a execução) |
 | Smoke suite | PASSED | `backend/test.sh` 183/183 (PORT=3199, DATA_DIR descartável) |
 | Flutter analyze | PASSED | `flutter analyze lib test` → "No issues found!" |
-| Flutter tests | PASSED | `flutter test` 88/88, incluindo 3 testWidgets de convite/cadastro/escopo |
+| Flutter tests | PASSED | `flutter test` 90/90, incluindo 3 testWidgets de convite/cadastro/escopo |
 | node --check | PASSED | sintaxe dos arquivos backend novos e alterados |
 | Security audit | PASSED | `npm audit --audit-level=high` → 0 vulnerabilidades |
 | Policy audit | PASS | spec/plan/tasks vs `project-instructions.md` — 0 violações |
@@ -32,9 +32,9 @@
 | Manual testing | SKIPPED | fallback 6c não acionado — ver seção Manual Testing |
 
 ## Test Results — PASSED
-- Runner: `npm test` em `backend/`. Total 181, Passed 181, Failed 0.
+- Runner: `npm test` em `backend/`. Total 194, Passed 194, Failed 0.
 - Runner: `bash backend/test.sh`. Total 183, Passed 183, Failed 0.
-- Runner: `flutter test` em `frontend/`. Total 88, Passed 88, Failed 0.
+- Runner: `flutter test` em `frontend/`. Total 90, Passed 90, Failed 0.
 - Cobertura por requisito: FR-044/045 em `backend/src/routes/invites.test.js`; FR-046 no fluxo de cadastro público; FR-047 em `auth.test.js`, `tasks.test.js` e `frontend/test/invites_flow_test.dart`; FR-048/049 em `auth.test.js` e `users.test.js`; FR-050 no histórico de acesso em `users.test.js`.
 - UI: `frontend/test/invites_flow_test.dart` cobre emissão sem vazamento de token na listagem, cadastro com token da URL e filtro de escopo do visitante; `roles_nav_test.dart` cobre a navegação restrita do visitante.
 
@@ -88,8 +88,8 @@
 | .github/sddp-config.md | 643a1aeeb889417f72050009a807a4869e4b526517262428997377203c47753d |
 | backend/package-lock.json | 62cd176aee0d760254c3acdfa712466602b26b625958a440a8c23a02a71c4ec1 |
 | backend/package.json | f950a727452adc8da4a5c5742714091bd0ed55623f200cd66a6c9392c23c4629 |
-| backend/src/config/database.js | 4d6214b956373dff85cca6b0023df3e283e35c3f879b84753b5e5911e27fa761 |
-| backend/src/config/database.test.js | d79b5d0109a03d7316b6eef0dedc1a4d974c6d5102ed22011f3829e2aa3076ed |
+| backend/src/config/database.js | 22de03c1902239ca9eed922819cd08b9a9d8401f3d3fbdd29e2145272a2e47b3 |
+| backend/src/config/database.test.js | a65910bd1f532b120ab88c251dc16857b099c325528ad722bb41bcedf6e85d6b |
 | backend/src/middleware/auth.js | a2411a35fb7139d9e63a4af2da22de00fed1ecbef833dd6156886411baadf1c8 |
 | backend/src/middleware/auth.test.js | 7de83ccd845452f80dbb4ea71578bf53fe595b992a2a2620eab2c95a4e66b52c |
 | backend/src/models/AccessHistory.js | e2db845bfc54cc3be9d44479b1d5fbe055a465ac06b74ab4498e0a9425dfa077 |
@@ -101,17 +101,17 @@
 | backend/src/routes/tasks.test.js | 3d0f808fa5e1fa05f9dfb721fec6d0b7b32c580fe3cccc49bb2d89063826e842 |
 | backend/src/routes/users.js | 112700155c60f6298b321d0725a0001628c63ead63ec4fc4cb56106caf1a20b0 |
 | backend/src/routes/users.test.js | e11fd81202f700843dba63b9c285a15bbc9ee75086e9a2850b33f76d7cd9c429 |
-| backend/src/server.js | 0553b1a4937bc84144ac65b9309695dac104c35c0faa2c8bebe0d2615c9c9786 |
+| backend/src/server.js | 41faec9c1c966e82eee4666edb50c1bdd942764e8c83a58410bccc0b70b61975 |
 | backend/test.sh | f95a057191e6aaef504ee5b208eaf015f1bff1beb82f06c698f83700760f8642 |
-| frontend/lib/main.dart | c221b62563f046d5bb8170a988c14698cb22ea42735d0bf8df0862ea6ee23844 |
+| frontend/lib/main.dart | 46821a0b164714b534dc922d51729bb2760ec995bf3d91e6c0fee36f192d360c |
 | frontend/lib/screens/invite_register_screen.dart | e578ff8002ddddd4e4abfb7432c52f34344d760d6e95f72b7e5aabf79ec34610 |
 | frontend/lib/screens/invites_screen.dart | ea1ec53493a877294ab75df93a7a23929d6fe4bb49b16f1ae88a565c62a6b716 |
 | frontend/lib/screens/tasks_screen.dart | 656a3fd36f1d49efe85b1d2c80c01e82fa63c7ebb8e80b1ba87411f0631d70d4 |
 | frontend/lib/screens/users_screen.dart | 5ef4a4a1a2ea6ed3bc7bc87832b491ed2c302eb98d4500a6f97cfe468ab5d377 |
-| frontend/lib/services/api_service.dart | 1b938e87fc3a9d84f0b7e3e6a4a6c3c99b64efca807c2ea545f9a93516afc3ff |
+| frontend/lib/services/api_service.dart | 8c7d52fbf325380af9a7efac3d83715e17c985d280d5387ed3b11d16a3b4a60c |
 | frontend/pubspec.yaml | 17af3440c6623b96ac344573777cda42c0e5a3fee029f77ca0b0c0dcd3ed1cd2 |
 | frontend/test/invites_flow_test.dart | c07209989bc52650c3f3cad60f4f33372b39f994144ec94ec4ff27248a7b0dac |
-| frontend/test/roles_nav_test.dart | 264e8dba66d1299f7bd60dd5505d7a8357e9f78b9c0046a9fc9bfe0fdf4dd376 |
+| frontend/test/roles_nav_test.dart | 5b3512ff719693077274f34ed463728caf1ba72f763759967b4211d8b4b62a20 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | scripts/derive-completion-state.mjs | 655dfd712b0a2e7a0656a08e26821d5f2dd86492ad666af6011bb3d9282edcb6 |
 | scripts/parse-tasks.mjs | 3e550e85cdcbbf26533d527cd71bb59c38927bc239fbe555e4885969196daef5 |
@@ -127,8 +127,7 @@
 | specs/00016-convite-visitante/plan.md | aa28171c1325f04e64b5f022d4b350ee9875e3269c60fd6ed6b11e0e796c57f4 |
 | specs/00016-convite-visitante/spec.md | 1f98001d2b8c4c8c24e4725ac1144a3a3b1bb03a46f096a7426028234a615eef |
 | specs/00016-convite-visitante/tasks.md | 37681076265f3945ef99e2fef23efdb287588c5e836e133f2101279e6c05a69c |
-| specs/project-plan.md | 6beccb86253a2d927990a2b340a92c14fbb83cfe91563ea468a447f381d49f4c |
-
+| specs/project-plan.md | f0b19a702ac8bff7353fc18f5969a6cd9b261cd099f795a3f77a031a2ad74011 |
 ## Tool Recommendations
 - None
 

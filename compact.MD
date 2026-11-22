@@ -34,7 +34,8 @@
 - Testes novos: `database.test.js` 14/14, `documentAnalysis.test.js` 5/5, `chat.test.js` 7/7, `chat_screen_test.dart` 2/2.
 - Gates: Spec/Plan/Tasks válidos, 38/38 checklists, 22/22 tasks `[X]`, 11/11 P1.
 - QC full: `.completed`, `qc-report.md` (39 linhas de evidência) e `.qc-passed` com digests reais; `derive-completion-state` = `complete`, 0 issues.
-- `index.html` na raiz continua fora do commit (resíduo de build Flutter); `.qc-passed` de E015 segue re-assinado e não commitado.
+- `index.html` na raiz continua fora do commit (resíduo de build Flutter).
+- Marker de E015 revalidado em 2026-11-22 no HEAD de E016: QC full reexecutado (194/194, 183/183, 90/90, analyze 0, audit 0), 7 digests do manifesto atualizados e `.qc-passed` re-assinado; ambos E015 e E016 com `derive-completion-state` = `complete`.
 
 ### Push
 

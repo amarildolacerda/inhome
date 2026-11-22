@@ -197,3 +197,11 @@
 | 22:52:00 | autopilot | gate_check | derive-completion-state | PASS complete | IMPLEMENTATION_COMPLETE=true, QC_COMPLETE=true, 0 issues | [scripts/derive-completion-state.mjs](../../scripts/derive-completion-state.mjs) |
 | 22:52:20 | autopilot | decision | Épico E015 marcado como concluído no plano | applied | checkbox `[X]` e nota da onda 8 atualizada | [project-plan.md](../project-plan.md) |
 | 22:52:40 | autopilot | run_summary | Pipeline autopilot de E015 concluído | PASS | Specify→Clarify→Plan→Checklist→Tasks→Analyze→Implement→QC; 26 tasks, 7 FR P1, 0 perguntas; commit/push em `dev` | [autopilot-log.md](autopilot-log.md) |
+
+## Revalidação 2026-11-22 (pós-E016)
+
+| Timestamp | Phase | Event | Detail | Outcome | Rationale | Artifacts |
+|-----------|-------|-------|--------|---------|-----------|-----------|
+| 00:06:00 | QC | phase_start | Reexecutar QC full de E015 no HEAD atual | running | E016 alterou 7 arquivos do manifesto de evidência; marker antigo apontava baseline pré-E016 | [qc-report.md](qc-report.md) |
+| 00:06:30 | QC | gate_check | Bateria real no HEAD | PASS | unit 194/194, smoke 183/183, flutter 90/90, analyze 0, audit 0 | [qc-report.md](qc-report.md) |
+| 00:06:50 | QC | phase_complete | Manifesto recalculado e marker re-assinado | PASS | 43 digests válidos, 7 atualizados; report/evidence/baseline/repo validados; `derive-completion-state` = complete | [qc-report.md](qc-report.md), [.qc-passed](.qc-passed) |
