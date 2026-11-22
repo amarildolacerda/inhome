@@ -300,20 +300,46 @@ const EXTRACTED_ALERTS_DDL = `CREATE TABLE IF NOT EXISTS extracted_alerts (
     UNIQUE (contract_id, source_kind, source_id)
   )`;
 
-// Anexo de chat usa a mesma tabela, com mensagem como pai alternativo.
-// SQLite não altera CHECK: rebuild preguiçoso em migrateSchema preserva ids.
+// 00020 (E018): parcelas e pagamentos por contrato. Valores em centavos
+// inteiros (BRL fixo), mesma convenção de DDL em inglês dos domínios. O
+// pagamento é imutável na superfície HTTP; o saldo é verificado na rota
+// dentro de db.transaction (STF-001).
+const CONTRACT_INSTALLMENTS_DDL = `CREATE TABLE IF NOT EXISTS contract_installments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    description TEXT NOT NULL CHECK (length(description) BETWEEN 1 AND 200),
+    amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+    due_date TEXT NOT NULL CHECK (length(due_date) = 10),
+    created_by INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`;
+
+const CONTRACT_PAYMENTS_DDL = `CREATE TABLE IF NOT EXISTS contract_payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    installment_id INTEGER NOT NULL REFERENCES contract_installments(id),
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+    paid_at TEXT NOT NULL CHECK (length(paid_at) = 10),
+    created_by INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`;
+
+// Anexo de chat e comprovante de pagamento usam a mesma tabela, com pais
+// alternativos. SQLite não altera CHECK: rebuild preguiçoso em migrateSchema
+// preserva ids e linhas (E016 para message_id/chat, E018 para payment_id/payment).
 const ATTACHMENTS_DDL = `CREATE TABLE IF NOT EXISTS attachments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     task_id INTEGER REFERENCES tasks(id),
     comment_id INTEGER REFERENCES comments(id),
     message_id INTEGER REFERENCES chat_messages(id),
+    payment_id INTEGER REFERENCES contract_payments(id),
     kind TEXT NOT NULL DEFAULT 'file' CHECK (kind IN ('photo','file')),
     path TEXT NOT NULL,
     original_name TEXT,
     uploaded_by INTEGER,
-    category TEXT NOT NULL DEFAULT 'evidence' CHECK (category IN ('evidence','documentation','chat')),
+    category TEXT NOT NULL DEFAULT 'evidence' CHECK (category IN ('evidence','documentation','chat','payment')),
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    CHECK (task_id IS NOT NULL OR message_id IS NOT NULL)
+    CHECK (task_id IS NOT NULL OR message_id IS NOT NULL OR payment_id IS NOT NULL)
   )`;
 
 const DOMAIN_SCHEMA = [
@@ -360,6 +386,8 @@ const DOMAIN_SCHEMA = [
     body TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
+  CONTRACT_INSTALLMENTS_DDL,
+  CONTRACT_PAYMENTS_DDL,
   ATTACHMENTS_DDL,
   CHAT_MESSAGES_DDL,
   DOCUMENT_ANALYSES_DDL,
@@ -428,6 +456,11 @@ const DOMAIN_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_comments_task ON comments(task_id)',
   'CREATE INDEX IF NOT EXISTS idx_attachments_task ON attachments(task_id)',
   'CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id)',
+  // 00020 E018: hot paths do resumo financeiro e do varredor de atraso.
+  'CREATE INDEX IF NOT EXISTS idx_attachments_payment ON attachments(payment_id)',
+  'CREATE INDEX IF NOT EXISTS idx_installments_contract ON contract_installments(contract_id, due_date)',
+  'CREATE INDEX IF NOT EXISTS idx_payments_installment ON contract_payments(installment_id)',
+  'CREATE INDEX IF NOT EXISTS idx_payments_contract ON contract_payments(contract_id)',
   'CREATE INDEX IF NOT EXISTS idx_chat_messages_contract ON chat_messages(contract_id, created_at, id)',
   'CREATE INDEX IF NOT EXISTS idx_document_analyses_message ON document_analyses(message_id)',
   'CREATE INDEX IF NOT EXISTS idx_extracted_alerts_contract ON extracted_alerts(contract_id)',
@@ -665,6 +698,26 @@ function migrateSchema(wrapper) {
         tx.run(`ALTER TABLE ${temp} RENAME TO attachments`);
       });
     }
+
+    // 00020 (FR-065): same copy → drop → rename for the `payment` category and
+    // the `payment_id` parent. Rows, ids, message_id and `chat` survive. The
+    // guard re-reads sqlite_master so it fires once per file, including files
+    // that skipped the E016 rebuild because they were already on that schema.
+    const currentSql = wrapper.get(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'attachments'"
+    )?.sql;
+    if (currentSql && (!currentSql.includes("'payment'") || !currentSql.includes('payment_id'))) {
+      const present = wrapper
+        .all('PRAGMA table_info(attachments)')
+        .map((column) => column.name);
+      const temp = 'attachments_e018';
+      wrapper.transaction((tx) => {
+        tx.run(ATTACHMENTS_DDL.replace('CREATE TABLE IF NOT EXISTS attachments', `CREATE TABLE ${temp}`));
+        tx.run(`INSERT INTO ${temp}(${present.join(', ')}) SELECT ${present.join(', ')} FROM attachments`);
+        tx.run('DROP TABLE attachments');
+        tx.run(`ALTER TABLE ${temp} RENAME TO attachments`);
+      });
+    }
   }
 
   // Fase 3 da convenção de nomenclatura (2026-10-12): os 6 enums de dado
@@ -800,5 +853,7 @@ module.exports = {
   CHAT_MESSAGES_DDL,
   DOCUMENT_ANALYSES_DDL,
   EXTRACTED_ALERTS_DDL,
+  CONTRACT_INSTALLMENTS_DDL,
+  CONTRACT_PAYMENTS_DDL,
   ATTACHMENTS_DDL,
 };

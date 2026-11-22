@@ -87,6 +87,8 @@ app.use('/api/v2/suggestions', suggestionsRouter);
 app.use('/api/v2/opencode', require('./routes/opencodeConfig'));
 app.use('/api/v2/contracts', tasksRouter.nested);
 app.use('/api/v2/contracts', chatRouter);
+// 00020 E018: parcelas, pagamentos e exportação financeira por contrato.
+app.use('/api/v2/contracts', require('./routes/finance'));
 app.use('/api/v2/tasks', tasksRouter);
 app.use('/api/v2/tasks', require('./routes/executionPlan'));
 app.use('/api/v2/tasks', require('./routes/comments'));

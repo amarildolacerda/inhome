@@ -270,6 +270,38 @@ test('FR-041 prestador recebe só contratos vinculados', async () => {
   assert.strictEqual(domain.body.contracts.length, 3, 'admin sees every contract');
 });
 
+// 00020 E018 (T009/T020): chave `finance` aditiva só no ramo domain.
+test('00020 FR-067: dashboard expõe finance só para admin/gestor', async () => {
+  const db = getDomainDb(domainId);
+  const c1 = db.get("SELECT id FROM contracts WHERE name = 'C1 Obra'").id;
+  db.run(
+    'INSERT INTO contract_installments(contract_id, description, amount_cents, due_date) VALUES (?, ?, 10000, ?)',
+    [c1, 'Parcela painel', dateOnly(-2)]
+  );
+  db.run(
+    'INSERT INTO contract_payments(installment_id, contract_id, amount_cents, paid_at) VALUES ((SELECT id FROM contract_installments WHERE contract_id = ?), ?, 4000, ?)',
+    [c1, c1, dateOnly(-1)]
+  );
+
+  for (const token of [adminToken, gestorToken]) {
+    const res = await request(app).get('/api/v2/dashboard/stats').set(as(token));
+    assert.strictEqual(res.status, 200, JSON.stringify(res.body));
+    assert.strictEqual(res.body.scope, 'domain');
+    assert.ok(res.body.finance, 'finance presente no ramo domain');
+    assert.strictEqual(res.body.finance.planned_cents, 10000);
+    assert.strictEqual(res.body.finance.paid_cents, 4000);
+    assert.strictEqual(res.body.finance.balance_cents, 6000);
+    assert.strictEqual(res.body.finance.overdue_count, 1);
+    assert.strictEqual(res.body.finance.installments_count, 1);
+    assert.strictEqual(res.body.finance.contracts_count, 1);
+  }
+
+  const own = await request(app).get('/api/v2/dashboard/stats').set(as(p1Token));
+  assert.strictEqual(own.status, 200);
+  assert.strictEqual(own.body.scope, 'own');
+  assert.ok(!('finance' in own.body), 'prestador nunca recebe a chave finance');
+});
+
 test('FR-070/FR-073 perpetual ignores incomplete and overdue windows', async () => {
   const created = await request(app)
     .post('/api/v2/contracts')

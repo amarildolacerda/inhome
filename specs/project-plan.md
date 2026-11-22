@@ -13,11 +13,11 @@ dod_source: none
 | **Product** | Gestão de Contratos de Terceiros |
 | **Created** | 2026-09-27 |
 | **Status** | active |
-| **Epics** | 17 — 13 × P1, 4 × P2 |
-| **Categories** | 17 PRODUCT, 0 TECHNICAL, 0 OPERATIONAL |
+| **Epics** | 18 — 14 × P1, 4 × P2 |
+| **Categories** | 18 PRODUCT, 0 TECHNICAL, 0 OPERATIONAL |
 | **Author** | Amarildo de Lacerda |
-| **Waves** | 8 |
-| **Progress** | 15/17 épicos concluídos — Waves 1–7 completas; Wave 8 pendente |
+| **Waves** | 9 |
+| **Progress** | 17/18 épicos concluídos — Waves 1–8 completas; Wave 9 pendente |
 
 ## Epic Checklist
 
@@ -77,6 +77,10 @@ dod_source: none
 
 - [X] E015 [P1] [PRODUCT] {PRD:CAP-001,CAP-003} Convite temporário e papel visitante — link com validade, cadastro e reavaliação [→ Details](plan/E015.md)
 - [X] E016 [P1] [PRODUCT] {PRD:CAP-003,CAP-004,CAP-008} Chat colaborativo por contrato — canal, cards e análise IA [→ Details](plan/E016.md)
+
+### Wave 9 — Previsibilidade financeira
+
+- [X] E018 [P1] [PRODUCT] {PRD:CAP-002,CAP-007} Previsibilidade financeira — pagamentos, custos e indicadores por contrato [→ Details](plan/E018.md)
 
 ## Dependency Diagram
 

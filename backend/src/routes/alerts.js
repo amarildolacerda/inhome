@@ -142,7 +142,8 @@ function listPanel(req, res) {
     // no painel E005; a UNIQUE(contract_id, source_kind, source_id) garante
     // que reprocessar o anexo atualiza a linha em vez de duplicá-la.
     const extracted = db.all(
-      `SELECT ea.id, ea.contract_id, c.name AS contract_name, ea.title, ea.due_date, ea.status
+      `SELECT ea.id, ea.contract_id, ea.source_kind, ea.source_id,
+              c.name AS contract_name, ea.title, ea.due_date, ea.status
          FROM extracted_alerts ea JOIN contracts c ON c.id = ea.contract_id
         ORDER BY ea.due_date, ea.id LIMIT 200`
     );

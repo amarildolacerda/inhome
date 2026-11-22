@@ -1,7 +1,37 @@
 # compact.MD — contexto compactado da sessão
 
-> Atualizado em [21/11] para restauração de contexto. Repo `/mnt/windows/git/inhome`, branch `dev`.
-> Estado anterior: HEAD `2d47490` = `origin/dev`; stack Docker `inhome` up (backend:3001, frontend:80).
+> Atualizado em [22/11] para restauração de contexto. Repo `/mnt/windows/git/inhome`, branch `dev`.
+> Estado anterior: HEAD `5aeb2db` = `origin/dev`; QC de E018 completo, pronto para commit e push em `dev`.
+
+## Sessão F — 22/11 (E018 previsibilidade financeira)
+
+### Objetivo e resultado
+
+- Épica E018 de previsibilidade financeira por contrato, nascida da lacuna de maior valor apontada na avaliação V3 (`specs/avaliacao-valor-v3.md`). Spec/Plan/Checklist/Tasks/Analyze/Implement/QC concluídos a partir do baseline `5aeb2db`.
+- Não foi autopilot integral: o harness retomou a sessão em Implement e fechou QC. Gates reais revalidados no fim.
+
+### Decisões
+
+- BRL fixo em centavos inteiros; sem conversão, índice, gateway, banco, NF-e ou conciliação automática no MVP.
+- 2 tabelas por domínio (`contract_installments`, `contract_payments`); rebuild preguiçoso de `attachments` adicionando `payment_id` e categoria `payment`, preservando `message_id`/`chat` do E016.
+- Pagamento parcial até o saldo; acima do saldo é 400 sem escrita, dentro de `db.transaction`; pagamento imutável (sem PATCH/DELETE).
+- Alerta reusa `extracted_alerts` com `source_kind='installment_overdue'`, `source_id=<installment_id>`, dedup por `(contract_id, source_kind, source_id)`; `runInstallmentSweep` chamada por `runExpirySweep`, que manteve exatamente 4 contadores.
+- API: roteador `finance.js` sob `/api/v2/contracts`, com `authenticateToken → scopeDomain → requireRole('admin','gestor')`.
+- Novos IDs usam `sqlite_sequence`, não `last_insert_rowid()` — prepared statements do sql.js devolvem 0.
+- UI extraída em `contract_detail_screen_finance.dart`, `contract_detail_screen_finance_dialogs.dart` e `dashboard_screen_finance.dart`; nenhuma rota/nav nova.
+
+### Evidências
+
+- `npm test` 207/207 (era 194; +13); `bash backend/test.sh` 183/183; `flutter test` 98/98 (era 90; +8); `flutter analyze` 0 issues; `npm audit --audit-level=high` 0 vulnerabilidades.
+- 31/31 tasks `[X]`; gates `evaluateSpecGate`, `evaluatePlanGate`, `evaluateTasksGate`, `evaluateCheckedTaskProvenance` PASS; 38/38 checklists.
+- `.completed`, `qc-report.md` (54 linhas de evidência) e `.qc-passed` com digests reais; `derive-completion-state` = `complete`, 0 issues.
+- Docs de fechamento: AN-002 fechado no README, `TECHNICAL.md`, `TODO.md`, `specs/project-plan.md`, `specs/plan/E018.md` e `autopilot-log.md` atualizados.
+- Marker re-assinado após o commit (baseline muda a cada commit — padrão do repo). `index.html` na raiz é resíduo de build Flutter e fica fora do commit.
+
+### Push
+
+- Pendente no ponto de retomada: commitar e pushar em `dev`; `main` intocada.
+- Push com token: `git -c credential.helper='!f() { echo username=x-access-token; echo "password=$(cat .git_token)"; }; f' push origin dev`.
 
 ## Sessão E — 21/11 (autopilot E016 completo)
 

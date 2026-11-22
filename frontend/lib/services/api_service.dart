@@ -417,6 +417,64 @@ class ApiService {
     return post('/contracts/$contractId/chat/tasks/$taskId/action', body: payload);
   }
 
+  // ---- Previsibilidade financeira por contrato (E018) --------------------
+
+  /// [FR-064]: resumo e parcelas do contrato (somente admin/gestor).
+  Future<Map<String, dynamic>> getContractFinance(int contractId) {
+    return get('/contracts/$contractId/finance');
+  }
+
+  /// [FR-064]: parcelas do contrato com resumo agregado.
+  Future<Map<String, dynamic>> listInstallments(int contractId) {
+    return get('/contracts/$contractId/finance/installments');
+  }
+
+  /// [FR-064]: cria parcela prevista. Valores em centavos inteiros (BRL fixo).
+  Future<Map<String, dynamic>> createInstallment(
+    int contractId, {
+    required String description,
+    required int amountCents,
+    required String dueDate,
+  }) async {
+    final result = await post('/contracts/$contractId/finance/installments', body: {
+      'description': description,
+      'amount_cents': amountCents,
+      'due_date': dueDate,
+    });
+    return _asMap(result['installment']);
+  }
+
+  /// [FR-064]: exclui parcela sem pagamento (204).
+  Future<void> deleteInstallment(int contractId, int installmentId) async {
+    await delete('/contracts/$contractId/finance/installments/$installmentId');
+  }
+
+  /// [FR-065]: registra pagamento parcial/total, com comprovante opcional.
+  Future<Map<String, dynamic>> postPayment(
+    int contractId,
+    int installmentId, {
+    required int amountCents,
+    String? paidAt,
+    String? filename,
+    String? dataBase64,
+  }) async {
+    final payload = <String, dynamic>{'amount_cents': amountCents};
+    if (paidAt != null) payload['paid_at'] = paidAt;
+    if (filename != null && dataBase64 != null) {
+      payload['receipt'] = {'filename': filename, 'dataBase64': dataBase64};
+    }
+    final result = await post(
+      '/contracts/$contractId/finance/installments/$installmentId/payments',
+      body: payload,
+    );
+    return _asMap(result['payment']);
+  }
+
+  /// [FR-069]: bytes do CSV/PDF com o mesmo Authorization dos demais downloads.
+  Future<List<int>> downloadFinance(int contractId, String format) {
+    return downloadFile('/contracts/$contractId/finance/export.$format');
+  }
+
   // ---- Workflow assistido por OpenCode (E0003, T029) ---------------------
 
   /// [FR-001]: GET /contracts/:id/definitions — última versão salva; null

@@ -3,8 +3,9 @@
 ## Status do estado atual
 
 - Repositório em desenvolvimento na branch `dev`.
-- Última feature entregue: `E016` — chat colaborativo por contrato (mensagens, menu de cards e extração local de documentos).
-- Situação: conclusão em 2026-11-21 com QC PASS; `E015` permanece concluído e validado. Nenhuma épica pendente no `project-plan.md`.
+- Última feature entregue: `E018` — previsibilidade financeira por contrato (parcelas, pagamentos com comprovante, indicadores, alerta de atraso e exportação CSV/PDF).
+- Feature anterior: `E016` — chat colaborativo por contrato (mensagens, menu de cards e extração local de documentos).
+- Situação: `E015`, `E016` e `E018` concluídos e validados; `E018` com QC PASS em 2026-11-22. Nenhuma promoção `dev` → `main` neste ciclo.
 
 ## Arquitetura
 

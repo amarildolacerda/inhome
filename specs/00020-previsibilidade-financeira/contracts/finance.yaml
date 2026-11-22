@@ -1,0 +1,166 @@
+openapi: 3.0.3
+info:
+  title: InHome Finance API
+  version: "1.0.0"
+  description: Previsibilidade financeira por contrato (E018). Prefixo completo /api/v2. Valores em centavos inteiros (BRL fixo).
+servers:
+  - url: /api/v2
+paths:
+  /contracts/{contractId}/finance:
+    get:
+      summary: Resumo financeiro do contrato
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/contractId' }]
+      responses:
+        '200':
+          description: Resumo e parcelas
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FinanceSummary' }
+        '403': { description: Papel sem acesso financeiro }
+        '404': { description: Contrato inexistente }
+  /contracts/{contractId}/finance/installments:
+    get:
+      summary: Listar parcelas do contrato
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/contractId' }]
+      responses:
+        '200':
+          description: Parcelas e resumo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InstallmentList' }
+        '403': { description: Papel sem acesso financeiro }
+    post:
+      summary: Criar parcela prevista
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/contractId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InstallmentInput' }
+      responses:
+        '201': { description: Parcela criada }
+        '400': { description: Valor, data ou limite inválido }
+        '403': { description: Papel sem acesso financeiro }
+  /contracts/{contractId}/finance/installments/{installmentId}:
+    delete:
+      summary: Excluir parcela sem pagamento
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/contractId' }
+        - { $ref: '#/components/parameters/installmentId' }
+      responses:
+        '204': { description: Parcela removida }
+        '400': { description: Parcela possui pagamento }
+        '403': { description: Papel sem acesso financeiro }
+  /contracts/{contractId}/finance/installments/{installmentId}/payments:
+    post:
+      summary: Registrar pagamento (comprovante opcional)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/contractId' }
+        - { $ref: '#/components/parameters/installmentId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PaymentInput' }
+      responses:
+        '201': { description: Pagamento registrado }
+        '400': { description: Valor acima do saldo ou comprovante inválido }
+        '403': { description: Papel sem acesso financeiro }
+  /contracts/{contractId}/finance/export.csv:
+    get:
+      summary: Resumo financeiro em CSV
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/contractId' }]
+      responses:
+        '200': { description: CSV, content-type text/csv }
+        '403': { description: Papel sem acesso financeiro }
+  /contracts/{contractId}/finance/export.pdf:
+    get:
+      summary: Resumo financeiro em PDF
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/contractId' }]
+      responses:
+        '200': { description: PDF, content-type application/pdf }
+        '403': { description: Papel sem acesso financeiro }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    contractId: { name: contractId, in: path, required: true, schema: { type: integer } }
+    installmentId: { name: installmentId, in: path, required: true, schema: { type: integer } }
+  schemas:
+    InstallmentInput:
+      type: object
+      required: [description, amount_cents, due_date]
+      properties:
+        description: { type: string, minLength: 1, maxLength: 200 }
+        amount_cents: { type: integer, minimum: 1 }
+        due_date: { type: string, format: date }
+    PaymentInput:
+      type: object
+      required: [amount_cents]
+      properties:
+        amount_cents: { type: integer, minimum: 1 }
+        paid_at: { type: string, format: date }
+        receipt:
+          type: object
+          properties:
+            filename: { type: string }
+            dataBase64: { type: string }
+    FinanceSummary:
+      type: object
+      properties:
+        contract_id: { type: integer }
+        contract_name: { type: string }
+        summary: { $ref: '#/components/schemas/Summary' }
+        installments:
+          type: array
+          items: { $ref: '#/components/schemas/Installment' }
+    InstallmentList:
+      type: object
+      properties:
+        summary: { $ref: '#/components/schemas/Summary' }
+        installments:
+          type: array
+          items: { $ref: '#/components/schemas/Installment' }
+    Summary:
+      type: object
+      properties:
+        planned_cents: { type: integer }
+        paid_cents: { type: integer }
+        balance_cents: { type: integer }
+        overdue_count: { type: integer }
+        installments_count: { type: integer }
+    Installment:
+      type: object
+      properties:
+        id: { type: integer }
+        contract_id: { type: integer }
+        description: { type: string }
+        amount_cents: { type: integer }
+        due_date: { type: string, format: date }
+        paid_cents: { type: integer }
+        balance_cents: { type: integer }
+        overdue: { type: boolean }
+        payments:
+          type: array
+          items: { $ref: '#/components/schemas/Payment' }
+    Payment:
+      type: object
+      properties:
+        id: { type: integer }
+        installment_id: { type: integer }
+        contract_id: { type: integer }
+        amount_cents: { type: integer }
+        paid_at: { type: string, format: date }
+        receipt:
+          type: object
+          nullable: true
+          properties:
+            path: { type: string }
+            original_name: { type: string }

@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import '../models/contract.dart';
 import '../models/task.dart';
 import '../services/api_service.dart';
+import '../utils/download_file.dart';
+import '../utils/picked_file.dart';
 import '../widgets/suggestion_panel.dart';
 import '../widgets/task_detail_sheet.dart';
 import '../widgets/task_list_tile.dart';
@@ -13,6 +16,8 @@ part 'contract_detail_screen_dialogs.dart';
 part 'contract_detail_screen_workflow_sheet.dart';
 part 'contract_detail_screen_definitions_dialog.dart';
 part 'contract_detail_screen_workflow_cards.dart';
+part 'contract_detail_screen_finance.dart';
+part 'contract_detail_screen_finance_dialogs.dart';
 
 /// Detalhe de contrato: o "canal" de tarefas do contrato escolhido em
 /// ProjectsScreen (domínio → contrato → tarefas).
@@ -233,6 +238,17 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  /// [FR-069]: entrega os bytes baixados ao navegador via Blob + âncora. Em
+  /// plataformas sem `dart:html` o stub não faz nada — a API ainda devolve os
+  /// bytes e os testes cobrem a fachada (sem efeito colateral de download).
+  Future<void> _downloadFinance(String format, List<int> bytes) async {
+    final mime = format == 'csv' ? 'text/csv' : 'application/pdf';
+    final blob = buildDownloadBlob(bytes, mime);
+    final url = createDownloadUrl(blob);
+    anchorDownload(url, 'finance-${_contract.id}.$format');
+    revokeDownloadUrl(url);
+  }
+
   /// Seção "Prestadores": os vinculados (nome/email) com desvincular por
   /// linha e o controle de vínculo com o restante do roster do domínio.
   Widget _buildProvidersCard(BuildContext context) {
@@ -373,6 +389,14 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
               child: _buildProvidersCard(context),
+            ),
+          // 00020 (E018/FR-070): seção financeira só para admin/gestor. A
+          // API repete o guard; aqui a afordância desaparece para prestador.
+          if (canManageProviders)
+            _FinanceSection(
+              api: api,
+              contractId: contract.id,
+              onDownload: _downloadFinance,
             ),
           const Divider(height: 1),
           Expanded(

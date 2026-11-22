@@ -892,10 +892,12 @@ test('00014 category migration: additive column, counts preserved, idempotent', 
   const ddl = db.get(
     "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'attachments'"
   ).sql;
-  assert.ok(
-    ddl.includes("CHECK (category IN ('evidence','documentation','chat'))"),
-    `CHECK lands on the migrated column (00016 adds 'chat'): ${ddl}`
-  );
+  // 00018 estende o CHECK com 'payment'; a migração 00014 só exige que as
+  // categorias originais continuem aceitas (a reconstrução aditiva preserva
+  // contagens e ids).
+  for (const category of ['evidence', 'documentation', 'chat', 'payment']) {
+    assert.ok(ddl.includes(`'${category}'`), `CHECK aceita '${category}' após a migração: ${ddl}`);
+  }
 
   // reopen: no duplicate column, no data change
   database.resetDatabaseCache();
@@ -1035,4 +1037,64 @@ test('00016 E016 chat tables + attachments rebuild', async () => {
     []
   );
   assert.strictEqual(migrated.get("SELECT COUNT(*) AS c FROM attachments WHERE category = 'chat'").c, 1);
+});
+
+// 00020 E018 (T001): parcelas, pagamentos e rebuild de attachments para
+// payment_id/categoria payment, sem perder linhas nem ids do E016 (FR-064/065).
+test('00020 E018 finance tables + payment attachments rebuild', async () => {
+  const SQL = await database.initSqlDriver();
+  await database.initDatabase();
+
+  const fresh = database.createDomainDb(2000);
+  for (const table of ['contract_installments', 'contract_payments']) {
+    assert.ok(
+      fresh.get("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", [table]),
+      `${table} criada`
+    );
+  }
+  const cols = fresh.all('PRAGMA table_info(attachments)').map((c) => c.name);
+  assert.ok(cols.includes('payment_id'), 'payment_id no banco fresco');
+  assert.ok(cols.includes('message_id'), 'message_id do E016 preservado');
+  const sql = fresh.get("SELECT sql FROM sqlite_master WHERE name='attachments'").sql;
+  assert.match(sql, /'payment'/, 'categoria payment no CHECK');
+  assert.match(sql, /'chat'/, 'categoria chat do E016 preservada');
+  const idx = fresh.all("SELECT name FROM sqlite_master WHERE type='index'").map((r) => r.name);
+  for (const name of ['idx_installments_contract', 'idx_payments_installment', 'idx_payments_contract', 'idx_attachments_payment']) {
+    assert.ok(idx.includes(name), `índice ${name}`);
+  }
+  fresh.run("INSERT INTO contracts(id, name, start_date, forecast_date) VALUES (1, 'C', '2026-01-01', '2026-12-31')");
+  fresh.run("INSERT INTO contract_installments(id, contract_id, description, amount_cents, due_date) VALUES (1, 1, 'P', 1000, '2026-11-01')");
+  fresh.run("INSERT INTO contract_payments(id, installment_id, contract_id, amount_cents, paid_at) VALUES (7, 1, 1, 500, '2026-11-02')");
+  fresh.run("INSERT INTO attachments(payment_id, path, category) VALUES (7, 'uploads/r.pdf', 'payment')");
+  assert.strictEqual(fresh.get("SELECT COUNT(*) AS c FROM attachments WHERE category = 'payment'").c, 1);
+
+  // Domínio legado: attachments do E016 (sem payment_id) → rebuild aditivo preserva
+  // id, message_id e categoria chat.
+  const legacyFile = path.join(dataDir, 'domains', '20000.db');
+  const legacy = new SQL.Database();
+  legacy.run(`CREATE TABLE attachments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER,
+    comment_id INTEGER,
+    message_id INTEGER,
+    kind TEXT NOT NULL DEFAULT 'file' CHECK (kind IN ('photo','file')),
+    path TEXT NOT NULL,
+    original_name TEXT,
+    uploaded_by INTEGER,
+    category TEXT NOT NULL DEFAULT 'evidence' CHECK (category IN ('evidence','documentation','chat')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    CHECK (task_id IS NOT NULL OR message_id IS NOT NULL)
+  )`);
+  legacy.run("INSERT INTO attachments(id, message_id, path, category) VALUES (9, 3, 'uploads/chat.png', 'chat')");
+  fs.writeFileSync(legacyFile, Buffer.from(legacy.export()));
+  legacy.close();
+
+  const migrated = database.getDomainDb(20000);
+  const migratedCols = migrated.all('PRAGMA table_info(attachments)').map((c) => c.name);
+  assert.ok(migratedCols.includes('payment_id'), 'payment_id adicionado no rebuild');
+  const row = migrated.get('SELECT * FROM attachments WHERE id = 9');
+  assert.strictEqual(row.message_id, 3, 'message_id preservado');
+  assert.strictEqual(row.category, 'chat', 'categoria chat preservada');
+  migrated.run("INSERT INTO attachments(payment_id, path, category) VALUES (1, 'uploads/recibo.pdf', 'payment')", []);
+  assert.strictEqual(migrated.get("SELECT COUNT(*) AS c FROM attachments WHERE category = 'payment'").c, 1);
 });

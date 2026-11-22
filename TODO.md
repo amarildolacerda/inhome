@@ -3,8 +3,8 @@
 Custom project TODOs. Agents read this file at session start.
 
 ## em execução
-   — (Wave 8 concluída: E015 em 2026-11-20 e E016 em 2026-11-21)
-   
+Nenhuma.
+
 ## Pending
 
 ### V1
@@ -20,6 +20,7 @@ Custom project TODOs. Agents read this file at session start.
 
 ### V3 - avaliar entregas x `specs/plan/canvas_valor_usuario.png`
 - [X] Avaliação V3 concluída (2026-11-22) — relatório em `specs/avaliacao-valor-v3.md`: 7/15 recursos completos, 5/15 parciais, 2/15 não entregues, 1/15 fora de escopo; lacuna de maior valor é previsibilidade financeira (pagamentos e custos). Canvas real em `specs/canvas_valor_usuario.png`.
+- [X] Épico E018 — Previsibilidade financeira por contrato (feature `00020-previsibilidade-financeira`): parcelas, pagamentos com comprovante, indicadores no painel, alerta de atraso deduplicado e exportação CSV/PDF; somente admin/gestor. QC PASS (`.qc-passed`), 31/31 tasks, 7/7 FR P1 · backend 207/207 · smoke 183/183 · flutter 98/98 · audit 0 (2026-11-22). Fecha a lacuna de maior valor apontada pela avaliação V3.
 
 ## Done
 

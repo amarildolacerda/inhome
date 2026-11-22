@@ -7,6 +7,7 @@ const { authenticateToken, requireRole } = require('../middleware/auth');
 const { getDomainDb, getPlatformDb } = require('../config/database');
 const { code, label } = require('../config/enums');
 const { readWindows, daysUntil } = require('../services/alerts');
+const { getDomainFinance } = require('../services/finance');
 
 // Fase 3 (config/enums.js): os SELECTs abaixo devolvem o código do enum; a
 // contagem e a exposição seguem em texto PT (tasksByStatus, effective_status).
@@ -229,6 +230,9 @@ function getDomainMetrics(db, user) {
 
   return {
     scope: 'domain',
+    // 00020 (E018/FR-067): chave aditiva somente para admin/gestor. O ramo
+    // `prestador` retorna antes, sem `finance` (STF-002).
+    finance: getDomainFinance(db),
     dailyActivity: summarizeDailyActivity(db, user),
     stats: {
       totalProjects: allContracts.length,
