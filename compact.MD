@@ -39,7 +39,9 @@
 
 ### Push
 
-- Commit `d3ada7e` (E016 completo, 36 arquivos) em `origin/dev`; push confirmado por `git ls-remote`. `main` intocada.
+- Commits `d3ada7e` (E016 completo, 36 arquivos) e `6d4984e` (log do run) em `origin/dev`; `main` intocada.
+- Commit `a03ec0d`: revalidação full do QC de E015 no HEAD de E016 (unit 194/194, smoke 183/183, flutter 90/90, analyze 0, audit 0), 7 digests do manifesto de E015 atualizados, log de revalidação e markers re-assinados. Push confirmado. `origin/dev` = `a03ec0dd95f5061c74b9849b9b95a89dbca9715b`.
+- Estado final: ambos E015 e E016 com `derive-completion-state` = `complete`; markers `.qc-passed` re-assinados localmente após o último commit (baseline muda a cada commit — padrão do repo). `index.html` residual não existe mais na raiz.
 - Comando com token: `git -c credential.helper='!f() { echo username=x-access-token; echo "password=$(cat .git_token)"; }; f' push origin dev`.
 - Marker de QC precisa ser re-assinado após o commit, porque o baseline muda; o digest de estado exclui `.completed`, `.qc-passed` e `qc-report.md` da feature.
 - Unit tests gate para `dev` → `main`: suíte verde no momento do push. Nunca promover para `main` neste run.
