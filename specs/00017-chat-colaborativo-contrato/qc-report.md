@@ -90,19 +90,19 @@
 | Path | SHA-256 |
 |------|---------|
 | .github/sddp-config.md | 643a1aeeb889417f72050009a807a4869e4b526517262428997377203c47753d |
-| README.md | da03be9358bc0372441b7961ddb4ec1bd0d5b7124072338b04949bca803dead1 |
-| TECHNICAL.md | a05f099c5d755f9b9c8dfb6d0fbe865633649520fa43575d0e2d509e25602dae |
-| TODO.md | 239316e5aed775cc43e1b6855f902c9bbc7962f3db84debbac5aafc16787300d |
+| README.md | 58829643cb21cb336b480a244f0ab94a7662f2a403d478ec122d55d27cb34c2c |
+| TECHNICAL.md | a305de6394ad922dd4432d1dbfd10913341ee1ab238267e883d52745b9d47143 |
+| TODO.md | 5c4ac6d0f42af95aca7d3158464f754622ea80f9f146c304da38d7de125c700f |
 | backend/package-lock.json | 62cd176aee0d760254c3acdfa712466602b26b625958a440a8c23a02a71c4ec1 |
 | backend/package.json | f950a727452adc8da4a5c5742714091bd0ed55623f200cd66a6c9392c23c4629 |
-| backend/src/config/database.js | 22de03c1902239ca9eed922819cd08b9a9d8401f3d3fbdd29e2145272a2e47b3 |
-| backend/src/config/database.test.js | a65910bd1f532b120ab88c251dc16857b099c325528ad722bb41bcedf6e85d6b |
-| backend/src/routes/alerts.js | 242af9aa7189312846f42de037d909e5a812668aff082afc9653ae1ecd36ef3f |
+| backend/src/config/database.js | 40f24309f1c2c06b407d914565e700d68be2344c96697f01936907d0da711c15 |
+| backend/src/config/database.test.js | 5f703260f13bbf49e70bd6c9586434b8d84f16574b502ad64ae713883c37f340 |
+| backend/src/routes/alerts.js | 1cd7aa575b869966419bf51fcf76e7ee4ed3d1fadfd91c9b7318f252f54b8387 |
 | backend/src/routes/attachments.js | 8d8e730008a4687c45174ac521bec4debb059d391ad6c0aca8ffede072c33e91 |
 | backend/src/routes/audits.js | 10be42189f4f72891bb38cc9a8efa1e9ad8253627ac934ac2f9cf6db5727fff3 |
 | backend/src/routes/chat.js | 7dfc23d426af14aa94a15410f2784f83a77f93287788151ab163c1db4d33ccfb |
 | backend/src/routes/chat.test.js | 1d41b7e3f7d284ece0e2e8c28e0d01141a4a7c8e56dac58c07f191302df38489 |
-| backend/src/server.js | 41faec9c1c966e82eee4666edb50c1bdd942764e8c83a58410bccc0b70b61975 |
+| backend/src/server.js | 12ff02b362e2f32df2858c223d3c5b97f99eee91f2600d425eb1f8d76ab75ceb |
 | backend/src/services/documentAnalysis.js | b3c52d0df3f3dccf1f8922f3f533bc1dc7fb7a65163498683543bbf1f0927a36 |
 | backend/src/services/documentAnalysis.test.js | 429bc45ba5ec8695f186b201fa95e41e2477d2be13d3570abd77bd21084b8e03 |
 | backend/test.sh | f95a057191e6aaef504ee5b208eaf015f1bff1beb82f06c698f83700760f8642 |
@@ -111,7 +111,7 @@
 | frontend/lib/screens/chat_menu.dart | dfde703e3c103ee8aadeb2c533d3b87f268debe0a8df5ad33f576a02366a733f |
 | frontend/lib/screens/chat_messages.dart | 56c3f550ce59d8216a15fcbe8443f5e8bc1c0912b78e1c3cc9d56efe8670009c |
 | frontend/lib/screens/chat_screen.dart | c1a503a9666da967d6b93c19b42e70fe6bdc96bf7385142ba8c8e2704bda9768 |
-| frontend/lib/services/api_service.dart | 8c7d52fbf325380af9a7efac3d83715e17c985d280d5387ed3b11d16a3b4a60c |
+| frontend/lib/services/api_service.dart | 9dbf923cdca70ab5f66ca715395d8c39b983253f2fc9722b7166a6dcf4c4de45 |
 | frontend/pubspec.yaml | 17af3440c6623b96ac344573777cda42c0e5a3fee029f77ca0b0c0dcd3ed1cd2 |
 | frontend/test/chat_screen_test.dart | b30847612a9a412998b9fc41c7f31366cf811e607696b8fa69526f017d459aeb |
 | frontend/test/roles_nav_test.dart | 5b3512ff719693077274f34ed463728caf1ba72f763759967b4211d8b4b62a20 |
@@ -130,7 +130,7 @@
 | specs/00017-chat-colaborativo-contrato/research.md | d4bb4321b78efe7f7eecb4317aafc36f645329f612ca95f4688194070fe20385 |
 | specs/00017-chat-colaborativo-contrato/spec.md | aab214c3ca4ebc71d05b8d659dd670815311239b1fb0e3a2d763b60587c0fcc7 |
 | specs/00017-chat-colaborativo-contrato/tasks.md | cc8d3e628fc7e046b8f3114e6962735a6c58b082bdf67b4490c8e6622385a7f5 |
-| specs/project-plan.md | f0b19a702ac8bff7353fc18f5969a6cd9b261cd099f795a3f77a031a2ad74011 |
+| specs/project-plan.md | 6476100814b27589b00dc23912db3235c79ae4f47223d4c377faa965cb334683 |
 ## Tool Recommendations
 - None
 

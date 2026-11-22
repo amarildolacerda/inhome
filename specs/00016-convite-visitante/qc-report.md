@@ -88,8 +88,8 @@
 | .github/sddp-config.md | 643a1aeeb889417f72050009a807a4869e4b526517262428997377203c47753d |
 | backend/package-lock.json | 62cd176aee0d760254c3acdfa712466602b26b625958a440a8c23a02a71c4ec1 |
 | backend/package.json | f950a727452adc8da4a5c5742714091bd0ed55623f200cd66a6c9392c23c4629 |
-| backend/src/config/database.js | 22de03c1902239ca9eed922819cd08b9a9d8401f3d3fbdd29e2145272a2e47b3 |
-| backend/src/config/database.test.js | a65910bd1f532b120ab88c251dc16857b099c325528ad722bb41bcedf6e85d6b |
+| backend/src/config/database.js | 40f24309f1c2c06b407d914565e700d68be2344c96697f01936907d0da711c15 |
+| backend/src/config/database.test.js | 5f703260f13bbf49e70bd6c9586434b8d84f16574b502ad64ae713883c37f340 |
 | backend/src/middleware/auth.js | a2411a35fb7139d9e63a4af2da22de00fed1ecbef833dd6156886411baadf1c8 |
 | backend/src/middleware/auth.test.js | 7de83ccd845452f80dbb4ea71578bf53fe595b992a2a2620eab2c95a4e66b52c |
 | backend/src/models/AccessHistory.js | e2db845bfc54cc3be9d44479b1d5fbe055a465ac06b74ab4498e0a9425dfa077 |
@@ -101,14 +101,14 @@
 | backend/src/routes/tasks.test.js | 3d0f808fa5e1fa05f9dfb721fec6d0b7b32c580fe3cccc49bb2d89063826e842 |
 | backend/src/routes/users.js | 112700155c60f6298b321d0725a0001628c63ead63ec4fc4cb56106caf1a20b0 |
 | backend/src/routes/users.test.js | e11fd81202f700843dba63b9c285a15bbc9ee75086e9a2850b33f76d7cd9c429 |
-| backend/src/server.js | 41faec9c1c966e82eee4666edb50c1bdd942764e8c83a58410bccc0b70b61975 |
+| backend/src/server.js | 12ff02b362e2f32df2858c223d3c5b97f99eee91f2600d425eb1f8d76ab75ceb |
 | backend/test.sh | f95a057191e6aaef504ee5b208eaf015f1bff1beb82f06c698f83700760f8642 |
 | frontend/lib/main.dart | 46821a0b164714b534dc922d51729bb2760ec995bf3d91e6c0fee36f192d360c |
 | frontend/lib/screens/invite_register_screen.dart | e578ff8002ddddd4e4abfb7432c52f34344d760d6e95f72b7e5aabf79ec34610 |
 | frontend/lib/screens/invites_screen.dart | ea1ec53493a877294ab75df93a7a23929d6fe4bb49b16f1ae88a565c62a6b716 |
 | frontend/lib/screens/tasks_screen.dart | 656a3fd36f1d49efe85b1d2c80c01e82fa63c7ebb8e80b1ba87411f0631d70d4 |
 | frontend/lib/screens/users_screen.dart | 5ef4a4a1a2ea6ed3bc7bc87832b491ed2c302eb98d4500a6f97cfe468ab5d377 |
-| frontend/lib/services/api_service.dart | 8c7d52fbf325380af9a7efac3d83715e17c985d280d5387ed3b11d16a3b4a60c |
+| frontend/lib/services/api_service.dart | 9dbf923cdca70ab5f66ca715395d8c39b983253f2fc9722b7166a6dcf4c4de45 |
 | frontend/pubspec.yaml | 17af3440c6623b96ac344573777cda42c0e5a3fee029f77ca0b0c0dcd3ed1cd2 |
 | frontend/test/invites_flow_test.dart | c07209989bc52650c3f3cad60f4f33372b39f994144ec94ec4ff27248a7b0dac |
 | frontend/test/roles_nav_test.dart | 5b3512ff719693077274f34ed463728caf1ba72f763759967b4211d8b4b62a20 |
@@ -127,7 +127,7 @@
 | specs/00016-convite-visitante/plan.md | aa28171c1325f04e64b5f022d4b350ee9875e3269c60fd6ed6b11e0e796c57f4 |
 | specs/00016-convite-visitante/spec.md | 1f98001d2b8c4c8c24e4725ac1144a3a3b1bb03a46f096a7426028234a615eef |
 | specs/00016-convite-visitante/tasks.md | 37681076265f3945ef99e2fef23efdb287588c5e836e133f2101279e6c05a69c |
-| specs/project-plan.md | f0b19a702ac8bff7353fc18f5969a6cd9b261cd099f795a3f77a031a2ad74011 |
+| specs/project-plan.md | 6476100814b27589b00dc23912db3235c79ae4f47223d4c377faa965cb334683 |
 ## Tool Recommendations
 - None
 
