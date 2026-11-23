@@ -22,7 +22,7 @@ Nenhuma.
 - [X] Avaliação V3 concluída (2026-11-22) — relatório em `specs/avaliacao-valor-v3.md`: 7/15 recursos completos, 5/15 parciais, 2/15 não entregues, 1/15 fora de escopo; lacuna de maior valor é previsibilidade financeira (pagamentos e custos). Canvas real em `specs/canvas_valor_usuario.png`.
 - [X] Épico E018 — Previsibilidade financeira por contrato (feature `00020-previsibilidade-financeira`): parcelas, pagamentos com comprovante, indicadores no painel, alerta de atraso deduplicado e exportação CSV/PDF; somente admin/gestor. QC PASS (`.qc-passed`), 31/31 tasks, 7/7 FR P1 · backend 207/207 · smoke 183/183 · flutter 98/98 · audit 0 (2026-11-22). Fecha a lacuna de maior valor apontada pela avaliação V3.
 
-- [ ] Pesquisa de mercado refeita (2026-11-23) — relatório em `docs/pesquisa-mercado-2026-11.md` (atualiza `docs/resources.md` de set/2026). Novos eixos: dossiê documental do prestador (ASO/NR/certidões), importação de acervo, manutenção preventiva recorrente, régua de notificação configurável + WhatsApp, nota de desempenho por prestador. Candidatos a requisito priorizados no relatório; bloqueio: revisão explícita de `PDD-007` (CSV) e `PDD-008` (WhatsApp/mobile) antes de especificar.
+- [ ] Pesquisa de mercado refeita (2026-11-23) — relatório em `docs/pesquisa-mercado-2026-11.md` (atualiza `docs/resources.md` de set/2026) e tudo registrado no roadmap `docs/roadmap.md` (status real de R0–R6 + candidatos novos R7–R11). Novos eixos: dossiê documental do prestador (ASO/NR/certidões), importação de acervo, manutenção preventiva recorrente, régua de notificação configurável + WhatsApp, nota de desempenho por prestador. Bloqueio: revisão explícita de `PDD-007` (CSV) e `PDD-008` (WhatsApp/mobile) antes de especificar.
 
 ## Done
 
