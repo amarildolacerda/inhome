@@ -18,7 +18,7 @@ CAP-003 prova o que foi feito — texto, fotos e histórico de reabertura —, m
 - Visão de auditoria: tarefas do domínio em Revisão ou Concluída, com histórico e anexos de E003.
 - Classificação por tarefa: um dos três estados, nota opcional de até 500 caracteres, autor e data; registro único substituído na reclassificação.
 - Leitura e escrita para `auditor`, `admin` e `gestor` do domínio; `prestador` e `system_admin` com 403.
-- Migração aditiva preguiçosa em inglês (precedente `alert_events`), sem alterar `tasks`/`task_history`.
+- Migração preguiçosa: tabela nova e rebuild guardado de `users` para `auditor`; `tasks`/`task_history` intactos.
 - Entrada Auditoria no Flutter para `auditor`, `admin` e `gestor`.
 
 ### Excluded
@@ -90,12 +90,12 @@ Como admin, habilito o papel auditor pelo cadastro existente; sessões sem nenhu
 
 - **Vazamento de domínio** *(likelihood: low, impact: high)*: rota nova sem isolamento expõe tarefas de outro cliente. Mitigação: guardas por rota e teste negativo.
 - **Papel com permissão inflada** *(likelihood: medium, impact: medium)*: `auditor` cai em lista que escreve no fluxo. Mitigação: `requireRole()` por rota e teste 403 por papel.
-- **Migração colidindo com a base entregue** *(likelihood: low, impact: medium)*: DDL novo quebra bancos existentes. Mitigação: migração aditiva preguiçosa no precedente `alert_events`.
+- **Migração colidindo com a base entregue** *(likelihood: low, impact: medium)*: DDL novo quebra bancos existentes. Mitigação: rebuild guardado de `users` preserva ids e dados.
 
 ## Implementation Signals
 
 - [`NEW-ENTITY`] — registro de classificação por tarefa (estado, nota, autor, data).
-- [`MIGRATION`] — migração aditiva preguiçosa em inglês, `migrateSchema()` antes de `applySchema()`.
+- [`MIGRATION`] — preguiçosa: tabela aditiva e rebuild de `users`, `migrateSchema()` antes de `applySchema()`.
 - [`NEW-API`] — rotas de leitura e classificação sob `requireRole()` e isolamento de domínio; enum de papéis estendido.
 - [`NEW-UI`] — tela de auditoria e entrada de navegação por papel no Flutter.
 

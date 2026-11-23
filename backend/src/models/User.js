@@ -33,6 +33,25 @@ class User {
     return User.findAuth(db, email);
   }
 
+  // 00016 (AD-004, FR-046): login handle derived from the e-mail local part.
+  // Lowercase, sanitized to [a-z0-9._-]; numeric suffix on collision; falls
+  // back to `visitante` when the local part has no usable characters. The
+  // collision loop honors users.username UNIQUE (fresh) / app-level (legacy).
+  static deriveUsername(email, db) {
+    const local = String(email)
+      .split('@')[0]
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]/g, '');
+    const base = local || 'visitante';
+    let candidate = base;
+    let suffix = 2;
+    while (db && User.findByUsername(db, candidate)) {
+      candidate = `${base}${suffix}`;
+      suffix += 1;
+    }
+    return candidate;
+  }
+
   static create(db, { name, email, password, role, username = null }) {
     const password_hash = bcrypt.hashSync(password, 10);
     db.run('INSERT INTO users(name, email, username, password_hash, role) VALUES (?, ?, ?, ?, ?)', [
@@ -79,4 +98,7 @@ class User {
   }
 }
 
+// Named export so callers can `const { deriveUsername } = require('./User')`.
+User.deriveUsername = User.deriveUsername.bind(User);
 module.exports = User;
+module.exports.deriveUsername = User.deriveUsername;

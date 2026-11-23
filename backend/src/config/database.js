@@ -139,10 +139,49 @@ const USERS_DDL = `CREATE TABLE IF NOT EXISTS users (
     email TEXT NOT NULL UNIQUE,
     username TEXT UNIQUE,
     password_hash TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('admin','gestor','prestador','auditor')),
+    role TEXT NOT NULL CHECK (role IN ('admin','gestor','prestador','auditor','visitante')),
     active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`;
+
+// 00016 (FR-044/045/050, AD-001/002/007): convites com estado derivado,
+// ledger de e-mails consumidos e histórico de acesso append-only. DDL em
+// inglês, mesmo padrão das demais tabelas de domínio; token é credencial
+// (UNIQUE) e nunca é gravado em log.
+const INVITES_DDL = `CREATE TABLE IF NOT EXISTS invites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token TEXT NOT NULL UNIQUE,
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    issued_by INTEGER NOT NULL REFERENCES users(id),
+    expires_at TEXT NOT NULL,
+    revoked_at TEXT,
+    revoked_by INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    CHECK ((revoked_at IS NULL) = (revoked_by IS NULL))
+  )`;
+
+const INVITE_EMAILS_DDL = `CREATE TABLE IF NOT EXISTS invite_emails (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    invite_id INTEGER NOT NULL REFERENCES invites(id),
+    email TEXT NOT NULL,
+    user_id INTEGER NOT NULL UNIQUE REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (invite_id, email)
+  )`;
+
+const ACCESS_HISTORY_DDL = `CREATE TABLE IF NOT EXISTS access_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event TEXT NOT NULL CHECK (event IN ('emission','registration','reevaluation','suspension')),
+    invite_id INTEGER NOT NULL REFERENCES invites(id),
+    user_id INTEGER REFERENCES users(id),
+    author_id INTEGER NOT NULL REFERENCES users(id),
+    from_role TEXT,
+    to_role TEXT,
+    active_before INTEGER CHECK (active_before IN (0,1)),
+    active_after INTEGER CHECK (active_after IN (0,1)),
+    cause TEXT CHECK (cause IN ('revoked','expired')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`;
 
 // Fase 3 da convenção de nomenclatura (2026-10-12): os 6 enums de dado são
@@ -223,6 +262,89 @@ const EXECUTION_PLANS_DDL = `CREATE TABLE IF NOT EXISTS execution_plans (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`;
 
+// 00016 (E016): canal por contrato, análise de documento e alertas extraídos.
+// DDL em inglês, mesmo padrão das demais tabelas de domínio; chat_messages é
+// imutável e extracted_alerts tem a chave de dedup da Clarify do E016.
+const CHAT_MESSAGES_DDL = `CREATE TABLE IF NOT EXISTS chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    author_id INTEGER NOT NULL REFERENCES users(id),
+    body TEXT NOT NULL CHECK (length(body) <= 4000),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`;
+
+const DOCUMENT_ANALYSES_DDL = `CREATE TABLE IF NOT EXISTS document_analyses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id INTEGER NOT NULL UNIQUE REFERENCES chat_messages(id),
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    status TEXT NOT NULL CHECK (status IN ('pending','completed','failed')),
+    extracted_json TEXT,
+    error TEXT,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    started_at TEXT,
+    finished_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`;
+
+const EXTRACTED_ALERTS_DDL = `CREATE TABLE IF NOT EXISTS extracted_alerts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    source_kind TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    due_date TEXT,
+    status TEXT NOT NULL DEFAULT 'open',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (contract_id, source_kind, source_id)
+  )`;
+
+// 00020 (E018): parcelas e pagamentos por contrato. Valores em centavos
+// inteiros (BRL fixo), mesma convenção de DDL em inglês dos domínios. O
+// pagamento é imutável na superfície HTTP; o saldo é verificado na rota
+// dentro de db.transaction (STF-001).
+const CONTRACT_INSTALLMENTS_DDL = `CREATE TABLE IF NOT EXISTS contract_installments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    description TEXT NOT NULL CHECK (length(description) BETWEEN 1 AND 200),
+    amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+    due_date TEXT NOT NULL CHECK (length(due_date) = 10),
+    created_by INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`;
+
+const CONTRACT_PAYMENTS_DDL = `CREATE TABLE IF NOT EXISTS contract_payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    installment_id INTEGER NOT NULL REFERENCES contract_installments(id),
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+    paid_at TEXT NOT NULL CHECK (length(paid_at) = 10),
+    created_by INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`;
+
+// Anexo de chat e comprovante de pagamento usam a mesma tabela, com pais
+// alternativos. SQLite não altera CHECK: rebuild preguiçoso em migrateSchema
+// preserva ids e linhas (E016 para message_id/chat, E018 para payment_id/payment,
+// E019 para reviewed_by/reviewed_at da conferência documental).
+const ATTACHMENTS_DDL = `CREATE TABLE IF NOT EXISTS attachments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER REFERENCES tasks(id),
+    comment_id INTEGER REFERENCES comments(id),
+    message_id INTEGER REFERENCES chat_messages(id),
+    payment_id INTEGER REFERENCES contract_payments(id),
+    kind TEXT NOT NULL DEFAULT 'file' CHECK (kind IN ('photo','file')),
+    path TEXT NOT NULL,
+    original_name TEXT,
+    uploaded_by INTEGER,
+    category TEXT NOT NULL DEFAULT 'evidence' CHECK (category IN ('evidence','documentation','chat','payment')),
+    reviewed_by INTEGER REFERENCES users(id),
+    reviewed_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    CHECK (task_id IS NOT NULL OR message_id IS NOT NULL OR payment_id IS NOT NULL)
+  )`;
+
 const DOMAIN_SCHEMA = [
   USERS_DDL,
   `CREATE TABLE IF NOT EXISTS purposes (
@@ -233,6 +355,11 @@ const DOMAIN_SCHEMA = [
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
   CONTRACTS_DDL,
+  // 00016: convites, ledger de e-mails e histórico de acesso (CREATE IF NOT
+  // EXISTS cobre domínios novos e a abertura de bancos legados).
+  INVITES_DDL,
+  INVITE_EMAILS_DDL,
+  ACCESS_HISTORY_DDL,
   `CREATE TABLE IF NOT EXISTS contract_providers (
     contract_id INTEGER NOT NULL REFERENCES contracts(id),
     user_id INTEGER NOT NULL REFERENCES users(id),
@@ -262,17 +389,12 @@ const DOMAIN_SCHEMA = [
     body TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
-  `CREATE TABLE IF NOT EXISTS attachments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    task_id INTEGER NOT NULL REFERENCES tasks(id),
-    comment_id INTEGER REFERENCES comments(id),
-    kind TEXT NOT NULL DEFAULT 'file' CHECK (kind IN ('photo','file')),
-    path TEXT NOT NULL,
-    original_name TEXT,
-    uploaded_by INTEGER,
-    category TEXT NOT NULL DEFAULT 'evidence' CHECK (category IN ('evidence','documentation')),
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`,
+  CONTRACT_INSTALLMENTS_DDL,
+  CONTRACT_PAYMENTS_DDL,
+  ATTACHMENTS_DDL,
+  CHAT_MESSAGES_DDL,
+  DOCUMENT_ANALYSES_DDL,
+  EXTRACTED_ALERTS_DDL,
   // --- 00003: Workflow Assistido OpenCode (7 tabelas novas) ---
   `CREATE TABLE IF NOT EXISTS contract_definitions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -336,6 +458,15 @@ const DOMAIN_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_cp_user ON contract_providers(user_id)',
   'CREATE INDEX IF NOT EXISTS idx_comments_task ON comments(task_id)',
   'CREATE INDEX IF NOT EXISTS idx_attachments_task ON attachments(task_id)',
+  'CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id)',
+  // 00020 E018: hot paths do resumo financeiro e do varredor de atraso.
+  'CREATE INDEX IF NOT EXISTS idx_attachments_payment ON attachments(payment_id)',
+  'CREATE INDEX IF NOT EXISTS idx_installments_contract ON contract_installments(contract_id, due_date)',
+  'CREATE INDEX IF NOT EXISTS idx_payments_installment ON contract_payments(installment_id)',
+  'CREATE INDEX IF NOT EXISTS idx_payments_contract ON contract_payments(contract_id)',
+  'CREATE INDEX IF NOT EXISTS idx_chat_messages_contract ON chat_messages(contract_id, created_at, id)',
+  'CREATE INDEX IF NOT EXISTS idx_document_analyses_message ON document_analyses(message_id)',
+  'CREATE INDEX IF NOT EXISTS idx_extracted_alerts_contract ON extracted_alerts(contract_id)',
   // --- 00003: hot paths + as duas invariantes de workflow ---
   'CREATE INDEX IF NOT EXISTS idx_contract_definitions_contract ON contract_definitions(contract_id)',
   'CREATE INDEX IF NOT EXISTS idx_task_suggestions_contract ON task_suggestions(contract_id)',
@@ -356,6 +487,10 @@ const DOMAIN_INDEXES = [
   // --- 00011 E005: hot sort da página do painel (AD-005) ---
   'CREATE INDEX IF NOT EXISTS idx_contracts_forecast ON contracts(forecast_date)',
   'CREATE INDEX IF NOT EXISTS idx_entity_history_entity ON entity_history(entity_type, entity_id)',
+  // --- 00016 E015: hot paths de convite/escopo/histórico (data-model.md) ---
+  'CREATE INDEX IF NOT EXISTS idx_invites_contract ON invites(contract_id)',
+  'CREATE INDEX IF NOT EXISTS idx_access_history_invite ON access_history(invite_id)',
+  'CREATE INDEX IF NOT EXISTS idx_access_history_user ON access_history(user_id)',
 ];
 
 function ensureIndexes(wrapper) {
@@ -494,7 +629,13 @@ function migrateSchema(wrapper) {
     const usersSql = wrapper.get(
       "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'"
     )?.sql;
-    if (usersSql && usersSql.includes("'prestador'") && !usersSql.includes("'auditor'")) {
+    // 00016: o mesmo rebuild também alarga o CHECK para `visitante` em bancos
+    // que já tinham `auditor` (guarda aditiva: dispara uma vez por arquivo).
+    if (
+      usersSql &&
+      usersSql.includes("'prestador'") &&
+      (!usersSql.includes("'auditor'") || !usersSql.includes("'visitante'"))
+    ) {
       wrapper.run(
         USERS_DDL.replace('CREATE TABLE IF NOT EXISTS users', 'CREATE TABLE users_e011')
       );
@@ -539,6 +680,65 @@ function migrateSchema(wrapper) {
       wrapper.run(
         `ALTER TABLE attachments ADD COLUMN category TEXT NOT NULL DEFAULT 'evidence' CHECK (category IN ('evidence','documentation'))`
       );
+    }
+
+    // 00016 (FR-054/055): widens the category CHECK to 'chat' and adds
+    // message_id as an alternative parent. Same copy → drop → rename pattern
+    // as the E011 role rebuild: ids and every existing row are preserved.
+    const attachmentsSql = wrapper.get(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'attachments'"
+    )?.sql;
+    if (attachmentsSql && (!attachmentsSql.includes("'chat'") || !attachmentsSql.includes('message_id'))) {
+      const present = wrapper
+        .all('PRAGMA table_info(attachments)')
+        .map((column) => column.name)
+        .filter((name) => name !== 'message_id');
+      const temp = 'attachments_e016';
+      wrapper.transaction((tx) => {
+        tx.run(ATTACHMENTS_DDL.replace('CREATE TABLE IF NOT EXISTS attachments', `CREATE TABLE ${temp}`));
+        tx.run(`INSERT INTO ${temp}(${present.join(', ')}) SELECT ${present.join(', ')} FROM attachments`);
+        tx.run('DROP TABLE attachments');
+        tx.run(`ALTER TABLE ${temp} RENAME TO attachments`);
+      });
+    }
+
+    // 00020 (FR-065): same copy → drop → rename for the `payment` category and
+    // the `payment_id` parent. Rows, ids, message_id and `chat` survive. The
+    // guard re-reads sqlite_master so it fires once per file, including files
+    // that skipped the E016 rebuild because they were already on that schema.
+    const currentSql = wrapper.get(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'attachments'"
+    )?.sql;
+    if (currentSql && (!currentSql.includes("'payment'") || !currentSql.includes('payment_id'))) {
+      const present = wrapper
+        .all('PRAGMA table_info(attachments)')
+        .map((column) => column.name);
+      const temp = 'attachments_e018';
+      wrapper.transaction((tx) => {
+        tx.run(ATTACHMENTS_DDL.replace('CREATE TABLE IF NOT EXISTS attachments', `CREATE TABLE ${temp}`));
+        tx.run(`INSERT INTO ${temp}(${present.join(', ')}) SELECT ${present.join(', ')} FROM attachments`);
+        tx.run('DROP TABLE attachments');
+        tx.run(`ALTER TABLE ${temp} RENAME TO attachments`);
+      });
+    }
+
+    // 00021 (E019): colunas aditivas de conferência documental. O mesmo
+    // copy → drop → rename preserva ids, categorias, message_id e payment_id;
+    // a guarda por PRAGMA dispara uma vez por arquivo, inclusive em bancos que
+    // já passaram pelos rebuilds de E016/E018.
+    const reviewColumns = wrapper.all('PRAGMA table_info(attachments)').map((column) => column.name);
+    if (!reviewColumns.includes('reviewed_by') || !reviewColumns.includes('reviewed_at')) {
+      const present = wrapper
+        .all('PRAGMA table_info(attachments)')
+        .map((column) => column.name)
+        .filter((name) => name !== 'reviewed_by' && name !== 'reviewed_at');
+      const temp = 'attachments_e019';
+      wrapper.transaction((tx) => {
+        tx.run(ATTACHMENTS_DDL.replace('CREATE TABLE IF NOT EXISTS attachments', `CREATE TABLE ${temp}`));
+        tx.run(`INSERT INTO ${temp}(${present.join(', ')}) SELECT ${present.join(', ')} FROM attachments`);
+        tx.run('DROP TABLE attachments');
+        tx.run(`ALTER TABLE ${temp} RENAME TO attachments`);
+      });
     }
   }
 
@@ -672,4 +872,10 @@ module.exports = {
   createDomainDb,
   ensureIndexes,
   resetDatabaseCache,
+  CHAT_MESSAGES_DDL,
+  DOCUMENT_ANALYSES_DDL,
+  EXTRACTED_ALERTS_DDL,
+  CONTRACT_INSTALLMENTS_DDL,
+  CONTRACT_PAYMENTS_DDL,
+  ATTACHMENTS_DDL,
 };

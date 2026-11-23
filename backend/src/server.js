@@ -68,12 +68,15 @@ app.use('/uploads', express.static(require('./middleware/upload').UPLOAD_DIR));
 // Routes
 const suggestionsRouter = require('./routes/suggestions'); // 00003: análise + sugestões
 const tasksRouter = require('./routes/tasks');
+const chatRouter = require('./routes/chat'); // 00016 E016: canal por contrato
 
 // v1 removido em 2026-10-17 — superfície única /api/v2
 // Exceção de nome: finalidades monta em /api/v2/purposes (segmento EN).
 app.use('/api/v2/auth', require('./routes/auth'));
 app.use('/api/v2/domains', require('./routes/domains'));
 app.use('/api/v2/users', require('./routes/users'));
+// 00016 E015: convites de acesso temporário e cadastro público de visitante.
+app.use('/api/v2/invites', require('./routes/invites'));
 app.use('/api/v2/purposes', require('./routes/finalidades'));
 app.use('/api/v2/contracts', require('./routes/contracts'));
 app.use('/api/v2/contracts', require('./routes/definitions'));
@@ -83,6 +86,11 @@ app.use('/api/v2/contracts', suggestionsRouter.nested);
 app.use('/api/v2/suggestions', suggestionsRouter);
 app.use('/api/v2/opencode', require('./routes/opencodeConfig'));
 app.use('/api/v2/contracts', tasksRouter.nested);
+app.use('/api/v2/contracts', chatRouter);
+// 00020 E018: parcelas, pagamentos e exportação financeira por contrato.
+app.use('/api/v2/contracts', require('./routes/finance'));
+// 00021 E019: biblioteca documental do contrato sobre attachments.
+app.use('/api/v2/contracts', require('./routes/documents'));
 app.use('/api/v2/tasks', tasksRouter);
 app.use('/api/v2/tasks', require('./routes/executionPlan'));
 app.use('/api/v2/tasks', require('./routes/comments'));

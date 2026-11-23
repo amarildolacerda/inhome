@@ -52,7 +52,12 @@ function getTaskOr404(db, id) {
 }
 
 // Prestador: only tasks assigned to them. Admin/gestor: whole domain (FR-013).
-function canSeeTask(user, task) {
+// 00016 (FR-047): visitante sees only the contract of its invite; the scope is
+// derived per request in auth.js and never comes from the session payload.
+function canSeeTask(user, task, scope) {
+  if (user.role === 'visitante') {
+    return Boolean(scope && task.contract_id === scope.contractId);
+  }
   if (user.role === 'prestador') return task.assignee_id === user.id;
   return true;
 }
@@ -157,6 +162,9 @@ function listTasks(req, res) {
     } else {
       rows = db.all('SELECT * FROM tasks ORDER BY id');
     }
+    if (req.user.role === 'visitante') {
+      rows = rows.filter((row) => canSeeTask(req.user, row, req.user.scope));
+    }
     const activeByContract = new Map();
     const tasks = rows.map((row) => {
       if (!activeByContract.has(row.contract_id)) {
@@ -182,7 +190,7 @@ function getTask(req, res) {
   try {
     const db = getDomainDb(req.user.domainId);
     const task = Task.findById(db, req.params.id);
-    if (!task || !canSeeTask(req.user, task)) {
+    if (!task || !canSeeTask(req.user, task, req.user.scope)) {
       return res.status(404).json({ error: 'Task not found' });
     }
     res.json({ task, history: Task.history(db, task.id) });
@@ -301,7 +309,7 @@ async function completeTask(req, res) {
     const db = getDomainDb(req.user.domainId);
     const row = getTaskOr404(db, req.params.id);
     // Alheia invisível (FR-013): other prestadores get 404, not 403.
-    if (!canSeeTask(req.user, row)) {
+    if (!canSeeTask(req.user, row, req.user.scope)) {
       return res.status(404).json({ error: 'Task not found' });
     }
     if (req.user.role !== 'prestador' || row.assignee_id !== req.user.id) {
@@ -426,6 +434,8 @@ function rejectTask(req, res) {
 // AD-002 (FR-033/FR-034): admin/gestor move a task to any of the four states
 // outside the nominal sequence, always with a motivo. The maintain row stores
 // `old → new: motivo`; leaving Concluída clears completed_* (mirrors reopenTask).
+// Same state is accepted: no row update (completed_* stays intact) — only the
+// history row lands, so information can be logged without a state change.
 function maintainTaskStatus(req, res) {
   try {
     const db = getDomainDb(req.user.domainId);
@@ -442,31 +452,27 @@ function maintainTaskStatus(req, res) {
     if (!motivo || !String(motivo).trim()) {
       return res.status(400).json({ error: 'motivo is required', code: 'TASK_MAINTENANCE_REASON_REQUIRED' });
     }
-    if (next === task.status) {
-      return res.status(400).json({
-        error: `Task is already in status ${next}`,
-        code: 'TASK_MAINTENANCE_NOOP',
-      });
+    const sameState = next === task.status;
+    if (!sameState) {
+      if (task.status === 'Concluída') {
+        db.run(
+          `UPDATE tasks SET status = ?, completed_text = NULL, completed_at = NULL,
+           completed_by = NULL, updated_at = datetime('now') WHERE id = ?`,
+          [code('tasks.status', next), task.id]
+        );
+      } else {
+        db.run('UPDATE tasks SET status = ?, updated_at = datetime(\'now\') WHERE id = ?', [
+          code('tasks.status', next),
+          task.id,
+        ]);
+      }
     }
-    if (task.status === 'Concluída') {
-      db.run(
-        `UPDATE tasks SET status = ?, completed_text = NULL, completed_at = NULL,
-         completed_by = NULL, updated_at = datetime('now') WHERE id = ?`,
-        [code('tasks.status', next), task.id]
-      );
-    } else {
-      db.run('UPDATE tasks SET status = ?, updated_at = datetime(\'now\') WHERE id = ?', [
-        code('tasks.status', next),
-        task.id,
-      ]);
-    }
-    Task.addHistory(
-      db,
-      task.id,
-      'maintain',
-      req.user.id,
-      `${task.status} → ${next}: ${String(motivo).trim()}`
-    );
+    // Same state logs just `state: motivo` (FR-034 keeps author/date; the
+    // transition form stays reserved for real moves).
+    const note = sameState
+      ? `${next}: ${String(motivo).trim()}`
+      : `${task.status} → ${next}: ${String(motivo).trim()}`;
+    Task.addHistory(db, task.id, 'maintain', req.user.id, note);
     emitDomainEvent('task:updated', req.user.domainId, {
       taskId: task.id,
       contractId: task.contract_id,
@@ -525,8 +531,8 @@ async function reopenTask(req, res) {
 router.use(authenticateToken);
 // AD-002 (FR-010, E003): domainId estrangeiro → 403 antes de qualquer consulta.
 router.use(scopeDomain());
-router.get('/', requireRole('admin', 'gestor', 'prestador'), listTasks);
-router.get('/:id', requireRole('admin', 'gestor', 'prestador'), getTask);
+router.get('/', requireRole('admin', 'gestor', 'prestador', 'visitante'), listTasks);
+router.get('/:id', requireRole('admin', 'gestor', 'prestador', 'visitante'), getTask);
 router.put('/:id', requireRole('admin', 'gestor'), updateTaskFields);
 router.patch('/:id/status', requireRole('admin', 'gestor', 'prestador'), updateTaskStatus);
 router.post('/:id/complete', requireRole('admin', 'gestor', 'prestador'), completeTask);

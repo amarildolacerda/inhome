@@ -435,4 +435,6 @@ function exportContractCsv(db, contractId) {
   return [header.join(','), ...rows].join('\n') + '\n';
 }
 
-module.exports = { generateContractPdf, exportContractCsv };
+// 00020 (E018): o resumo financeiro reusa o writer PDF e o escape CSV sem
+// duplicar o gerador neste arquivo (AD-006 do plano).
+module.exports = { generateContractPdf, exportContractCsv, buildPdf, csvCell, pdfEscape };

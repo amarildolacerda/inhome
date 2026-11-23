@@ -3,24 +3,32 @@
 Custom project TODOs. Agents read this file at session start.
 
 ## em execução
-   E017
-   
+Nenhuma.
+
 ## Pending
 
 ### V1
 - [X] Épico E014 — Tema escuro por padrão + alternância para claro (SharedPreferences + toggle na toolbar); feature `00018` com 19/19 tasks, checklists 55/55, QC PASS (`.qc-passed`), flutter 75/75 · backend 167/167 · smoke 182/182 · audit 0, browser headless 22/22 (2026-10-30)
 
-- [ ] `users` CHECK — alinhar a prosa do spec com o rebuild da tabela (`WARNING` não-bloqueante do QC de 00013, `specs/00013-e011-auditoria-classificacao`); decidido adiar em 2026-10-11. Pendência técnica, não pedida pelo usuário (2026-10-23)
+- [X] `users` CHECK — alinhar a prosa do spec com o rebuild da tabela (`WARNING` não-bloqueante do QC de 00013, `specs/00013-e011-auditoria-classificacao`); decidido adiar em 2026-10-11. Prosa ajustada em `spec.md`/`data-model.md`, gate e P1 preservados, QC revalidado (2026-11-23)
 
 ### V2
-- [ ] (spec `00016-convite-visitante` gerada) permitir que gestor e administradores gerem link de acesso para convidado por tempo determinado (validade temporaria), o convidado ao entrar se cadastra como usuario visitante; a posteriore o gestor/admin pode reavaliar a participação do visitante mudando seu papel ou suspendendo seu acesso
+- [X] Épico E015 — Convite temporário e papel visitante (spec `00016-convite-visitante`): gestor/admin emitem link com validade, o convidado se cadastra como visitante e vê só as tarefas do contrato; reavaliação muda papel ou suspende o acesso. QC PASS (`.qc-passed`), 26/26 tasks, 7/7 FR P1 · backend 181/181 · smoke 183/183 · flutter 88/88 · audit 0 (2026-11-20)
 
-- [ ] a nivel de contrato permitir um chat (estrutura de recursos em `chat/resource.MD` — canal por contrato, anexos, threads por cláusula/tarefa, IA de análise de documentos, menu de tarefas no chat, mobile-first), no chat pode enviar  documentos/anexos para o contrato. Ao receber um documento usar IA para analisar o documento e mapear riscos, multas, seguros, vencimentos, local execução... usar as informações mapeadas para alimentar um sistema de alerta; no chat pode ter algumas opções pre-programdas: ver alertas, ver executados, ver proximas execução;
+- [X] Épico E016 — Chat colaborativo por contrato (spec `00017-chat-colaborativo-contrato`): canal com mensagens e anexos, cards de alertas/próximas/executadas e ações só na própria tarefa; extrator local determinístico de prazos, multas, seguros, riscos e local alimenta alertas deduplicados com retry manual. Threads e push externo ficam em P2. QC PASS (`.qc-passed`), 22/22 tasks, 11/11 FR P1 · backend 194/194 · smoke 183/183 · flutter 90/90 · audit 0 (2026-11-21). Origem: a nivel de contrato permitir um chat (estrutura em `chat/resource.MD`)
 
 
 ### V3 - avaliar entregas x `specs/plan/canvas_valor_usuario.png`
+- [X] Avaliação V3 concluída (2026-11-22) — relatório em `specs/avaliacao-valor-v3.md`: 7/15 recursos completos, 5/15 parciais, 2/15 não entregues, 1/15 fora de escopo; lacuna de maior valor é previsibilidade financeira (pagamentos e custos). Canvas real em `specs/canvas_valor_usuario.png`.
+- [X] Épico E018 — Previsibilidade financeira por contrato (feature `00020-previsibilidade-financeira`): parcelas, pagamentos com comprovante, indicadores no painel, alerta de atraso deduplicado e exportação CSV/PDF; somente admin/gestor. QC PASS (`.qc-passed`), 31/31 tasks, 7/7 FR P1 · backend 207/207 · smoke 183/183 · flutter 98/98 · audit 0 (2026-11-22). Fecha a lacuna de maior valor apontada pela avaliação V3.
+
+- [X] Pesquisa de mercado refeita (2026-11-23) — relatório em `docs/pesquisa-mercado-2026-11.md` (atualiza `docs/resources.md` de set/2026) e tudo registrado no roadmap `docs/roadmap.md` (status real de R0–R6 + candidatos novos R7–R11). Novos eixos: dossiê documental do prestador (ASO/NR/certidões), importação de acervo, manutenção preventiva recorrente, régua de notificação configurável + WhatsApp, nota de desempenho por prestador. Ondas registradas no `specs/project-plan.md`: Wave 11 = E020 (R3 importação de acervo, `PDD-007` revisada em 2026-11-23) e Wave 12 = E021 (R7 dossiê do prestador); gate de frescor do plano PASS. `PDD-008` (WhatsApp/mobile) segue pendente de revisão.
+
+- [X] Épico E019 — Gestão documental do contrato (feature `00021-gestao-documental-contrato`): biblioteca sobre `attachments` com origem derivada, filtros, análise/alertas de E016, categoria e conferência idempotente; 2 colunas aditivas, 0 tabela nova; somente admin/gestor. QC PASS (`.qc-passed`), 25/25 tasks, 7/7 FR P2 · backend 212/212 · smoke 201/201 · flutter 102/102 · audit 0 (2026-11-23). Fecha o item 2 da avaliação V3.
 
 ## Done
+
+- [X] Bug: manutenção não registrava no mesmo estado (2026-11-15) — o botão "Aplicar manutenção" do sheet ficava inerte quando a escolha era o estado atual (`canApply` exigia troca) e o backend recusava com `TASK_MAINTENANCE_NOOP`; agora o mesmo estado grava a nota `<estado>: <motivo>` no histórico sem tocar na linha da tarefa (`completed_*` de Concluída preservado), snackbar "Manutenção registrada"; specs/plan/E012.md amendado (00014 não — selado por digest); backend 173/173 · smoke 183/183 · flutter 84/84 · analyze 0
 
 - [X] Épico E013 — Redesign visual do dashboard (00015): feature fechada 2026-10-28 (`.completed` + `.qc-passed`, FR-038..043); redesign completo pós-QC em 2026-11-03 (skill frontend-design, `des-1`) com faixa full-bleed de KPIs, fila de contratos + filtros/atividade em colunas, `AppTheme.statusBlock`/`panel` (Archivo variável como asset em `pubspec.yaml`); usuário validou docker compose + dashboard; flutter dashboard 16/16 e analyze sem issues novos. Digests do `.qc-passed` de 28/10 não cobrem o redesign de 03/11 — re-sigilo/QC só na próxima promoção
 

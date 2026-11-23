@@ -236,9 +236,9 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
     );
   }
 
-  /// [FR-033]: manutenção do estado com motivo obrigatório. O seletor já
-  /// abre com o estado atual e o botão fica inerte enquanto a escolha for
-  /// igual ao atual (o backend recusa com TASK_MAINTENANCE_NOOP). No sucesso
+  /// [FR-033]: manutenção do estado com motivo obrigatório. Aplicar com o
+  /// mesmo estado da tarefa é permitido: o backend grava só o histórico
+  /// (nota `<estado>: <motivo>`) e não mexe na linha da tarefa. No sucesso
   /// o sheet fecha e o usuário volta para a tela de origem (o parent
   /// recarrega via onChanged; o SnackBar root sobrevive ao pop). Na falha o
   /// sheet permanece aberto com o SnackBar de erro — a escolha e o motivo
@@ -246,11 +246,11 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
   Future<void> _maintain() async {
     final status = _maintenanceStatus;
     final motivo = _maintenanceController.text.trim();
-    if (status == null || status == _task?.status || motivo.isEmpty) return;
+    if (status == null || motivo.isEmpty) return;
     final closed = await _run(
       () => api.maintainTask(widget.taskId, status: status, motivo: motivo),
       fallback: 'Falha na manutenção',
-      success: 'Estado atualizado por manutenção',
+      success: 'Manutenção registrada',
       closeOnSuccess: true,
     );
     if (closed) return;
@@ -406,11 +406,11 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
   }
 
   /// [FR-033]: quatro estados do Task.flow + motivo obrigatório. O seletor
-  /// abre com o estado atual da tarefa; aplicar igual ao atual é sempre
-  /// recusado pelo backend (NOOP), então o botão fica inerte até a troca.
+  /// abre com o estado atual da tarefa; o botão só exige escolha preenchida,
+  /// motivo não vazio e nenhuma requisição em voo — estado igual ao atual
+  /// também aplica (só histórico, sem troca de linha).
   Widget _buildMaintenanceSection() {
     final canApply = _maintenanceStatus != null &&
-        _maintenanceStatus != _task?.status &&
         _maintenanceController.text.trim().isNotEmpty &&
         !_busy;
     return Column(
@@ -681,8 +681,6 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
           return 'Selecione o novo estado da manutenção';
         case 'TASK_MAINTENANCE_REASON_REQUIRED':
           return 'A manutenção exige o motivo';
-        case 'TASK_MAINTENANCE_NOOP':
-          return 'A tarefa já está neste estado';
         case 'TASK_ATTACHMENT_STATUS_FORBIDDEN':
           return 'O prestador não anexa em tarefa concluída';
       }

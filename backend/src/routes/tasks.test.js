@@ -1119,18 +1119,24 @@ test('FR-033 manutenção admin/gestor; prestador 403', async () => {
   assert.strictEqual(noMotivo.status, 400, JSON.stringify(noMotivo.body));
   assert.strictEqual(noMotivo.body.code, 'TASK_MAINTENANCE_REASON_REQUIRED');
 
-  // repetido (igual ao estado atual) → 400
-  const noop = await request(app)
+  // repetido (igual ao estado atual) → 200: só o histórico é gravado, a linha
+  // da tarefa não muda (completed_* de uma Concluída não é limpo por acidente)
+  const same = await request(app)
     .post(`/api/v2/tasks/${taskId}/maintenance`)
     .set(as(adminToken))
     .send({ status: 'Revisão', motivo: 'mesmo estado' });
-  assert.strictEqual(noop.status, 400, JSON.stringify(noop.body));
-  assert.strictEqual(noop.body.code, 'TASK_MAINTENANCE_NOOP');
+  assert.strictEqual(same.status, 200, JSON.stringify(same.body));
+  assert.strictEqual(same.body.task.status, 'Revisão');
   assert.strictEqual(
     db.get('SELECT status FROM tasks WHERE id = ?', [taskId]).status,
     code('tasks.status', 'Revisão'),
-    '400 sem alteração'
+    'mesmo estado não altera a tarefa'
   );
+  const sameNote = db.get(
+    "SELECT note FROM task_history WHERE task_id = ? AND action = 'maintain' ORDER BY id DESC LIMIT 1",
+    [taskId]
+  );
+  assert.strictEqual(sameNote.note, 'Revisão: mesmo estado', 'nota do mesmo estado');
 
   // admin muda fora da sequência nominal: Revisão → A Fazer
   const byAdmin = await request(app)
@@ -1279,4 +1285,61 @@ test('FR-035 domínio estrangeiro/suspenso 403', async () => {
     0,
     'sem histórico novo'
   );
+});
+
+// 00016 FR-047 (stub do plano → GREEN): visitante vê só as tarefas do contrato
+// do convite; fora do escopo → 404, demais rotas fora da matriz → 403.
+test('FR-047 visitante vê só tarefas do contrato do convite', async () => {
+  const sys = await request(app).post('/api/v2/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  const enabled = await request(app)
+    .post('/api/v2/domains/enable')
+    .set(as(sys.body.token))
+    .send({
+      name: 'E015 Escopo',
+      adminName: 'Admin Escopo',
+      adminEmail: 'adm@escopo.e015.test',
+      adminPassword: 'Secret1!',
+    });
+  assert.strictEqual(enabled.status, 201, JSON.stringify(enabled.body));
+  const did = enabled.body.domain.id;
+  const adm = await login('adm@escopo.e015.test', 'Secret1!', did);
+  const db = getDomainDb(did);
+  for (const [name, status] of [['C-visivel', 1], ['C-fora', 1]]) {
+    db.run(
+      'INSERT INTO contracts(name, start_date, forecast_date, status) VALUES (?, ?, ?, ?)',
+      [name, '2026-01-01', '2026-12-31', status]
+    );
+  }
+  const c1 = db.get("SELECT id FROM contracts WHERE name = 'C-visivel'").id;
+  const c2 = db.get("SELECT id FROM contracts WHERE name = 'C-fora'").id;
+  db.run("INSERT INTO tasks(contract_id, title) VALUES (?, 'Dentro')", [c1]);
+  db.run("INSERT INTO tasks(contract_id, title) VALUES (?, 'Fora')", [c2]);
+  const tIn = db.get("SELECT id FROM tasks WHERE title = 'Dentro'").id;
+  const tOut = db.get("SELECT id FROM tasks WHERE title = 'Fora'").id;
+
+  const invite = await request(app)
+    .post('/api/v2/invites')
+    .set(as(adm))
+    .send({ contract_id: c1, validity: '7d' });
+  assert.strictEqual(invite.status, 201, JSON.stringify(invite.body));
+  const reg = await request(app)
+    .post(`/api/v2/invites/${invite.body.token}/register`)
+    .send({ name: 'Visitante Escopo', email: 'vis@escopo.e015.test', password: 'Secret1!' });
+  assert.strictEqual(reg.status, 201, JSON.stringify(reg.body));
+  const vis = await login('vis@escopo.e015.test', 'Secret1!', did);
+
+  const list = await request(app).get('/api/v2/tasks').set(as(vis));
+  assert.strictEqual(list.status, 200, JSON.stringify(list.body));
+  assert.deepStrictEqual(list.body.tasks.map((t) => t.id), [tIn], 'só tarefas do contrato');
+  const detailOut = await request(app).get(`/api/v2/tasks/${tOut}`).set(as(vis));
+  assert.strictEqual(detailOut.status, 404, 'fora do contrato → 404');
+  const detailIn = await request(app).get(`/api/v2/tasks/${tIn}`).set(as(vis));
+  assert.strictEqual(detailIn.status, 200);
+
+  // Demais rotas fora da matriz: visitante não edita tarefas.
+  const patch = await request(app)
+    .patch(`/api/v2/tasks/${tIn}/status`)
+    .set(as(vis))
+    .send({ status: 'Em Progresso' });
+  assert.strictEqual(patch.status, 403);
 });

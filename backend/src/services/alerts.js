@@ -142,6 +142,16 @@ async function runExpirySweep({ notifyFn, domainId, emailTimeoutMs } = {}) {
           }
         }
       }
+
+      // 00020 (E018/FR-068): parcelas vencidas alimentam o mesmo painel de
+      // alertas extraídos do E016. A varredura é idempotente (UNIQUE tripla)
+      // e isolada: uma falha financeira nunca aborta a varredura de vigência
+      // nem altera o formato do resultado desta função (4 contadores).
+      try {
+        require('./financeAlerts').runInstallmentSweep(db);
+      } catch {
+        // Swallowed on purpose: per-domain sweep is best-effort (SC-005).
+      }
     } catch {
       // FR-002/SC-005: swallow per-domain errors; the loop continues.
     }

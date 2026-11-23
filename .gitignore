@@ -16,6 +16,7 @@ data/
 backend/uploads/
 .DS_Store
 Thumbs.db
+.run/
 .vscode/
 .idea/
 *.code-workspace

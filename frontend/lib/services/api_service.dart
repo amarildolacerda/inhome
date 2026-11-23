@@ -242,6 +242,39 @@ class ApiService {
     return user;
   }
 
+  /// [FR-046]: o cadastro público por convite devolve o mesmo envelope de
+  /// /auth/login ({user, token, domainId}). Persiste a sessão pelo mesmo
+  /// caminho, para que o shell resolva papel e domínio sem novo login.
+  Future<Map<String, dynamic>> applyInviteSession(Map<String, dynamic> result) async {
+    final sessionToken = result['token'];
+    if (sessionToken is String && sessionToken.isNotEmpty) {
+      await saveToken(sessionToken);
+    }
+
+    final user = _asMap(result['user']);
+    final sessionDomain = result['domainId'];
+    final domain = sessionDomain is num ? sessionDomain.toInt() : null;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('auth_user', jsonEncode(user));
+    final sessionRole = user['role'];
+    if (sessionRole is String) {
+      await prefs.setString('auth_role', sessionRole);
+    } else {
+      await prefs.remove('auth_role');
+    }
+    if (domain != null) {
+      await prefs.setInt('auth_domain', domain);
+    } else {
+      await prefs.remove('auth_domain');
+    }
+
+    _currentUser = user;
+    _currentRole = sessionRole is String ? sessionRole : null;
+    _currentDomainId = domain;
+    return user;
+  }
+
   /// [FR-016]: GET /search/contracts — q, status, finalidade, prestador e paging.
   Future<List<Map<String, dynamic>>> searchContracts({
     String? q,
@@ -315,6 +348,160 @@ class ApiService {
   List<int> _intList(dynamic value) {
     if (value is! List) return <int>[];
     return value.whereType<num>().map((entry) => entry.toInt()).toList();
+  }
+
+  // ---- Chat colaborativo por contrato (E016) -----------------------------
+
+  /// [FR-051]: histórico paginado do canal (50 por página, máx. 100).
+  Future<Map<String, dynamic>> getChatMessages(
+    int contractId, {
+    int limit = 50,
+    int offset = 0,
+  }) {
+    return get('/contracts/$contractId/chat/messages${_query({
+      'limit': limit,
+      'offset': offset,
+    })}');
+  }
+
+  /// [FR-051/054]: mensagem de texto e/ou anexo (base64) no mesmo request.
+  Future<Map<String, dynamic>> postChatMessage(
+    int contractId, {
+    String? body,
+    String? filename,
+    String? dataBase64,
+  }) {
+    final payload = <String, dynamic>{};
+    if (body != null) payload['body'] = body;
+    if (filename != null) payload['filename'] = filename;
+    if (dataBase64 != null) payload['dataBase64'] = dataBase64;
+    return post('/contracts/$contractId/chat/messages', body: payload);
+  }
+
+  /// [FR-059]: detalhe da análise de um anexo do chat.
+  Future<Map<String, dynamic>?> getChatAnalysis(int contractId, int messageId) async {
+    final result = await get('/contracts/$contractId/chat/messages/$messageId/analysis');
+    return _asNullableMap(result['analysis']);
+  }
+
+  /// [FR-061]: retry manual da extração; falha mantém a mensagem intacta.
+  Future<Map<String, dynamic>?> retryChatAnalysis(int contractId, int messageId) async {
+    final result = await post('/contracts/$contractId/chat/messages/$messageId/analysis/retry');
+    return _asNullableMap(result['analysis']);
+  }
+
+  /// [FR-056]: cards "ver alertas" do menu, incluindo os alertas extraídos.
+  Future<Map<String, dynamic>> getChatMenuAlerts(int contractId) {
+    return get('/contracts/$contractId/chat/menu/alerts');
+  }
+
+  /// [FR-056/058]: cards "ver próximas execuções" (escopo por papel no back).
+  Future<List<Map<String, dynamic>>> getChatMenuUpcoming(int contractId) async {
+    return _mapList((await get('/contracts/$contractId/chat/menu/upcoming'))['tasks']);
+  }
+
+  /// [FR-056/058]: cards "ver executadas".
+  Future<List<Map<String, dynamic>>> getChatMenuCompleted(int contractId) async {
+    return _mapList((await get('/contracts/$contractId/chat/menu/completed'))['tasks']);
+  }
+
+  /// [FR-057]: mover a própria tarefa pelo card; terceiro recebe 403.
+  Future<Map<String, dynamic>> postChatCardAction(
+    int contractId,
+    int taskId, {
+    required String status,
+    String? text,
+  }) {
+    final payload = <String, dynamic>{'status': status};
+    if (text != null) payload['text'] = text;
+    return post('/contracts/$contractId/chat/tasks/$taskId/action', body: payload);
+  }
+
+  // ---- Gestão documental do contrato (E019) ------------------------------
+
+  /// [FR-064]: anexos do contrato com origem, categoria, análise e alertas.
+  Future<Map<String, dynamic>> getContractDocuments(
+    int contractId, {
+    String? category,
+    String? source,
+  }) {
+    final query = <String, String>{};
+    if (category != null && category.isNotEmpty) query['category'] = category;
+    if (source != null && source.isNotEmpty) query['source'] = source;
+    final uri = Uri.parse('/contracts/$contractId/documents').replace(queryParameters: query.isEmpty ? null : query);
+    return get(uri.toString());
+  }
+
+  /// [FR-068]: altera a categoria de um anexo existente.
+  Future<Map<String, dynamic>> updateDocumentCategory(
+    int contractId,
+    int attachmentId,
+    String category,
+  ) {
+    return patch('/contracts/$contractId/documents/$attachmentId', body: {'category': category});
+  }
+
+  /// [FR-069]: marca documento como conferido (idempotente no backend).
+  Future<Map<String, dynamic>> reviewDocument(int contractId, int attachmentId) {
+    return post('/contracts/$contractId/documents/$attachmentId/review');
+  }
+
+  // ---- Previsibilidade financeira por contrato (E018) --------------------
+
+  /// [FR-064]: resumo e parcelas do contrato (somente admin/gestor).
+  Future<Map<String, dynamic>> getContractFinance(int contractId) {
+    return get('/contracts/$contractId/finance');
+  }
+
+  /// [FR-064]: parcelas do contrato com resumo agregado.
+  Future<Map<String, dynamic>> listInstallments(int contractId) {
+    return get('/contracts/$contractId/finance/installments');
+  }
+
+  /// [FR-064]: cria parcela prevista. Valores em centavos inteiros (BRL fixo).
+  Future<Map<String, dynamic>> createInstallment(
+    int contractId, {
+    required String description,
+    required int amountCents,
+    required String dueDate,
+  }) async {
+    final result = await post('/contracts/$contractId/finance/installments', body: {
+      'description': description,
+      'amount_cents': amountCents,
+      'due_date': dueDate,
+    });
+    return _asMap(result['installment']);
+  }
+
+  /// [FR-064]: exclui parcela sem pagamento (204).
+  Future<void> deleteInstallment(int contractId, int installmentId) async {
+    await delete('/contracts/$contractId/finance/installments/$installmentId');
+  }
+
+  /// [FR-065]: registra pagamento parcial/total, com comprovante opcional.
+  Future<Map<String, dynamic>> postPayment(
+    int contractId,
+    int installmentId, {
+    required int amountCents,
+    String? paidAt,
+    String? filename,
+    String? dataBase64,
+  }) async {
+    final payload = <String, dynamic>{'amount_cents': amountCents};
+    if (paidAt != null) payload['paid_at'] = paidAt;
+    if (filename != null && dataBase64 != null) {
+      payload['receipt'] = {'filename': filename, 'dataBase64': dataBase64};
+    }
+    final result = await post(
+      '/contracts/$contractId/finance/installments/$installmentId/payments',
+      body: payload,
+    );
+    return _asMap(result['payment']);
+  }
+
+  /// [FR-069]: bytes do CSV/PDF com o mesmo Authorization dos demais downloads.
+  Future<List<int>> downloadFinance(int contractId, String format) {
+    return downloadFile('/contracts/$contractId/finance/export.$format');
   }
 
   // ---- Workflow assistido por OpenCode (E0003, T029) ---------------------
@@ -554,6 +741,8 @@ class ApiService {
   /// [FR-033]: POST /tasks/:id/maintenance — gestor/admin mudam o estado para
   /// qualquer um dos quatro fora do fluxo nominal, com motivo obrigatório.
   /// `status` sai no mesmo texto PT do PATCH /tasks/:id/status (Task.flow).
+  /// Enviar o estado atual também é válido: o backend grava a linha no
+  /// histórico e não altera a tarefa.
   Future<Map<String, dynamic>> maintainTask(
     int taskId, {
     required String status,
@@ -703,6 +892,15 @@ class ApiService {
         _domainEventController.add(Map<String, dynamic>.from(payload));
       }
     });
+    // [E016 FR-052/060]: chat e extração na sala domain_<id>. O cliente
+    // refiltra pelo contrato aberto usando `contractId` do payload (STF-003).
+    for (final event in const ['chat_message', 'chat_analysis_updated']) {
+      current.on(event, (payload) {
+        if (payload is Map) {
+          _domainEventController.add(Map<String, dynamic>.from(payload));
+        }
+      });
+    }
     current.on('connect_error', (_) {});
     current.on('error', (_) {});
     current.on('disconnect', (_) {});

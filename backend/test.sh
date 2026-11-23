@@ -694,8 +694,10 @@ api POST "/api/v2/tasks/$REJECT_ID/maintenance" '{"status":"Em Progresso"}' "$AD
 check_http "manutenção sem motivo" 400
 check_val "code estável do motivo de manutenção" "TASK_MAINTENANCE_REASON_REQUIRED" "$(jget code)"
 api POST "/api/v2/tasks/$REJECT_ID/maintenance" '{"status":"A Fazer","motivo":"estado repetido"}' "$ADMIN_TOKEN"
-check_http "manutenção repetida" 400
-check_val "code estável do no-op" "TASK_MAINTENANCE_NOOP" "$(jget code)"
+check_http "manutenção repetida" 200
+check_val "manutenção repetida mantém o estado" "A Fazer" "$(jget task.status)"
+api GET "/api/v2/tasks/$REJECT_ID" "" "$ADMIN_TOKEN"
+check_val "nota do mesmo estado no histórico" "A Fazer: estado repetido" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const h=JSON.parse(d).history||[];const m=h.filter(x=>x.action==="maintain").pop();process.stdout.write(m&&m.note?String(m.note):"");})')"
 
 # anexo com category: gestor/grava documentation, default segue evidence
 api POST "/api/v2/tasks/$REJECT_ID/attachments" "{\"filename\":\"como-fazer.pdf\",\"dataBase64\":\"$TINY_PNG\",\"kind\":\"file\",\"category\":\"documentation\"}" "$USER_TOKEN"
@@ -722,6 +724,43 @@ check_val "403 do gate sem arquivo residual" "$BEFORE_GATE" "$AFTER_GATE"
 api POST "/api/v2/tasks/$REJECT_ID/attachments" "{\"filename\":\"manual-final.pdf\",\"dataBase64\":\"$TINY_PNG\",\"category\":\"documentation\"}" "$USER_TOKEN"
 check_http "anexo do gestor em Concluída" 201
 check_val "documentação do gestor em Concluída" "documentation" "$(jget attachment.category)"
+
+# 00021 (E019): biblioteca documental sobre os anexos ja existentes (0 tabela
+# nova, 0 arquivo novo). O anexo da ultima chamada e o alvo das mutacoes.
+DOC_ATTACH_ID="$(jget attachment.id)"
+api GET "/api/v2/contracts/$CONTRACT_ID/documents" "" "$USER_TOKEN"
+check_http "biblioteca documental (gestor)" 200
+check_val "anexo do contrato na biblioteca" "1" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const rows=JSON.parse(d).documents||[];process.stdout.write(String(rows.filter(r=>r.id===Number(process.argv[1])).length));})' "$DOC_ATTACH_ID")"
+check_val "origem derivada da tarefa" "task" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const r=(JSON.parse(d).documents||[]).find(x=>x.id===Number(process.argv[1]));process.stdout.write(r?String(r.source):"");})' "$DOC_ATTACH_ID")"
+
+api GET "/api/v2/contracts/$CONTRACT_ID/documents?category=documentation" "" "$ADMIN_TOKEN"
+check_http "filtro por categoria" 200
+check_val "filtro por categoria limita a lista" "1" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const rows=JSON.parse(d).documents||[];process.stdout.write(String(rows.filter(r=>r.category==="documentation").length===rows.length?1:0));})')"
+api GET "/api/v2/contracts/$CONTRACT_ID/documents?source=task" "" "$USER_TOKEN"
+check_http "filtro por origem" 200
+check_val "filtro por origem limita a lista" "1" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const rows=JSON.parse(d).documents||[];process.stdout.write(String(rows.every(r=>r.source==="task")?1:0));})')"
+api GET "/api/v2/contracts/$CONTRACT_ID/documents?category=inexistente" "" "$USER_TOKEN"
+check_http "categoria desconhecida na listagem" 400
+
+api PATCH "/api/v2/contracts/$CONTRACT_ID/documents/$DOC_ATTACH_ID" '{"category":"evidence"}' "$USER_TOKEN"
+check_http "alterar categoria do documento" 200
+check_val "categoria alterada in-place" "evidence" "$(jget attachment.category)"
+api PATCH "/api/v2/contracts/$CONTRACT_ID/documents/$DOC_ATTACH_ID" '{"category":"inexistente"}' "$USER_TOKEN"
+check_http "categoria desconhecida na mutacao" 400
+check_val "code estavel da categoria documental" "DOCUMENT_CATEGORY_INVALID" "$(jget code)"
+
+api POST "/api/v2/contracts/$CONTRACT_ID/documents/$DOC_ATTACH_ID/review" '{}' "$USER_TOKEN"
+check_http "conferir documento" 200
+REVIEW_AT="$(jget reviewed_at)"
+check_nonempty "conferencia registra data" "$REVIEW_AT"
+api POST "/api/v2/contracts/$CONTRACT_ID/documents/$DOC_ATTACH_ID/review" '{}' "$ADMIN_TOKEN"
+check_http "conferencia repetida" 200
+check_val "conferencia idempotente" "$REVIEW_AT" "$(jget reviewed_at)"
+
+api GET "/api/v2/contracts/$CONTRACT_ID/documents" "" "$PRESTADOR_TOKEN"
+check_http "biblioteca negada a prestador" 403
+api POST "/api/v2/contracts/$CONTRACT_ID/documents/$DOC_ATTACH_ID/review" '{}' "$PRESTADOR_TOKEN"
+check_http "conferencia negada a prestador" 403
 
 # --- summary ----------------------------------------------------------------
 echo ""

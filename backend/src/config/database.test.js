@@ -892,10 +892,12 @@ test('00014 category migration: additive column, counts preserved, idempotent', 
   const ddl = db.get(
     "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'attachments'"
   ).sql;
-  assert.ok(
-    ddl.includes("CHECK (category IN ('evidence','documentation'))"),
-    `CHECK lands on the migrated column: ${ddl}`
-  );
+  // 00018 estende o CHECK com 'payment'; a migração 00014 só exige que as
+  // categorias originais continuem aceitas (a reconstrução aditiva preserva
+  // contagens e ids).
+  for (const category of ['evidence', 'documentation', 'chat', 'payment']) {
+    assert.ok(ddl.includes(`'${category}'`), `CHECK aceita '${category}' após a migração: ${ddl}`);
+  }
 
   // reopen: no duplicate column, no data change
   database.resetDatabaseCache();
@@ -943,4 +945,205 @@ test('00014 category migration: additive column, counts preserved, idempotent', 
     /CHECK/i,
     'fresh DDL também valida'
   );
+});
+
+// 00016 E015 (T001): 3 tabelas novas + CHECK de users alargado por rebuild
+// in-place no padrão E011 (ids/REFERENCES preservados).
+test('00016 migrateSchema convites e CHECK visitante', async () => {
+  const SQL = await database.initSqlDriver();
+  await database.initDatabase();
+
+  const fresh = database.createDomainDb(991);
+  for (const table of ['invites', 'invite_emails', 'access_history']) {
+    assert.ok(
+      fresh.get("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", [table]),
+      `${table} criada`
+    );
+  }
+  const freshSql = fresh.get("SELECT sql FROM sqlite_master WHERE name='users'").sql;
+  assert.match(freshSql, /visitante/);
+  fresh.run("INSERT INTO users(name, email, password_hash, role) VALUES ('V','v@991.test','h','visitante')");
+
+  // Domínio legado (CHECK sem visitante) é reconstruído na abertura.
+  const legacyFile = path.join(dataDir, 'domains', '992.db');
+  const legacy = new SQL.Database();
+  legacy.run(`CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE,
+    username TEXT UNIQUE, password_hash TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('admin','gestor','prestador','auditor')),
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  legacy.run("INSERT INTO users(id, name, email, password_hash, role) VALUES (7,'Legado','l@992.test','h','gestor')");
+  fs.writeFileSync(legacyFile, Buffer.from(legacy.export()));
+
+  const migrated = database.getDomainDb(992);
+  const migratedSql = migrated.get("SELECT sql FROM sqlite_master WHERE name='users'").sql;
+  assert.match(migratedSql, /visitante/, 'CHECK alargado no rebuild');
+  assert.strictEqual(migrated.get('SELECT id FROM users WHERE email = ?', ['l@992.test']).id, 7, 'id preservado');
+  migrated.run("INSERT INTO users(name, email, password_hash, role) VALUES ('V','v2@992.test','h','visitante')");
+  assert.ok(migrated.get("SELECT id FROM users WHERE role = 'visitante'"));
+  assert.ok(migrated.get("SELECT name FROM sqlite_master WHERE type='table' AND name='invites'"));
+});
+
+// 00016 E016 (T001): canal por contrato, análise de documento e alertas
+// extraídos. Tabelas novas no banco fresco; rebuild legado de attachments
+// preserva ids e adiciona message_id + categoria chat (FR-051/054/055/060).
+test('00016 E016 chat tables + attachments rebuild', async () => {
+  const SQL = await database.initSqlDriver();
+  await database.initDatabase();
+
+  const fresh = database.createDomainDb(993);
+  for (const table of ['chat_messages', 'document_analyses', 'extracted_alerts']) {
+    assert.ok(
+      fresh.get("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", [table]),
+      `${table} criada`
+    );
+  }
+  const chatSql = fresh.get("SELECT sql FROM sqlite_master WHERE name='chat_messages'").sql;
+  assert.match(chatSql, /length\(body\) <= 4000/);
+  const alertsSql = fresh.get("SELECT sql FROM sqlite_master WHERE name='extracted_alerts'").sql;
+  assert.match(alertsSql, /UNIQUE \(contract_id, source_kind, source_id\)/);
+  const attachColumns = fresh.all('PRAGMA table_info(attachments)').map((c) => c.name);
+  assert.ok(attachColumns.includes('message_id'), 'message_id no banco fresco');
+  const attachSql = fresh.get("SELECT sql FROM sqlite_master WHERE name='attachments'").sql;
+  assert.match(attachSql, /'chat'/, 'categoria chat no CHECK');
+
+  // Domínio legado: attachments sem message_id/categoria → rebuild aditivo.
+  const legacyFile = path.join(dataDir, 'domains', '994.db');
+  const legacy = new SQL.Database();
+  legacy.run(`CREATE TABLE attachments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER NOT NULL,
+    comment_id INTEGER,
+    kind TEXT NOT NULL DEFAULT 'file' CHECK (kind IN ('photo','file')),
+    path TEXT NOT NULL,
+    original_name TEXT,
+    uploaded_by INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  legacy.run("INSERT INTO attachments(id, task_id, path) VALUES (42, 1, 'uploads/legado.png')");
+  fs.writeFileSync(legacyFile, Buffer.from(legacy.export()));
+  legacy.close();
+
+  const migrated = database.getDomainDb(994);
+  const cols = migrated.all('PRAGMA table_info(attachments)').map((c) => c.name);
+  assert.ok(cols.includes('message_id'), 'message_id adicionado no rebuild');
+  assert.strictEqual(migrated.get('SELECT id FROM attachments').id, 42, 'id preservado');
+  assert.strictEqual(migrated.get('SELECT category FROM attachments').category, 'evidence');
+  migrated.run(
+    "INSERT INTO attachments(message_id, path, category) VALUES (1, 'uploads/chat.png', 'chat')",
+    []
+  );
+  assert.strictEqual(migrated.get("SELECT COUNT(*) AS c FROM attachments WHERE category = 'chat'").c, 1);
+});
+
+// 00020 E018 (T001): parcelas, pagamentos e rebuild de attachments para
+// payment_id/categoria payment, sem perder linhas nem ids do E016 (FR-064/065).
+test('00020 E018 finance tables + payment attachments rebuild', async () => {
+  const SQL = await database.initSqlDriver();
+  await database.initDatabase();
+
+  const fresh = database.createDomainDb(2000);
+  for (const table of ['contract_installments', 'contract_payments']) {
+    assert.ok(
+      fresh.get("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", [table]),
+      `${table} criada`
+    );
+  }
+  const cols = fresh.all('PRAGMA table_info(attachments)').map((c) => c.name);
+  assert.ok(cols.includes('payment_id'), 'payment_id no banco fresco');
+  assert.ok(cols.includes('message_id'), 'message_id do E016 preservado');
+  const sql = fresh.get("SELECT sql FROM sqlite_master WHERE name='attachments'").sql;
+  assert.match(sql, /'payment'/, 'categoria payment no CHECK');
+  assert.match(sql, /'chat'/, 'categoria chat do E016 preservada');
+  const idx = fresh.all("SELECT name FROM sqlite_master WHERE type='index'").map((r) => r.name);
+  for (const name of ['idx_installments_contract', 'idx_payments_installment', 'idx_payments_contract', 'idx_attachments_payment']) {
+    assert.ok(idx.includes(name), `índice ${name}`);
+  }
+  fresh.run("INSERT INTO contracts(id, name, start_date, forecast_date) VALUES (1, 'C', '2026-01-01', '2026-12-31')");
+  fresh.run("INSERT INTO contract_installments(id, contract_id, description, amount_cents, due_date) VALUES (1, 1, 'P', 1000, '2026-11-01')");
+  fresh.run("INSERT INTO contract_payments(id, installment_id, contract_id, amount_cents, paid_at) VALUES (7, 1, 1, 500, '2026-11-02')");
+  fresh.run("INSERT INTO attachments(payment_id, path, category) VALUES (7, 'uploads/r.pdf', 'payment')");
+  assert.strictEqual(fresh.get("SELECT COUNT(*) AS c FROM attachments WHERE category = 'payment'").c, 1);
+
+  // Domínio legado: attachments do E016 (sem payment_id) → rebuild aditivo preserva
+  // id, message_id e categoria chat.
+  const legacyFile = path.join(dataDir, 'domains', '20000.db');
+  const legacy = new SQL.Database();
+  legacy.run(`CREATE TABLE attachments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER,
+    comment_id INTEGER,
+    message_id INTEGER,
+    kind TEXT NOT NULL DEFAULT 'file' CHECK (kind IN ('photo','file')),
+    path TEXT NOT NULL,
+    original_name TEXT,
+    uploaded_by INTEGER,
+    category TEXT NOT NULL DEFAULT 'evidence' CHECK (category IN ('evidence','documentation','chat')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    CHECK (task_id IS NOT NULL OR message_id IS NOT NULL)
+  )`);
+  legacy.run("INSERT INTO attachments(id, message_id, path, category) VALUES (9, 3, 'uploads/chat.png', 'chat')");
+  fs.writeFileSync(legacyFile, Buffer.from(legacy.export()));
+  legacy.close();
+
+  const migrated = database.getDomainDb(20000);
+  const migratedCols = migrated.all('PRAGMA table_info(attachments)').map((c) => c.name);
+  assert.ok(migratedCols.includes('payment_id'), 'payment_id adicionado no rebuild');
+  const row = migrated.get('SELECT * FROM attachments WHERE id = 9');
+  assert.strictEqual(row.message_id, 3, 'message_id preservado');
+  assert.strictEqual(row.category, 'chat', 'categoria chat preservada');
+  migrated.run("INSERT INTO attachments(payment_id, path, category) VALUES (1, 'uploads/recibo.pdf', 'payment')", []);
+  assert.strictEqual(migrated.get("SELECT COUNT(*) AS c FROM attachments WHERE category = 'payment'").c, 1);
+});
+
+// 00021 E019 (T002): rebuild guardado de attachments para reviewed_by/at,
+// preservando ids, categoria, message_id e payment_id dos rebuilds anteriores.
+test('00021 E019 document review columns rebuild preserves rows and ids', async () => {
+  const SQL = await database.initSqlDriver();
+  await database.initDatabase();
+
+  const fresh = database.createDomainDb(2100);
+  const cols = fresh.all('PRAGMA table_info(attachments)').map((c) => c.name);
+  assert.ok(cols.includes('reviewed_by'), 'reviewed_by no banco fresco');
+  assert.ok(cols.includes('reviewed_at'), 'reviewed_at no banco fresco');
+  assert.ok(cols.includes('message_id'), 'message_id do E016 preservado');
+  assert.ok(cols.includes('payment_id'), 'payment_id do E018 preservado');
+
+  // Banco no esquema E018: sem as colunas de conferência.
+  const legacyFile = path.join(dataDir, 'domains', '21000.db');
+  const legacy = new SQL.Database();
+  legacy.run(`CREATE TABLE attachments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER,
+    comment_id INTEGER,
+    message_id INTEGER,
+    payment_id INTEGER,
+    kind TEXT NOT NULL DEFAULT 'file' CHECK (kind IN ('photo','file')),
+    path TEXT NOT NULL,
+    original_name TEXT,
+    uploaded_by INTEGER,
+    category TEXT NOT NULL DEFAULT 'evidence' CHECK (category IN ('evidence','documentation','chat','payment')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    CHECK (task_id IS NOT NULL OR message_id IS NOT NULL OR payment_id IS NOT NULL)
+  )`);
+  legacy.run("INSERT INTO attachments(id, message_id, path, category) VALUES (9, 3, 'uploads/chat.png', 'chat')");
+  fs.writeFileSync(legacyFile, Buffer.from(legacy.export()));
+  legacy.close();
+
+  const migrated = database.getDomainDb(21000);
+  const migratedCols = migrated.all('PRAGMA table_info(attachments)').map((c) => c.name);
+  assert.ok(migratedCols.includes('reviewed_by'), 'reviewed_by adicionado no rebuild');
+  assert.ok(migratedCols.includes('reviewed_at'), 'reviewed_at adicionado no rebuild');
+  const row = migrated.get('SELECT * FROM attachments WHERE id = 9');
+  assert.strictEqual(row.message_id, 3, 'message_id preservado');
+  assert.strictEqual(row.category, 'chat', 'categoria preservada');
+  assert.strictEqual(row.reviewed_by, null, 'sem conferência anterior');
+  migrated.run("INSERT INTO attachments(payment_id, path, category) VALUES (1, 'uploads/recibo.pdf', 'payment')", []);
+  assert.strictEqual(migrated.get("SELECT COUNT(*) AS c FROM attachments WHERE category = 'payment'").c, 1);
+
+  const again = database.getDomainDb(21000);
+  assert.strictEqual(again.all('PRAGMA table_info(attachments)').filter((c) => c.name === 'reviewed_by').length, 1, 'idempotente');
 });

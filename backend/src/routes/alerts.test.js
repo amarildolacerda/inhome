@@ -886,3 +886,35 @@ test('FR-072 sem previsão exclui perpétuo', async () => {
     'contagem de incompletos não muda'
   );
 });
+
+// 00020 E018 (T018/T019): varredura de vigência alimenta alertas de parcela e
+// o painel E005 expõe a origem sem alterar os 4 contadores do sweep.
+test('00020 FR-068: parcela vencida aparece no painel via runExpirySweep', async () => {
+  const db = getDomainDb(domainA);
+  const installment = db.get(
+    'INSERT INTO contract_installments(contract_id, description, amount_cents, due_date) VALUES (?, ?, 10000, ?) RETURNING id',
+    [contractA1.id, 'Parcela vencida E018', futureDate(-4)]
+  );
+
+  const result = await runExpirySweep({ emailTimeoutMs: 100 });
+  assert.deepStrictEqual(Object.keys(result).sort(), ['emailed', 'emitted', 'failed', 'swept'], 'retorno inalterado');
+
+  const alert = db.get(
+    "SELECT * FROM extracted_alerts WHERE contract_id = ? AND source_kind = 'installment_overdue' AND source_id = ?",
+    [contractA1.id, String(installment.id)]
+  );
+  assert.ok(alert, 'alerta financeiro criado pela varredura de vigência');
+  assert.strictEqual(alert.title, 'Parcela vencida: Parcela vencida E018');
+
+  const again = await runExpirySweep({ emailTimeoutMs: 100 });
+  assert.deepStrictEqual(Object.keys(again).sort(), ['emailed', 'emitted', 'failed', 'swept']);
+  assert.strictEqual(db.get("SELECT COUNT(*) AS c FROM extracted_alerts WHERE source_kind = 'installment_overdue' AND source_id = ?", [String(installment.id)]).c, 1, 'dedup por tupla');
+
+  const panel = await request(app).get('/api/v2/alerts/panel').set(as(gestorToken));
+  assert.strictEqual(panel.status, 200, JSON.stringify(panel.body));
+  const row = panel.body.extracted.find(
+    (item) => item.source_kind === 'installment_overdue' && item.source_id === String(installment.id)
+  );
+  assert.ok(row, 'painel E005 expõe source_kind/source_id do alerta financeiro');
+  assert.strictEqual(row.contract_id, contractA1.id);
+});

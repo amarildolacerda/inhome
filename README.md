@@ -33,6 +33,8 @@ Organize contratos de terceiros, acompanhe o trabalho contratado e mantenha a ex
 
 ### Trabalho em equipe no mesmo ritmo
 - Atualizações aparecem na tela dos outros na hora, sem precisar recarregar
+- **Chat do contrato**: mensagens e anexos no canal do contrato, com cards de alertas, próximas execuções e executadas
+- Documentos anexados ao chat são analisados localmente: prazos, multas, seguros, riscos e local de execução alimentam o painel de alertas
 - Avisos por e-mail (opcional) em atribuição, conclusão, reabertura e vencimento
 
 ### Tema claro ou escuro, como você preferir
@@ -61,6 +63,7 @@ Organize contratos de terceiros, acompanhe o trabalho contratado e mantenha a ex
 | Relatório PDF | ❌ | ✅ | ✅ | ❌ |
 | Dashboard | ❌ | completo | completo | só as suas tarefas |
 | Vencimentos (painel + janelas) | ❌ | ✅ | ✅ | ❌ |
+| Chat do contrato (mensagens e cards) | ❌ | ✅ | ✅ | ✅ (contratos vinculados) |
 
 Cada cliente (domínio) tem os dados separados: o que acontece em um domínio não aparece em outro. Suspender um domínio bloqueia o acesso, mas **nunca apaga** os dados.
 
@@ -70,6 +73,19 @@ Cada cliente (domínio) tem os dados separados: o que acontece em um domínio n�
 - [Documentação técnica](TECHNICAL.md) — para a equipe de desenvolvimento
 - [Workflow SDD](docs/sdd-pilot.md) — processo de desenvolvimento deste repositório
 
+## Rodar o projeto
+
+```sh
+./run.sh            # detecta Docker e sobe backend + frontend
+./run.sh --local    # sem Docker: npm + flutter, frontend em http://localhost:8080
+./run.sh --status   # saúde dos serviços
+./run.sh --down     # para tudo
+```
+
 - **00015-redesign-dashboard** (E013 — Redesign visual do dashboard): painel com faixa de KPIs por status (vigente/a vencer/atrasado/encerrado), fila de contratos ordenada por urgência com vencimento e responsável, filtros e busca no corpo, escopo por papel; backend expõe `contracts[]`, `responsavel`, `a_vencer` e `stats.contractsAVencer` em `GET /api/v2/dashboard/stats`.
 - **00018-tema-escuro-por-padrao-alternancia** (E014 — Tema escuro por padrão): o app nasce em tema escuro, oferece alternância na toolbar e persiste a escolha em SharedPreferences; a preferência é lida antes da primeira renderização e o claro continua utilizável nos tokens de E006/E013.
 - **00019-dashboard-indicadores-de-contrato-perpetuo** (E017 — Indicadores do painel): contratos perpétuos são sinalizados explicitamente, ignorados em "Incompleto" e em janelas de vencimento, mas continuam contabilizando tarefas atrasadas no painel e nos indicadores de execução.
+- **00017-chat-colaborativo-contrato** (E016 — Chat colaborativo por contrato): canal com mensagens, anexos e cards de alertas, próximas execuções e executadas; ações no card restritas à própria tarefa. A extração local de prazos, multas, seguros, riscos e local de execução alimenta alertas deduplicados, com retry manual e atualização em tempo real pela sala do domínio.
+- **00021-gestao-documental-contrato** (E019 — Gestão documental do contrato): biblioteca no detalhe do contrato com os anexos já enviados via tarefa, chat ou comprovante de pagamento. Filtros por categoria e origem, resumo da análise e dos alertas extraídos, troca de categoria e marcação de conferido com autor e data. Nenhum arquivo é duplicado; apenas admin e gestor veem e alteram a biblioteca.
+
+- **00020-previsibilidade-financeira** (E018 — Previsibilidade financeira por contrato): parcelas previstas e pagamentos com comprovante opcional, valores em centavos (BRL fixo). Painel e detalhe de contrato mostram previsto, pago, saldo e atrasadas; parcelas vencidas alimentam alertas deduplicados no motor E004. Exportação CSV/PDF autenticada. Dados financeiros restritos a admin/gestor.

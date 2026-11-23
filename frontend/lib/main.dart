@@ -10,8 +10,35 @@ import 'screens/users_screen.dart';
 import 'screens/finalidades_screen.dart';
 import 'screens/vencimentos_screen.dart';
 import 'screens/audit_screen.dart';
+import 'screens/invites_screen.dart';
+import 'screens/invite_register_screen.dart';
+import 'screens/chat_screen.dart';
 import 'services/theme_preference_store.dart';
 import 'theme/app_theme.dart';
+
+/// [FR-046] Extrai o token de convite da URL: query `?convite=`, fragmento
+/// `#/convite/<token>` (rota hash padrão do Flutter Web) ou path `/convite/...`.
+String? inviteTokenFromUrl() {
+  final uri = Uri.base;
+  final query = uri.queryParameters['convite'] ?? uri.queryParameters['invite'];
+  if (query != null && query.isNotEmpty) return query;
+
+  final fragment = uri.fragment
+      .split('/')
+      .where((part) => part.isNotEmpty)
+      .toList();
+  final fragmentIndex = fragment.indexOf('convite');
+  if (fragmentIndex >= 0 && fragmentIndex + 1 < fragment.length) {
+    return fragment[fragmentIndex + 1];
+  }
+
+  final path = uri.pathSegments;
+  final pathIndex = path.indexOf('convite');
+  if (pathIndex >= 0 && pathIndex + 1 < path.length) {
+    return path[pathIndex + 1];
+  }
+  return null;
+}
 
 Future<void> main() async {
   // FR-027: web bootstrap entrypoint (Chrome, Edge, Firefox, Safari) —
@@ -83,6 +110,7 @@ class _AuthGateState extends State<AuthGate> {
   final api = ApiService();
   bool _loading = true;
   bool _authenticated = false;
+  bool _inviteDismissed = false;
 
   @override
   void initState() {
@@ -128,6 +156,21 @@ class _AuthGateState extends State<AuthGate> {
           setState(() => _authenticated = false);
         },
         onToggleTheme: widget.onToggleTheme,
+      );
+    }
+
+    // [FR-046]: link de convite abre o cadastro público em vez do login.
+    final inviteToken = _inviteDismissed ? null : inviteTokenFromUrl();
+    if (inviteToken != null) {
+      return InviteRegisterScreen(
+        token: inviteToken,
+        onRegistered: () {
+          setState(() {
+            _inviteDismissed = true;
+            _authenticated = true;
+          });
+        },
+        onBackToLogin: () => setState(() => _inviteDismissed = true),
       );
     }
 
@@ -182,6 +225,8 @@ String _roleLabel(String role) {
       return 'Prestador';
     case 'auditor':
       return 'Auditor';
+    case 'visitante':
+      return 'Visitante';
     case 'system_admin':
       return 'Admin. do sistema';
     default:
@@ -346,11 +391,25 @@ class _MainShellState extends State<MainShell> {
             Icons.people,
             UsersScreen(),
           ),
+          // [FR-044][FR-045] emissão, listagem e revogação de convites.
+          _NavEntry(
+            'Convites',
+            Icons.mail_outline,
+            Icons.mail,
+            InvitesScreen(),
+          ),
           _NavEntry(
             'Finalidades',
             Icons.sell_outlined,
             Icons.sell,
             FinalidadesScreen(),
+          ),
+          // [E016] canal por contrato com cards e extração de documentos.
+          _NavEntry(
+            'Chat',
+            Icons.chat_bubble_outline,
+            Icons.chat_bubble,
+            ChatScreen(),
           ),
         ];
       case 'gestor':
@@ -379,6 +438,30 @@ class _MainShellState extends State<MainShell> {
             Icons.people,
             UsersScreen(),
           ),
+          _NavEntry(
+            'Convites',
+            Icons.mail_outline,
+            Icons.mail,
+            InvitesScreen(),
+          ),
+          // [E016] canal por contrato com cards e extração de documentos.
+          _NavEntry(
+            'Chat',
+            Icons.chat_bubble_outline,
+            Icons.chat_bubble,
+            ChatScreen(),
+          ),
+        ];
+      case 'visitante':
+        // [FR-047]: o visitante só acessa as tarefas do contrato do convite;
+        // todas as outras rotas de negócio respondem 403 no backend.
+        return const [
+          _NavEntry(
+            'Minhas Tarefas',
+            Icons.task_outlined,
+            Icons.task,
+            TasksScreen(),
+          ),
         ];
       default:
         // 'prestador' e papéis desconhecidos: apenas as telas de negócio.
@@ -400,6 +483,13 @@ class _MainShellState extends State<MainShell> {
             Icons.task_outlined,
             Icons.task,
             TasksScreen(),
+          ),
+          // [E016] canal por contrato com cards e extração de documentos.
+          _NavEntry(
+            'Chat',
+            Icons.chat_bubble_outline,
+            Icons.chat_bubble,
+            ChatScreen(),
           ),
         ];
     }
@@ -444,7 +534,10 @@ class _MainShellState extends State<MainShell> {
                       padding: EdgeInsets.symmetric(vertical: 16),
                       child: Icon(Icons.dashboard_rounded, size: 32),
                     ),
-                    labelType: NavigationRailLabelType.all,
+                    // [E016]: com a entrada Chat o admin/gestor chega a 8
+                    // destinos; só o selecionado mostra rótulo para caber em
+                    // telas baixas. O Text do rótulo segue nos destinations.
+                    labelType: NavigationRailLabelType.selected,
                     destinations: [
                       for (final entry in _entries) entry.toDestination(),
                     ],

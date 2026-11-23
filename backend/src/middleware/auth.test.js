@@ -16,6 +16,7 @@ const {
   scopeDomain,
   authenticateToken,
   assertDomainActive,
+  visitorScope,
 } = require('./auth');
 const { app } = require('../server');
 const { getDomainDb } = require('../config/database');
@@ -534,4 +535,54 @@ test('FR-007 escopo de domínio', async () => {
     !listB.body.contracts.some((c) => c.name === 'Contrato Segredo Alfa'),
     'B never sees A rows'
   );
+});
+
+// 00016 FR-048 (stub do plano → GREEN): visitante aceito na matriz somente
+// onde explicitamente listado; demais papéis seguem deny-by-default.
+test('FR-048 visitante aceito na matriz de papéis', async () => {
+  const guardVisitante = requireRole('admin', 'gestor', 'prestador', 'visitante');
+  const guardSemVisitante = requireRole('admin', 'gestor');
+  const run = (guard, role) => {
+    const res = mockRes();
+    let nextCalled = false;
+    guard({ user: { role } }, res, () => { nextCalled = true; });
+    return { status: res.statusCode, nextCalled };
+  };
+  assert.strictEqual(run(guardVisitante, 'visitante').nextCalled, true);
+  assert.strictEqual(run(guardSemVisitante, 'visitante').status, 403);
+  assert.strictEqual(run(guardVisitante, 'system_admin').status, 403);
+  assert.strictEqual(run(guardVisitante, 'prestador').nextCalled, true);
+
+  // visitorScope deriva o contrato do convite (escopo nunca vai no JWT).
+  const sys = await request(app).post('/api/v2/auth/login').send({ email: SYS_EMAIL, password: SYS_PASSWORD });
+  const enabled = await request(app)
+    .post('/api/v2/domains/enable')
+    .set('Authorization', `Bearer ${sys.body.token}`)
+    .send({
+      name: 'E015 Matriz',
+      adminName: 'Admin Matriz',
+      adminEmail: 'adm@matriz.e015.test',
+      adminPassword: 'Secret1!',
+    });
+  const did = enabled.body.domain.id;
+  const adm = await request(app)
+    .post('/api/v2/auth/login')
+    .send({ email: 'adm@matriz.e015.test', password: 'Secret1!', domainId: did });
+  const db = getDomainDb(did);
+  db.run("INSERT INTO contracts(name, start_date, forecast_date) VALUES ('C-matriz','2026-01-01','2026-12-31')");
+  const cid = db.get("SELECT id FROM contracts WHERE name = 'C-matriz'").id;
+  const inv = await request(app)
+    .post('/api/v2/invites')
+    .set('Authorization', `Bearer ${adm.body.token}`)
+    .send({ contract_id: cid, validity: '7d' });
+  const reg = await request(app)
+    .post(`/api/v2/invites/${inv.body.token}/register`)
+    .send({ name: 'Visitante Matriz', email: 'vis@matriz.e015.test', password: 'Secret1!' });
+  const scope = visitorScope(db, reg.body.user.id);
+  assert.strictEqual(scope.contractId, cid);
+  assert.strictEqual(scope.valid, true);
+  assert.strictEqual(scope.state, 'ativo');
+
+  // Sem convite, visitante órfão não tem escopo.
+  assert.strictEqual(visitorScope(db, 999999), null);
 });

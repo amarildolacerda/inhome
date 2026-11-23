@@ -10,6 +10,7 @@ part 'dashboard_screen_queue.dart';
 part 'dashboard_screen_filters.dart';
 part 'dashboard_screen_activity.dart';
 part 'dashboard_screen_tags.dart';
+part 'dashboard_screen_finance.dart';
 
 /// Painel do domínio (admin/gestor) ou da fila pessoal (prestador) — os
 /// mesmos dados de GET /dashboard/stats em composição nova (E013):
@@ -270,6 +271,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     stats: stats,
                     contracts: hasContracts ? filteredContracts : null,
                   ),
+                  const SizedBox(height: 24),
+                  // 00020 (E018/FR-067): card financeiro aditivo. O backend
+                  // só envia `finance` no ramo domain; prestador nunca vê.
+                  if (_data?['finance'] is Map)
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: padH),
+                      child: _FinanceCard(
+                        summary: Map<String, dynamic>.from(
+                          _data!['finance'] as Map,
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 24),
                 ],
                 if (wide)

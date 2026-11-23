@@ -151,7 +151,12 @@ void main() {
     expect(find.text('Vincular prestador'), findsOneWidget);
     expect(
       api.gets,
-      equals(['/tasks?contract_id=7']),
+      contains('/tasks?contract_id=7'),
+      reason: 'roster do domínio só é buscado ao abrir o diálogo de vínculo',
+    );
+    expect(
+      api.gets,
+      isNot(contains('/users')),
       reason: 'roster do domínio só é buscado ao abrir o diálogo de vínculo',
     );
   });
@@ -181,7 +186,8 @@ void main() {
     expect(find.text('Prestadores'), findsNothing);
     expect(find.text('Vincular prestador'), findsNothing);
     expect(find.text('Desvincular'), findsNothing);
-    expect(api.gets, equals(['/tasks?contract_id=7']));
+    expect(api.gets, contains('/tasks?contract_id=7'));
+    expect(api.gets, isNot(contains('/finance')));
   });
 
   testWidgets('vincular chama o POST com user_id e adiciona à lista',

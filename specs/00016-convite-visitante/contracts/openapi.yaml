@@ -1,0 +1,373 @@
+openapi: 3.0.3
+info:
+  title: "InHome — Convite temporário e papel visitante (00016)"
+  version: 0.1.0
+  description: |
+    Superfície de convite da spec 00016 (FR-044..FR-047). Formato: OpenAPI —
+    mesmo padrão de 00003/00004/00013; um único arquivo cobre os 4 endpoints novos.
+
+    Escopo: rotas de convite operam no domínio do token (`authenticateToken` +
+    `requireRole('admin','gestor')`); o cadastro é público com rate limit por IP
+    (429: 10 tentativas por IP a cada 60 s, a 11ª recusa; janela em memória).
+    Erros sempre `{ "error": "..." }`.
+
+    Token: opaco ≥ 128 bits (base64url, 16 bytes), exposto apenas no 201 da
+    emissão — nunca em listagem, erro ou log. Recusa uniforme (FR-046): token
+    inválido, expirado ou revogado responde o MESMO 409 com o MESMO corpo,
+    idêntico byte a byte nos três casos, sem revelar existência do token.
+
+    Dedup de domínio: e-mail já registrado → 409 sem escrita e sem consumir o
+    convite (nenhuma linha em invite_emails, inclusive em outro convite).
+
+    Nota — rotas existentes mudam de comportamento (FR-047, contrato não
+    redefinido aqui): GET /api/v2/tasks e GET /api/v2/tasks/:id passam a aceitar
+    o papel `visitante`; a listagem filtra e o detalhe responde 404 para tarefa
+    fora do contrato do convite; a guarda revalida convite OU reavaliação
+    registrada a cada requisição (convite revogado/expirado sem reavaliação
+    nega em T+0, após gravar a suspensão); demais rotas fora da matriz do
+    visitante → 403. Contrato encerrado mantém tarefas visíveis.
+
+    Nota — reavaliação (FR-049: troca de papel/suspensão) reusa a superfície de
+    usuários de 00002; não faz parte deste contrato.
+servers:
+  - url: /
+    description: "Mesmo origin (nginx :80) ou backend local na porta 3001"
+security:
+  - bearerAuth: []
+tags:
+  - name: Invites
+    description: "Emissão, listagem e revogação de convites (FR-044, FR-045)"
+  - name: Register
+    description: "Cadastro público por link (FR-046)"
+paths:
+  /api/v2/invites:
+    post:
+      tags: [Invites]
+      summary: "Emitir link de convite temporário para contrato do próprio domínio"
+      operationId: createInvite
+      description: |
+        Validade fixada no ato (24 h / 7 d / 30 d); expiração absoluta =
+        criação + prazo, sem coluna de duração. Contrato encerrado ou de outro
+        domínio → 409, sem escrita. Grava evento `emission` no
+        access_history (user_id NULL, author_id = emissor) na mesma transação.
+        O token aparece só nesta resposta.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteCreateInput"
+      responses:
+        "201":
+          description: "Convite criado; token exposto apenas aqui"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InviteCreated"
+        "400":
+          description: "Corpo inválido: campos ausentes ou validity fora de 24h/7d/30d"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: "Papel diferente de gestor/admin, JWT inválido/expirado ou domínio divergente"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "Contrato inexistente ou de outro domínio"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: "Contrato encerrado — convite não emitido, sem escrita"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    get:
+      tags: [Invites]
+      summary: "Listar convites do domínio do token"
+      operationId: listInvites
+      description: |
+        Estado derivado a cada requisição (sem coluna persistida): revogado =
+        revoked_at IS NOT NULL; expirado = revoked_at IS NULL AND expires_at <=
+        agora; precedência revogado > expirado > ativo. Token nunca listado.
+        Na 1ª observação (listagem ou guarda), convite expirado suspende os
+        visitantes sem reavaliação vigente (cause = 'expired',
+        author_id = emissor); sem job de expiração.
+      responses:
+        "200":
+          description: "Convites do domínio com contrato, emissor, expiração, estado e cadastros"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [invites]
+                properties:
+                  invites:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/InviteListItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v2/invites/{id}:
+    delete:
+      tags: [Invites]
+      summary: "Revogar convite antes do vencimento"
+      operationId: revokeInvite
+      description: |
+        Grava revoked_at + revoked_by (ator) na mesma transação e suspende cada
+        visitante do convite sem reavaliação vigente (somente papel
+        `visitante`, users.active = 0) com uma linha `suspension` por
+        visitante (cause = 'revoked', author_id = ator); a suspensão prevalece
+        sobre mudança de papel concorrente. Já revogado → 200 idempotente,
+        sem novas linhas; expirado → 409 (revogação só antes do vencimento).
+      parameters:
+        - $ref: "#/components/parameters/InviteId"
+      responses:
+        "200":
+          description: "Convite revogado (ou já revogado, idempotente)"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [invite, suspended_users]
+                properties:
+                  invite:
+                    $ref: "#/components/schemas/InviteListItem"
+                  suspended_users:
+                    type: integer
+                    description: Visitantes suspensos nesta chamada (0 se já revogado)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: "Convite inexistente ou de outro domínio"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: "Convite expirado — não pode ser revogado"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v2/invites/{token}/register:
+    post:
+      tags: [Register]
+      summary: "Cadastro público como visitante pelo link"
+      operationId: registerByInvite
+      security: []
+      description: |
+        Sem token. Rate limit por IP: 10 tentativas a cada 60 s, a 11ª → 429
+        (contador em memória). Cria usuário com role `visitante` no domínio do
+        emissor; contrato encerrado após a emissão não recusa (só o token
+        vale); `username` é
+        derivado do e-mail no servidor (local part + sufixo numérico em colisão)
+        e NÃO é aceito no corpo. Consumo do convite (linha em invite_emails) e
+        evento `registration` no access_history (user_id = author_id = novo
+        visitante, to_role = 'visitante') na mesma transação do INSERT em users.
+        Sem verificação de posse de e-mail: o link é a credencial.
+        Responde com a mesma sessão do login (user + JWT + domainId).
+      parameters:
+        - $ref: "#/components/parameters/InviteToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteRegisterInput"
+      responses:
+        "201":
+          description: "Visitante criado e sessão emitida"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "400":
+          description: "Campos ausentes ou inválidos (name, email, password com menos de 6 caracteres)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: |
+            DUAS recusas, mesmo schema. (1) Token inválido/expirado/revogado:
+            corpo idêntico nos três casos — exatamente a mesma mensagem, para
+            não vazar existência do token; nenhuma escrita. (2) E-mail já
+            registrado no domínio (inclusive em outro convite): mensagem
+            própria; convite fica não consumido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                tokenRefusal:
+                  summary: "Uniforme: inválido = expirado = revogado"
+                  value:
+                    error: "Invalid or expired invite"
+                emailTaken:
+                  summary: "Dedup de domínio; convite não consumido"
+                  value:
+                    error: "Email already registered in this domain"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    InviteId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+    InviteToken:
+      name: token
+      in: path
+      required: true
+      schema:
+        type: string
+      description: "Token opaco do link; nunca registrado em log nem ecoado no erro"
+  responses:
+    Unauthorized:
+      description: "Sem token"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: "Papel sem permissão, JWT inválido/expirado ou domínio divergente"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    RateLimited:
+      description: "10 tentativas por IP a cada 60 s excedidas no cadastro público; a 11ª → 429"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    InviteCreateInput:
+      type: object
+      required: [contract_id, validity]
+      properties:
+        contract_id:
+          type: integer
+          description: Contrato do próprio domínio
+        validity:
+          type: string
+          enum: ["24h", "7d", "30d"]
+          description: Prazo fixado no ato; vira expires_at absoluto
+    Invite:
+      type: object
+      required: [id, contract_id, issued_by, expires_at, state, created_at]
+      properties:
+        id:
+          type: integer
+        contract_id:
+          type: integer
+        issued_by:
+          type: integer
+          description: Emissor (gestor/admin)
+        expires_at:
+          type: string
+          description: "Expiração absoluta (UTC)"
+        state:
+          type: string
+          enum: [ativo, expirado, revogado]
+          description: "Derivado por requisição; precedência revogado > expirado > ativo"
+        revoked_at:
+          type: string
+          nullable: true
+        revoked_by:
+          type: integer
+          nullable: true
+        created_at:
+          type: string
+    InviteCreated:
+      allOf:
+        - $ref: "#/components/schemas/Invite"
+        - type: object
+          required: [token]
+          properties:
+            token:
+              type: string
+              description: "Opaco ≥ 128 bits; exposto SOMENTE nesta resposta (FR-044)"
+    InviteListItem:
+      allOf:
+        - $ref: "#/components/schemas/Invite"
+        - type: object
+          required: [contract_name, issued_by_name, registrations]
+          properties:
+            contract_name:
+              type: string
+            issued_by_name:
+              type: string
+            registrations:
+              type: integer
+              description: "COUNT(*) de invite_emails por convite (\"cadastros\")"
+    InviteRegisterInput:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+          description: "Gravado em minúsculas; dedup UNIQUE por domínio"
+        password:
+          type: string
+          minLength: 6
+          description: "Mínimo 6 caracteres (FR-046)"
+      description: "`username` não é aceito: derivado do e-mail no servidor (FR-046)"
+    PublicUser:
+      type: object
+      required: [id, name, email, username, role, active]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        username:
+          type: string
+        role:
+          type: string
+          enum: [admin, gestor, prestador, auditor, visitante]
+        active:
+          type: integer
+          description: "0/1"
+    Session:
+      type: object
+      required: [user, token, domainId]
+      properties:
+        user:
+          $ref: "#/components/schemas/PublicUser"
+        token:
+          type: string
+          description: "JWT (24 h), mesmo shape do login de 00002"
+        domainId:
+          type: integer

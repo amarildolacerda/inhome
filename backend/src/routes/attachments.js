@@ -91,7 +91,11 @@ function listAttachments(req, res) {
     if (!task || !canSee(req.user, task)) {
       return res.status(404).json({ error: 'Task not found' });
     }
-    const rows = db.all('SELECT * FROM attachments WHERE task_id = ? ORDER BY id', [task.id]);
+    // 00016 (FR-055): anexos de chat nunca aparecem em evidências de tarefa.
+    const rows = db.all(
+      "SELECT * FROM attachments WHERE task_id = ? AND category <> 'chat' ORDER BY id",
+      [task.id]
+    );
     res.json({ attachments: rows.map((row) => decorate(db, row)) });
   } catch (error) {
     res.status(error.status || 500).json(errorPayload(error));

@@ -60,11 +60,66 @@ function authenticateToken(req, res, next) {
   }
 
   req.user = decoded;
+
+  // 00016 (FR-047, STF-003): a visitante session is revalidated on EVERY
+  // request — invite state or a registered reevaluation — and the contract
+  // scope is derived here, never cached in the JWT. Expired/revoked invites
+  // without reevaluation suspend the visitor at T+0, then get the standard
+  // 403 (same body as any other forbidden request).
+  if (req.user.role === 'visitante' && req.user.domainId !== null && req.user.domainId !== undefined) {
+    try {
+      const { getDomainDb } = require('../config/database');
+      const db = getDomainDb(req.user.domainId);
+      const scope = visitorScope(db, req.user.id);
+      if (!scope || !scope.valid) {
+        if (scope) {
+          const Invite = require('../models/Invite');
+          db.transaction(() =>
+            Invite.suspendInviteVisitors(db, scope.inviteId, scope.cause, scope.authorId)
+          );
+        }
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+      req.user.scope = scope;
+    } catch (error) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+  }
+
   next();
+}
+
+// 00016 (AD-005, FR-047): scope of a visitor = invite_emails(user_id UNIQUE)
+// -> invites.contract_id, plus the invite state derived at request time. A
+// registered active reevaluation keeps the session valid even after the
+// invite expires (FR-049 reactivation rule).
+function visitorScope(db, userId) {
+  const row = db.get(
+    `SELECT i.id AS invite_id, i.contract_id, i.expires_at, i.revoked_at,
+            i.issued_by, i.revoked_by
+       FROM invite_emails ie
+       JOIN invites i ON i.id = ie.invite_id
+      WHERE ie.user_id = ?`,
+    [Number(userId)]
+  );
+  if (!row) return null;
+  const Invite = require('../models/Invite');
+  const state = Invite.deriveState(row, new Date());
+  const valid = state === 'ativo' || Invite.hasActiveReevaluation(db, Number(userId));
+  return {
+    inviteId: row.invite_id,
+    contractId: row.contract_id,
+    state,
+    valid,
+    cause: state === 'revogado' ? 'revoked' : 'expired',
+    authorId: state === 'revogado' ? row.revoked_by : row.issued_by,
+  };
 }
 
 // FR-022 role guard: deny by default. system_admin is excluded from every
 // business role list, which is what keeps FR-003 (cycle-only access) intact.
+// 00016 (FR-048): `visitante` is accepted only by routes that explicitly list
+// it (tasks list/detail) — every other route stays forbidden by default.
 function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.user) {
@@ -114,4 +169,5 @@ module.exports = {
   requireSystemAdmin,
   scopeDomain,
   assertDomainActive,
+  visitorScope,
 };
