@@ -18,6 +18,7 @@ part 'contract_detail_screen_definitions_dialog.dart';
 part 'contract_detail_screen_workflow_cards.dart';
 part 'contract_detail_screen_finance.dart';
 part 'contract_detail_screen_finance_dialogs.dart';
+part 'contract_detail_screen_documents.dart';
 
 /// Detalhe de contrato: o "canal" de tarefas do contrato escolhido em
 /// ProjectsScreen (domínio → contrato → tarefas).
@@ -332,73 +333,93 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final contract = _contract;
-    final canManageProviders =
-        _role == 'admin' || _role == 'gestor';
+    final canManageProviders = _role == 'admin' || _role == 'gestor';
     return Scaffold(
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Início do breadcrumb: 'Contratos / <nome>' + volta.
-                TextButton.icon(
-                  onPressed: widget.onBack,
-                  icon: const Icon(Icons.arrow_back),
-                  label: const Text('Contratos'),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        contract.name,
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w600),
-                      ),
+          // 00021 (E019): bloco superior rolável. Com a seção documental
+          // expandida, o conteúdo fixo pode exceder viewports baixos; o
+          // ScrollView absorve o excedente sem empurrar a lista de tarefas.
+          Flexible(
+            fit: FlexFit.loose,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Início do breadcrumb: 'Contratos / <nome>' + volta.
+                        TextButton.icon(
+                          onPressed: widget.onBack,
+                          icon: const Icon(Icons.arrow_back),
+                          label: const Text('Contratos'),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                contract.name,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineSmall
+                                    ?.copyWith(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            _CompactSchedule(tasks: _tasks),
+                            const SizedBox(width: 8),
+                            Chip(
+                              label: Text(contract.status),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            IconButton(
+                              tooltip: 'Workflow assistido',
+                              icon: const Icon(Icons.auto_awesome),
+                              onPressed:
+                                  _role == null ? null : _showWorkflowSheet,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${_brDate(contract.startDate)} — '
+                          '${_brDate(contract.forecastDate)}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
                     ),
-                    _CompactSchedule(tasks: _tasks),
-                    const SizedBox(width: 8),
-                    Chip(
-                      label: Text(contract.status),
-                      visualDensity: VisualDensity.compact,
+                  ),
+                  // Vínculo contrato ↔ prestador: admin/gestor linkam/deslinkam;
+                  // prestador não vê a seção (a API recusaria a mutação).
+                  if (canManageProviders)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                      child: _buildProvidersCard(context),
                     ),
-                    IconButton(
-                      tooltip: 'Workflow assistido',
-                      icon: const Icon(Icons.auto_awesome),
-                      onPressed: _role == null ? null : _showWorkflowSheet,
+                  // 00020 (E018/FR-070): seção financeira só para admin/gestor. A
+                  // API repete o guard; aqui a afordância desaparece para prestador.
+                  if (canManageProviders)
+                    _FinanceSection(
+                      api: api,
+                      contractId: contract.id,
+                      onDownload: _downloadFinance,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${_brDate(contract.startDate)} — '
-                  '${_brDate(contract.forecastDate)}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
+                  // 00021 (E019/FR-067): biblioteca documental só para admin/gestor.
+                  if (canManageProviders)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child:
+                          _DocumentsSection(api: api, contractId: contract.id),
+                    ),
+                  const Divider(height: 1),
+                ],
+              ),
             ),
           ),
-          // Vínculo contrato ↔ prestador: admin/gestor linkam/deslinkam;
-          // prestador não vê a seção (a API recusaria a mutação).
-          if (canManageProviders)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-              child: _buildProvidersCard(context),
-            ),
-          // 00020 (E018/FR-070): seção financeira só para admin/gestor. A
-          // API repete o guard; aqui a afordância desaparece para prestador.
-          if (canManageProviders)
-            _FinanceSection(
-              api: api,
-              contractId: contract.id,
-              onDownload: _downloadFinance,
-            ),
-          const Divider(height: 1),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())

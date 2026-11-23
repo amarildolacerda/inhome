@@ -1098,3 +1098,52 @@ test('00020 E018 finance tables + payment attachments rebuild', async () => {
   migrated.run("INSERT INTO attachments(payment_id, path, category) VALUES (1, 'uploads/recibo.pdf', 'payment')", []);
   assert.strictEqual(migrated.get("SELECT COUNT(*) AS c FROM attachments WHERE category = 'payment'").c, 1);
 });
+
+// 00021 E019 (T002): rebuild guardado de attachments para reviewed_by/at,
+// preservando ids, categoria, message_id e payment_id dos rebuilds anteriores.
+test('00021 E019 document review columns rebuild preserves rows and ids', async () => {
+  const SQL = await database.initSqlDriver();
+  await database.initDatabase();
+
+  const fresh = database.createDomainDb(2100);
+  const cols = fresh.all('PRAGMA table_info(attachments)').map((c) => c.name);
+  assert.ok(cols.includes('reviewed_by'), 'reviewed_by no banco fresco');
+  assert.ok(cols.includes('reviewed_at'), 'reviewed_at no banco fresco');
+  assert.ok(cols.includes('message_id'), 'message_id do E016 preservado');
+  assert.ok(cols.includes('payment_id'), 'payment_id do E018 preservado');
+
+  // Banco no esquema E018: sem as colunas de conferência.
+  const legacyFile = path.join(dataDir, 'domains', '21000.db');
+  const legacy = new SQL.Database();
+  legacy.run(`CREATE TABLE attachments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER,
+    comment_id INTEGER,
+    message_id INTEGER,
+    payment_id INTEGER,
+    kind TEXT NOT NULL DEFAULT 'file' CHECK (kind IN ('photo','file')),
+    path TEXT NOT NULL,
+    original_name TEXT,
+    uploaded_by INTEGER,
+    category TEXT NOT NULL DEFAULT 'evidence' CHECK (category IN ('evidence','documentation','chat','payment')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    CHECK (task_id IS NOT NULL OR message_id IS NOT NULL OR payment_id IS NOT NULL)
+  )`);
+  legacy.run("INSERT INTO attachments(id, message_id, path, category) VALUES (9, 3, 'uploads/chat.png', 'chat')");
+  fs.writeFileSync(legacyFile, Buffer.from(legacy.export()));
+  legacy.close();
+
+  const migrated = database.getDomainDb(21000);
+  const migratedCols = migrated.all('PRAGMA table_info(attachments)').map((c) => c.name);
+  assert.ok(migratedCols.includes('reviewed_by'), 'reviewed_by adicionado no rebuild');
+  assert.ok(migratedCols.includes('reviewed_at'), 'reviewed_at adicionado no rebuild');
+  const row = migrated.get('SELECT * FROM attachments WHERE id = 9');
+  assert.strictEqual(row.message_id, 3, 'message_id preservado');
+  assert.strictEqual(row.category, 'chat', 'categoria preservada');
+  assert.strictEqual(row.reviewed_by, null, 'sem conferência anterior');
+  migrated.run("INSERT INTO attachments(payment_id, path, category) VALUES (1, 'uploads/recibo.pdf', 'payment')", []);
+  assert.strictEqual(migrated.get("SELECT COUNT(*) AS c FROM attachments WHERE category = 'payment'").c, 1);
+
+  const again = database.getDomainDb(21000);
+  assert.strictEqual(again.all('PRAGMA table_info(attachments)').filter((c) => c.name === 'reviewed_by').length, 1, 'idempotente');
+});

@@ -417,6 +417,35 @@ class ApiService {
     return post('/contracts/$contractId/chat/tasks/$taskId/action', body: payload);
   }
 
+  // ---- Gestão documental do contrato (E019) ------------------------------
+
+  /// [FR-064]: anexos do contrato com origem, categoria, análise e alertas.
+  Future<Map<String, dynamic>> getContractDocuments(
+    int contractId, {
+    String? category,
+    String? source,
+  }) {
+    final query = <String, String>{};
+    if (category != null && category.isNotEmpty) query['category'] = category;
+    if (source != null && source.isNotEmpty) query['source'] = source;
+    final uri = Uri.parse('/contracts/$contractId/documents').replace(queryParameters: query.isEmpty ? null : query);
+    return get(uri.toString());
+  }
+
+  /// [FR-068]: altera a categoria de um anexo existente.
+  Future<Map<String, dynamic>> updateDocumentCategory(
+    int contractId,
+    int attachmentId,
+    String category,
+  ) {
+    return patch('/contracts/$contractId/documents/$attachmentId', body: {'category': category});
+  }
+
+  /// [FR-069]: marca documento como conferido (idempotente no backend).
+  Future<Map<String, dynamic>> reviewDocument(int contractId, int attachmentId) {
+    return post('/contracts/$contractId/documents/$attachmentId/review');
+  }
+
   // ---- Previsibilidade financeira por contrato (E018) --------------------
 
   /// [FR-064]: resumo e parcelas do contrato (somente admin/gestor).

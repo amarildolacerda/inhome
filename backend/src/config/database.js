@@ -326,7 +326,8 @@ const CONTRACT_PAYMENTS_DDL = `CREATE TABLE IF NOT EXISTS contract_payments (
 
 // Anexo de chat e comprovante de pagamento usam a mesma tabela, com pais
 // alternativos. SQLite não altera CHECK: rebuild preguiçoso em migrateSchema
-// preserva ids e linhas (E016 para message_id/chat, E018 para payment_id/payment).
+// preserva ids e linhas (E016 para message_id/chat, E018 para payment_id/payment,
+// E019 para reviewed_by/reviewed_at da conferência documental).
 const ATTACHMENTS_DDL = `CREATE TABLE IF NOT EXISTS attachments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     task_id INTEGER REFERENCES tasks(id),
@@ -338,6 +339,8 @@ const ATTACHMENTS_DDL = `CREATE TABLE IF NOT EXISTS attachments (
     original_name TEXT,
     uploaded_by INTEGER,
     category TEXT NOT NULL DEFAULT 'evidence' CHECK (category IN ('evidence','documentation','chat','payment')),
+    reviewed_by INTEGER REFERENCES users(id),
+    reviewed_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     CHECK (task_id IS NOT NULL OR message_id IS NOT NULL OR payment_id IS NOT NULL)
   )`;
@@ -711,6 +714,25 @@ function migrateSchema(wrapper) {
         .all('PRAGMA table_info(attachments)')
         .map((column) => column.name);
       const temp = 'attachments_e018';
+      wrapper.transaction((tx) => {
+        tx.run(ATTACHMENTS_DDL.replace('CREATE TABLE IF NOT EXISTS attachments', `CREATE TABLE ${temp}`));
+        tx.run(`INSERT INTO ${temp}(${present.join(', ')}) SELECT ${present.join(', ')} FROM attachments`);
+        tx.run('DROP TABLE attachments');
+        tx.run(`ALTER TABLE ${temp} RENAME TO attachments`);
+      });
+    }
+
+    // 00021 (E019): colunas aditivas de conferência documental. O mesmo
+    // copy → drop → rename preserva ids, categorias, message_id e payment_id;
+    // a guarda por PRAGMA dispara uma vez por arquivo, inclusive em bancos que
+    // já passaram pelos rebuilds de E016/E018.
+    const reviewColumns = wrapper.all('PRAGMA table_info(attachments)').map((column) => column.name);
+    if (!reviewColumns.includes('reviewed_by') || !reviewColumns.includes('reviewed_at')) {
+      const present = wrapper
+        .all('PRAGMA table_info(attachments)')
+        .map((column) => column.name)
+        .filter((name) => name !== 'reviewed_by' && name !== 'reviewed_at');
+      const temp = 'attachments_e019';
       wrapper.transaction((tx) => {
         tx.run(ATTACHMENTS_DDL.replace('CREATE TABLE IF NOT EXISTS attachments', `CREATE TABLE ${temp}`));
         tx.run(`INSERT INTO ${temp}(${present.join(', ')}) SELECT ${present.join(', ')} FROM attachments`);

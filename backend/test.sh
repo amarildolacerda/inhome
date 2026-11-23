@@ -725,6 +725,43 @@ api POST "/api/v2/tasks/$REJECT_ID/attachments" "{\"filename\":\"manual-final.pd
 check_http "anexo do gestor em Concluída" 201
 check_val "documentação do gestor em Concluída" "documentation" "$(jget attachment.category)"
 
+# 00021 (E019): biblioteca documental sobre os anexos ja existentes (0 tabela
+# nova, 0 arquivo novo). O anexo da ultima chamada e o alvo das mutacoes.
+DOC_ATTACH_ID="$(jget attachment.id)"
+api GET "/api/v2/contracts/$CONTRACT_ID/documents" "" "$USER_TOKEN"
+check_http "biblioteca documental (gestor)" 200
+check_val "anexo do contrato na biblioteca" "1" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const rows=JSON.parse(d).documents||[];process.stdout.write(String(rows.filter(r=>r.id===Number(process.argv[1])).length));})' "$DOC_ATTACH_ID")"
+check_val "origem derivada da tarefa" "task" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const r=(JSON.parse(d).documents||[]).find(x=>x.id===Number(process.argv[1]));process.stdout.write(r?String(r.source):"");})' "$DOC_ATTACH_ID")"
+
+api GET "/api/v2/contracts/$CONTRACT_ID/documents?category=documentation" "" "$ADMIN_TOKEN"
+check_http "filtro por categoria" 200
+check_val "filtro por categoria limita a lista" "1" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const rows=JSON.parse(d).documents||[];process.stdout.write(String(rows.filter(r=>r.category==="documentation").length===rows.length?1:0));})')"
+api GET "/api/v2/contracts/$CONTRACT_ID/documents?source=task" "" "$USER_TOKEN"
+check_http "filtro por origem" 200
+check_val "filtro por origem limita a lista" "1" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const rows=JSON.parse(d).documents||[];process.stdout.write(String(rows.every(r=>r.source==="task")?1:0));})')"
+api GET "/api/v2/contracts/$CONTRACT_ID/documents?category=inexistente" "" "$USER_TOKEN"
+check_http "categoria desconhecida na listagem" 400
+
+api PATCH "/api/v2/contracts/$CONTRACT_ID/documents/$DOC_ATTACH_ID" '{"category":"evidence"}' "$USER_TOKEN"
+check_http "alterar categoria do documento" 200
+check_val "categoria alterada in-place" "evidence" "$(jget attachment.category)"
+api PATCH "/api/v2/contracts/$CONTRACT_ID/documents/$DOC_ATTACH_ID" '{"category":"inexistente"}' "$USER_TOKEN"
+check_http "categoria desconhecida na mutacao" 400
+check_val "code estavel da categoria documental" "DOCUMENT_CATEGORY_INVALID" "$(jget code)"
+
+api POST "/api/v2/contracts/$CONTRACT_ID/documents/$DOC_ATTACH_ID/review" '{}' "$USER_TOKEN"
+check_http "conferir documento" 200
+REVIEW_AT="$(jget reviewed_at)"
+check_nonempty "conferencia registra data" "$REVIEW_AT"
+api POST "/api/v2/contracts/$CONTRACT_ID/documents/$DOC_ATTACH_ID/review" '{}' "$ADMIN_TOKEN"
+check_http "conferencia repetida" 200
+check_val "conferencia idempotente" "$REVIEW_AT" "$(jget reviewed_at)"
+
+api GET "/api/v2/contracts/$CONTRACT_ID/documents" "" "$PRESTADOR_TOKEN"
+check_http "biblioteca negada a prestador" 403
+api POST "/api/v2/contracts/$CONTRACT_ID/documents/$DOC_ATTACH_ID/review" '{}' "$PRESTADOR_TOKEN"
+check_http "conferencia negada a prestador" 403
+
 # --- summary ----------------------------------------------------------------
 echo ""
 if [ "$FAIL" -eq 0 ]; then

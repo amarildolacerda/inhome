@@ -3,9 +3,9 @@
 ## Status do estado atual
 
 - Repositório em desenvolvimento na branch `dev`.
-- Última feature entregue: `E018` — previsibilidade financeira por contrato (parcelas, pagamentos com comprovante, indicadores, alerta de atraso e exportação CSV/PDF).
-- Feature anterior: `E016` — chat colaborativo por contrato (mensagens, menu de cards e extração local de documentos).
-- Situação: `E015`, `E016` e `E018` concluídos e validados; `E018` com QC PASS em 2026-11-22. Nenhuma promoção `dev` → `main` neste ciclo.
+- Última feature entregue: `E019` — gestão documental do contrato (biblioteca sobre `attachments`, filtros, categoria e conferência com autor/data).
+- Feature anterior: `E018` — previsibilidade financeira por contrato (parcelas, pagamentos com comprovante, indicadores e exportação CSV/PDF).
+- Situação: `E015`, `E016`, `E018` e `E019` concluídos e validados; `E019` com QC PASS em 2026-11-23. Nenhuma promoção `dev` → `main` neste ciclo.
 
 ## Arquitetura
 
@@ -52,6 +52,14 @@ Regras do E017:
 - `perpetual` é um campo aditivo no contrato.
 - `forecast_date` pode permanecer vazia quando `perpetual` for `true`.
 - O valor `perpetual` é exportado no payload do dashboard e não dispara `a_vencer` / `incompleto`.
+
+#### Documentos do contrato (E019)
+
+- `GET /api/v2/contracts/:id/documents` — anexos do contrato com origem (`task`/`chat`/`payment`), categoria, análise e alertas; aceita `?category=` e `?source=`.
+- `PATCH /api/v2/contracts/:id/documents/:attachmentId` — altera a categoria do anexo existente; 400 para categoria desconhecida.
+- `POST /api/v2/contracts/:id/documents/:attachmentId/review` — marca como conferido com autor e data; idempotente.
+
+Somente `admin` e `gestor` do domínio. Nenhuma tabela nova: `attachments` ganha `reviewed_by`/`reviewed_at` por rebuild guardado que preserva ids, categorias, `message_id` e `payment_id`.
 
 #### Tarefas
 - `GET /api/v2/tasks` — listar tarefas
@@ -240,6 +248,7 @@ frontend/lib/
 - `TECHNICAL.md`: status atualizado para `E015` em progresso em 2026-11-17, após refinamento do plano.
 - `TECHNICAL.md`: status atualizado para `E016` em progresso em 2026-11-21, após refinamento do plano.
 - `TECHNICAL.md`: status atualizado para `E016` concluído em 2026-11-21, após as suítes verdes e o QC.
+- `TECHNICAL.md`: status atualizado para `E019` concluído em 2026-11-23, após as suítes verdes e o QC; endpoints documental adicionados.
 - `README.md`: atualizado com o comportamento de contratos perpétuos e do painel.
 
 ---
