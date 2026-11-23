@@ -21,6 +21,12 @@
 
 - `TODO.md` V3: entrada nova indicando bloqueio — revisão explícita de `PDD-007`/`PDD-008` antes de especificar qualquer candidato.
 
+### Waves registradas (2026-11-23)
+
+- `specs/project-plan.md` atualizado para 21 épicos / 12 ondas: Wave 10 = E019 (em execução, feature `00021`), Wave 11 = E020 (R3 importação de acervo), Wave 12 = E021 (R7 dossiê documental do prestador). `PDD-007` revisada pelo usuário; `PDD-008` segue pendente.
+- Detalhes criados em `specs/plan/E019.md`, `E020.md`, `E021.md`; coverage CAP-002/003/004 e Uncovered Items atualizados; `validate-prd.mjs --project-plan` PASS (digest `79217e04…00ca`).
+- E019 roda em paralelo em outro terminal (Implement em TDD); Waves 11 e 12 só abrem após QC PASS de E019 (Wave Transition Protocol). Commits do repo devem excluir `specs/00021-*` e os arquivos de código do E019 até o run fechar.
+
 ## Sessão F — 22/11 (E018 previsibilidade financeira)
 
 ### Objetivo e resultado

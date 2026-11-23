@@ -16,11 +16,11 @@ de nov/2026.
 | R0 | Chat por contrato | Entregue — E016, QC PASS 2026-11-21 |
 | R1 | Alertas de vigência + painel "vence primeiro" | Entregue — E004, E005, E010 |
 | R2 | Central documental do contrato | Em execução — E019 (`specs/00021-gestao-documental-contrato`) |
-| R3 | Onboarding de baixa fricção | Parcial — painel entregue (E005); importação pendente (`PDD-007`) |
+| R3 | Onboarding de baixa fricção | Wave 11 registrada — E020 (importação de acervo); `PDD-007` revisada em 2026-11-23 |
 | R4 | Acompanhamento de prestadores | Pendente |
 | R5 | Canais e automações | Pendente — WhatsApp e reajuste dependem de `PDD-008` |
 | R6 | Mobile do prestador | Pendente — depende de `PDD-008` |
-| R7 | Dossiê documental do prestador | Pendente — novo da pesquisa nov/2026 |
+| R7 | Dossiê documental do prestador | Wave 12 registrada — E021 (documentos, vigências e bloqueio) |
 | R8 | Régua de notificação (frequência e canal) | Pendente — novo da pesquisa nov/2026 |
 | R9 | Desempenho do prestador (nota e ocorrências) | Pendente — novo, estende R4 |
 | R10 | Checklist por tarefa | Pendente — novo, fecha lacuna da avaliação V3 |
@@ -69,8 +69,9 @@ Entregue como E004 (motor de varredura, dedup e janelas), E005 (painel 90/60/
 
 - Painel de vencimentos já populado no primeiro login: entregue (E005).
 - Importação de planilha CSV/XLSX de contratos com mapeamento de colunas e
-  upload em massa de PDFs: pendente. Reabre `PDD-007` (HYP-002); a pesquisa
-  nov/2026 confirma que o mercado trata importação como etapa obrigatória.
+  upload em massa de PDFs: aprovada pelo usuário em 2026-11-23 como Wave 11
+  (E020, `specs/plan/E020.md`). `PDD-007` revisada; `HYP-002` segue aberta até
+  validação com uso real.
 
 ## R4 — Acompanhamento de prestadores — Pendente
 
@@ -102,6 +103,7 @@ Entregue como E004 (motor de varredura, dedup e janelas), E005 (painel 90/60/
   certidões e regularidade, com vigência individual.
 - Alerta antes de vencer e bloqueio de vinculação/tarefa quando vencido.
 - Evidência: sistemasgap, Apollus (NR-01), Insoft4, GWS — todos jul–nov/2026.
+- Registrada como Wave 12 (E021, `specs/plan/E021.md`) em 2026-11-23.
 - Benefício: fecha o maior eixo novo da pesquisa; reduz risco trabalhista da
   contratante. Esforço: M/L. Depende de decisão de escopo: o que é
   obrigatório por tipo de serviço.
@@ -145,8 +147,9 @@ Entregue como E004 (motor de varredura, dedup e janelas), E005 (painel 90/60/
 
 ## Decisões a revisar antes de implementar
 
-- `PDD-007` (importação CSV, R3): adiada em 2026-09-26; evidência nov/2026
-  reforça que é barreira de adoção.
+- ~~`PDD-007` (importação CSV, R3)~~ revisada em 2026-11-23: importação
+  aprovada pelo usuário e registrada como Wave 11 (E020). `HYP-002` segue
+  aberta até validação com uso real.
 - `PDD-008` (WhatsApp, reajuste, mobile: R5 e R6): rejeitada em 2026-09-26;
   WhatsApp voltou como padrão de mercado BR.
 - `PDD-009` (assinatura ICP-Brasil): segue válida; assinatura continua

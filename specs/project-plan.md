@@ -13,11 +13,11 @@ dod_source: none
 | **Product** | Gestão de Contratos de Terceiros |
 | **Created** | 2026-09-27 |
 | **Status** | active |
-| **Epics** | 18 — 14 × P1, 4 × P2 |
-| **Categories** | 18 PRODUCT, 0 TECHNICAL, 0 OPERATIONAL |
+| **Epics** | 21 — 16 × P1, 5 × P2 |
+| **Categories** | 21 PRODUCT, 0 TECHNICAL, 0 OPERATIONAL |
 | **Author** | Amarildo de Lacerda |
-| **Waves** | 9 |
-| **Progress** | 17/18 épicos concluídos — Waves 1–8 completas; Wave 9 pendente |
+| **Waves** | 12 |
+| **Progress** | 19/21 épicos (E001–E019, Waves 1–10 concluídas); Waves 11–12 pendentes |
 
 ## Epic Checklist
 
@@ -82,6 +82,24 @@ dod_source: none
 
 - [X] E018 [P1] [PRODUCT] {PRD:CAP-002,CAP-007} Previsibilidade financeira — pagamentos, custos e indicadores por contrato [→ Details](plan/E018.md)
 
+### Wave 10 — Gestão documental do contrato
+
+> Escopo confirmado pelo usuário em 2026-11-23 (item 2 da avaliação V3, `specs/avaliacao-valor-v3.md`; roadmap formal esgotado). E019 reusa `attachments`, `document_analyses` e os alertas extraídos de E016 — duas colunas aditivas, nenhuma tabela nova. Feature `specs/00021-gestao-documental-contrato` concluída em 2026-11-23 (autopilot).
+
+- [X] E019 [P2] [PRODUCT] {PRD:CAP-002,CAP-003} Gestão documental do contrato — biblioteca, filtro e conferência [→ Details](plan/E019.md)
+
+### Wave 11 — Onboarding: importação de acervo
+
+> R3 do roadmap (`docs/roadmap.md`), aprovado pelo usuário em 2026-11-23 — `PDD-007` revisada e importação reaberta; `HYP-002` segue aberta até validação com uso real. Pesquisa nov/2026 confirma migração de acervo como etapa obrigatória de onboarding.
+
+- [ ] E020 [P1] [PRODUCT] {PRD:CAP-002} Importação de acervo — planilha com mapeamento de colunas e PDFs em massa [→ Details](plan/E020.md)
+
+### Wave 12 — Dossiê documental do prestador
+
+> R7 do roadmap, eixo novo da pesquisa nov/2026 (`docs/pesquisa-mercado-2026-11.md`): ASO, NRs e certidões com vigência, alerta e bloqueio. Checklist mínimo por tipo de serviço é decisão de Clarify.
+
+- [ ] E021 [P1] [PRODUCT] {PRD:CAP-002,CAP-004} Dossiê documental do prestador — documentos, vigências e bloqueio [→ Details](plan/E021.md)
+
 ## Dependency Diagram
 
 ```mermaid
@@ -110,9 +128,14 @@ graph LR
   D -->|"E016"| R["Chat por contrato<br>cards e alertas IA"]
   G -->|"E016"| R
   H -->|"E016"| R
+  R -->|"E019"| U["Biblioteca<br>documental"]
+  D -->|"E019"| U
+  C -->|"E020"| S["Importação<br>de acervo"]
+  C -->|"E021"| T["Dossiê do<br>prestador"]
+  H -->|"E021"| T
 ```
 
-Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_<id>` da infraestrutura já entregue (T033), não a saída de E009 — criar a aresta faria uma capacidade P2 (CAP-008) ser prerequisite de uma P1 e inflaria a prioridade de E009 contra o PRD. E011 e E012 apontam das entregas de base que consomem (E001 guards/papéis, E003 `tasks`/`task_history`/anexos), não da infraestrutura de tempo real. Wave 6: E013 consome o painel por papel de E006 e as janelas de vencimento de E005 (KPI `a vencer`), não o motor de E004 diretamente; E014 parte do tema produzido por E006 — a ordem E013 → E014 dentro da onda é só para rebaixar seguro sobre `app_theme.dart`, não um contrato de dependência. Wave 7: E017 consome a tabela de contratos de E002, as tarefas de E003, a lista de "sem previsão" de E005 e o card/KPIs de E013. Wave 8: E015 estende a matriz de papéis de E001 com o escopo de contrato de E003; E016 reutiliza o fluxo de tarefas de E003, a sala socket de E009 e o motor de alertas de E004 — o provedor de IA é configuração nova decidida dentro da própria épica.
+Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_<id>` da infraestrutura já entregue (T033), não a saída de E009 — criar a aresta faria uma capacidade P2 (CAP-008) ser prerequisite de uma P1 e inflaria a prioridade de E009 contra o PRD. E011 e E012 apontam das entregas de base que consomem (E001 guards/papéis, E003 `tasks`/`task_history`/anexos), não da infraestrutura de tempo real. Wave 6: E013 consome o painel por papel de E006 e as janelas de vencimento de E005 (KPI `a vencer`), não o motor de E004 diretamente; E014 parte do tema produzido por E006 — a ordem E013 → E014 dentro da onda é só para rebaixar seguro sobre `app_theme.dart`, não um contrato de dependência. Wave 7: E017 consome a tabela de contratos de E002, as tarefas de E003, a lista de "sem previsão" de E005 e o card/KPIs de E013. Wave 8: E015 estende a matriz de papéis de E001 com o escopo de contrato de E003; E016 reutiliza o fluxo de tarefas de E003, a sala socket de E009 e o motor de alertas de E004 — o provedor de IA é configuração nova decidida dentro da própria épica. Waves 10–12: E019 consome os anexos de E003/E016 e as análises de E016, com duas colunas aditivas em `attachments`; E020 cria contratos em lote sobre a superfície de E002 e o storage de E003; E021 estende o vínculo de E002 com o motor de alertas de E004 — as três seguem o Wave Transition Protocol (E019 → E020 → E021).
 
 ## Execution Wave Summary
 
@@ -126,6 +149,10 @@ Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_
 | 6 | E013, E014 | Não | Concluída | 2026-10-30 | Só frontend, sem backend novo; sequenciais entre si por `app_theme.dart`/`main.dart` compartilhados |
 | 7 | E017 | Sim | Concluída | 2026-11-15 | Coluna aditiva em `contracts` de E002 e extensão do payload do dashboard; consome `tasks` de E003 e a lista de E005 |
 | 8 | E015, E016 | Não | Concluída | 2026-11-21 | E015 entregue em 2026-11-20 (spec `00016`, QC PASS) e E016 em 2026-11-21 (spec `00017`, QC PASS); última data é o `QC Passed` de E016 |
+| 9 | E018 | Sim | Concluída | 2026-11-22 | E018 entregue em 2026-11-22 (spec `00020`, QC PASS) |
+| 10 | E019 | Sim | Concluída | 2026-11-23 | E019 entregue em 2026-11-23 (spec `00021`, QC PASS) |
+| 11 | E020 | Sim | Pendente | — | R3 do roadmap; `PDD-007` revisada em 2026-11-23; abre após E019 |
+| 12 | E021 | Sim | Pendente | — | R7 do roadmap (pesquisa nov/2026); abre após E020 |
 
 > **Status**: derivado dos checkboxes da Epic Checklist (onda concluída = todos os épicos `[X]`); data = último `QC Passed` dos markers `.qc-passed` dos épicos da onda.
 
@@ -134,6 +161,7 @@ Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_
 - **Independent Epics**: Wave 1 — E001, E002, E003, E006, E009 em paralelo; E007 entra depois de E002/E003 na mesma onda. Wave 2 — E004 e E008 sem contato. Wave 3 — E005 e E010 sem contato. Wave 5 — E012 sozinha, estende CAP-003 sem tocar em E011. Wave 6 — E013 e E014 sem backend, mas sequenciais entre si pelo tema compartilhado. Wave 7 — E017 sozinha. Wave 8 — E015 e E016 sem dependência entre si, mas sem `[P]` pela superfície de tarefas e guards que ambos visitam; ordem sugerida E015 → E016.
 - **Integration Risks**: E007 pode mexer em índices usados pelas listagens de contrato/tarefa (E002/E003). E006 altera `frontend/lib/main.dart` e `frontend/lib/theme/app_theme.dart`, importados por todas as telas — qualquer épica de tela da onda deve rebaixar sobre esses arquivos. E004 e E007 escrevem em `config/database.js` (migração × índices), mas estão em ondas diferentes. E012 adiciona coluna em `attachments` e ações em `tasks.js` — superfície já entregue por E003, em onda posterior. Wave 6 estende `app_theme.dart` e `main.dart` (superfície de E006) e reescreve `dashboard_screen.dart` — qualquer trabalho de tela simultâneo rebaixa sobre esses arquivos; E014 assume a top toolbar do MainShell já entregue pela obra ad-hoc em andamento. Wave 8: E015 adiciona o papel `visitante` à matriz de E001 e restringe leitura em rotas de tarefa de E003; E016 cria canais e cards que movem tarefas — trabalho simultâneo em `tasks.js` e `tasks_screen.dart` exige rebaixo cuidadoso.
 - **Shared Resource Conflicts**: `backend/src/config/database.js` (E004 migração, E007 índices — ondas distintas); `frontend/lib/main.dart` e `app_theme.dart` (E006, compartilhado com qualquer trabalho de tela; E013 e E014 estendem na onda 6); `frontend/nginx.conf` (só E003); salas Socket.io `domain_<id>` (leitura por E004/E005, escrita já entregue); `backend/src/routes/tasks.js` e `frontend/lib/screens/tasks_screen.dart` (E003 origem, E012 extensão na onda 5, E015/E016 extensões na onda 8); `frontend/lib/screens/dashboard_screen.dart` (E006 origem, E013 reescrita na onda 6, E017 extensão na onda 7); `backend/src/routes/alerts.js` (E004 origem, E005 painel, E017 exclusão de perpétuos); migração preguiçosa em `config/database.js` na onda 8 (E015 convites, E016 mensagens/análises — executar em ordem).
+- **Waves 10–12**: E019 em execução (Implement em TDD na feature `00021`); E020 cria contratos em lote sobre `routes/contracts.js` e o storage de E003; E021 cria tabelas de documentos do prestador e regra de bloqueio sobre `tasks.js`/`routes/contracts.js`, além do motor de E004. Executar em ordem (Wave Transition Protocol): E019 → E020 → E021. `backend/src/routes/documents.js` nasce em E019 e é superfície de E020/E021 se forem tocadas.
 
 ## Coverage Validation
 
@@ -142,9 +170,9 @@ Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_
 | Capability | Title | Priority | Epics |
 |------------|-------|----------|-------|
 | CAP-001 | Ciclo de domínio, papéis e acesso | P1 | E001, E015 |
-| CAP-002 | Contrato e vigência | P1 | E002, E017 |
-| CAP-003 | Execução de tarefas com evidência | P1 | E003, E011, E012, E015, E016 |
-| CAP-004 | Alertas de vigência e painel de próximos vencimentos | P1 | E004, E005, E013, E016, E017 |
+| CAP-002 | Contrato e vigência | P1 | E002, E017, E019, E020, E021 |
+| CAP-003 | Execução de tarefas com evidência | P1 | E003, E011, E012, E015, E016, E019 |
+| CAP-004 | Alertas de vigência e painel de próximos vencimentos | P1 | E004, E005, E013, E016, E017, E021 |
 | CAP-005 | Painel por papel | P1 | E006, E013, E014, E017 |
 | CAP-006 | Busca e filtros | P1 | E007 |
 | CAP-007 | Relatório de serviços executados em PDF e CSV | P1 | E008 |
@@ -153,7 +181,7 @@ Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_
 
 9/9 capacidades cobertas. Digest do PRD no frontmatter: `79217e0462c05e3342ef34636a7e0c7169ac118e0113805b979c0d091b2000ca`.
 
-E015 e E016 (Wave 8) são extensões do V2 rastreadas às capacidades mais próximas — convite/visitante estende o ciclo de acesso e a execução de tarefas; chat reutiliza execução, alertas e tempo real. O mapa de capacidades do PRD permanece inalterado (9 CAPs), na mesma linha de E013/E014/E017.
+E015 e E016 (Wave 8) são extensões do V2 rastreadas às capacidades mais próximas — convite/visitante estende o ciclo de acesso e a execução de tarefas; chat reutiliza execução, alertas e tempo real. O mapa de capacidades do PRD permanece inalterado (9 CAPs), na mesma linha de E013/E014/E017. E019–E021 (Waves 10–12) seguem o mesmo padrão: gestão documental rastreada a CAP-002/CAP-003, importação de acervo a CAP-002 (cria contratos) e dossiê do prestador a CAP-002/CAP-004 (vínculo + alerta de vencimento).
 
 ### SAD Coverage
 
@@ -173,9 +201,10 @@ Sem DOD: extração de épicas operacionais pulada; subida do stack, cópia de s
 
 ### Uncovered Items
 
-- Importação de planilha CSV (R3) — adiada por PDD-007, `HYP-002` aberta; fora desta release.
-- Central documental (anexos de contrato, ocorrências, trilha de alterações) e indicadores por prestador — roadmap R2/R4, decididos fora por PDD-003.
-- WhatsApp, reajuste automático e aplicativo mobile — rejeitados por PDD-008.
+- Importação de acervo (R3): saiu desta lista — `PDD-007` revisada em 2026-11-23 pelo usuário; virou E020 na Wave 11, `HYP-002` segue aberta até validação com uso real.
+- Trilha de alterações do contrato (restante do roadmap R2) — a biblioteca documental entrou como E019 (Wave 10), mas a trilha de mudança de cadastro continua fora.
+- Indicadores e nota de desempenho por prestador (roadmap R4/R9) — sem épica registrada; R9 é candidato da pesquisa nov/2026.
+- WhatsApp, reajuste automático e aplicativo mobile — rejeitados por PDD-008 (R5/R6 no roadmap; WhatsApp segue como candidato P2 pendente de revisão).
 - Escopo regulado (contratos públicos, Lei 14.133, NFS-e, ICP-Brasil) — rejeitado por PDD-009.
 - Catálogo de ADRs — adiado por Q6=A; nenhuma decisão vira tag `{SAD:ADR-NNNN}` até o catálogo ser criado.
 
