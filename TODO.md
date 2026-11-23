@@ -10,7 +10,7 @@ Nenhuma.
 ### V1
 - [X] Épico E014 — Tema escuro por padrão + alternância para claro (SharedPreferences + toggle na toolbar); feature `00018` com 19/19 tasks, checklists 55/55, QC PASS (`.qc-passed`), flutter 75/75 · backend 167/167 · smoke 182/182 · audit 0, browser headless 22/22 (2026-10-30)
 
-- [ ] `users` CHECK — alinhar a prosa do spec com o rebuild da tabela (`WARNING` não-bloqueante do QC de 00013, `specs/00013-e011-auditoria-classificacao`); decidido adiar em 2026-10-11. Pendência técnica, não pedida pelo usuário (2026-10-23)
+- [X] `users` CHECK — alinhar a prosa do spec com o rebuild da tabela (`WARNING` não-bloqueante do QC de 00013, `specs/00013-e011-auditoria-classificacao`); decidido adiar em 2026-10-11. Prosa ajustada em `spec.md`/`data-model.md`, gate e P1 preservados, QC revalidado (2026-11-23)
 
 ### V2
 - [X] Épico E015 — Convite temporário e papel visitante (spec `00016-convite-visitante`): gestor/admin emitem link com validade, o convidado se cadastra como visitante e vê só as tarefas do contrato; reavaliação muda papel ou suspende o acesso. QC PASS (`.qc-passed`), 26/26 tasks, 7/7 FR P1 · backend 181/181 · smoke 183/183 · flutter 88/88 · audit 0 (2026-11-20)

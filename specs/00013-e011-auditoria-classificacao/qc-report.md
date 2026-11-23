@@ -106,32 +106,32 @@
 ## QC Evidence Manifest
 | Path | SHA-256 |
 |------|---------|
-| backend/src/config/database.js | 3a512b503312e7b487a5430f7c3e76f3ef64a342c3fd4c815590e1b6f57abbcf |
-| backend/src/config/database.test.js | d60def5adba046bafb65744b630783f46ad48c322a9a13f595e4be7b5f9c0733 |
+| backend/src/config/database.js | 40f24309f1c2c06b407d914565e700d68be2344c96697f01936907d0da711c15 |
+| backend/src/config/database.test.js | 5f703260f13bbf49e70bd6c9586434b8d84f16574b502ad64ae713883c37f340 |
 | backend/src/models/TaskClassification.js | 093880e7f719b013b2162b876d1f2f00c6bb47b41c099854cfbde5da68bc32dc |
 | backend/src/models/TaskClassification.test.js | 2f616e075be5ff8e1b71237cb4cd7ea9ef04fdf76899900233479910c2efcb21 |
-| backend/src/routes/audits.js | 0751213b19212263a31caa9447bb3f01d6eaea913544296273466e260c330786 |
+| backend/src/routes/audits.js | 10be42189f4f72891bb38cc9a8efa1e9ad8253627ac934ac2f9cf6db5727fff3 |
 | backend/src/routes/audits.test.js | f35758622cc1967a3bd9ff36e27ebe5d6a0c31d84268429cd33a82bb9b33bcb3 |
-| backend/src/routes/users.js | c876001662f18f280c4eafb6ffb839d852cb1656fe4ce963d51aedea85fa205b |
-| backend/src/routes/users.test.js | 805f337700e508e44a89d215094856dd577cf6887368746da659ac4d9e81578a |
-| backend/src/server.js | 7b8942860689524319b0f685cebdd5d7a332e2a04b852bb8f968ffae46334379 |
-| frontend/lib/main.dart | 2f758ccde4a33a13782d590bed34f31d38601ed77557b6c03638b1ccdc7cd086 |
+| backend/src/routes/users.js | 112700155c60f6298b321d0725a0001628c63ead63ec4fc4cb56106caf1a20b0 |
+| backend/src/routes/users.test.js | e11fd81202f700843dba63b9c285a15bbc9ee75086e9a2850b33f76d7cd9c429 |
+| backend/src/server.js | 12ff02b362e2f32df2858c223d3c5b97f99eee91f2600d425eb1f8d76ab75ceb |
+| frontend/lib/main.dart | 46821a0b164714b534dc922d51729bb2760ec995bf3d91e6c0fee36f192d360c |
 | frontend/lib/models/user.dart | dbfc8d897f31bb375b17124f8cff8b575b2d176d1098f43adbd1a20ba9933719 |
 | frontend/lib/screens/audit_screen.dart | 27e07ee0779eb0f5f3ea98f321cb4e5d3384762be71dd93fbe876fc006e538fa |
-| frontend/lib/services/api_service.dart | 0d353f0f6e902fa1dc9ee16d8349665a91b4cec2431509549565f3054f95c15c |
+| frontend/lib/services/api_service.dart | 9dbf923cdca70ab5f66ca715395d8c39b983253f2fc9722b7166a6dcf4c4de45 |
 | frontend/test/audit_nav_test.dart | 6aa8375f0447fd0d8ff651281ce09820edf70912e80c3a53f642e3d28eb5d5db |
-| frontend/test/roles_nav_test.dart | 2c36a128d29be3411426d919aa0754c37aa6b3ab4cde0a23b61b10178d1e6576 |
+| frontend/test/roles_nav_test.dart | 5b3512ff719693077274f34ed463728caf1ba72f763759967b4211d8b4b62a20 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00013-e011-auditoria-classificacao/checklists/.checklists | 0f7d0ada372454977008cd5f66ec741334f56ab805bfc49cfe55fd6bf6f1f6a0 |
 | specs/00013-e011-auditoria-classificacao/checklists/CHL001-security.md | 9d1fad6ff481c2efcc4ae1f0f40704735af67b3da64648954965fcf487cf2d48 |
 | specs/00013-e011-auditoria-classificacao/checklists/CHL002-data-integrity.md | fab9fd4c34c90342015b85af4668f4fae9a8422555f4ef9b7495492918f1cf34 |
 | specs/00013-e011-auditoria-classificacao/checklists/CHL003-api-quality.md | a2c1c0a7e5dffea6c57813bb4abe91a4c9058b6771d9caad3679192cb7d0f928 |
 | specs/00013-e011-auditoria-classificacao/contracts/openapi.yaml | e7aafdcb17a44e7cba841a053e2eb78cc480fcdca7ebea155fb6b486f2874057 |
-| specs/00013-e011-auditoria-classificacao/data-model.md | ed03d3bd5c223e97ce3bcdd5cd62fdd08d7dc61eeaddce91879dc1761af62b13 |
+| specs/00013-e011-auditoria-classificacao/data-model.md | 774e1e59734b0d31f63ec852d8fbd00ddb78eedc464a2981d44fbd3f778f9926 |
 | specs/00013-e011-auditoria-classificacao/manual-test.md | d7267b1c0c783d68ddfd20c14556fa07760e1d661ea89f351d729e1b1f2464dc |
 | specs/00013-e011-auditoria-classificacao/plan.md | d7adffd6d0ecf68f993aa3850a4dbd2e691a75ee87e0a04183644ffd33adc4dc |
 | specs/00013-e011-auditoria-classificacao/research.md | 9b05ffb8e8f2379f67691557702626306e1cbaff9bf21d061eba77a52ad261d4 |
-| specs/00013-e011-auditoria-classificacao/spec.md | 69ee9e5027508e6c37c102a921c222e9b9267e72a128e8ed13f8839fd3cd02f0 |
+| specs/00013-e011-auditoria-classificacao/spec.md | d20446d354520a598b6d223a70b933aa1b90bc636126e406f88404085a52677c |
 | specs/00013-e011-auditoria-classificacao/tasks.md | 3d78960534d832da337d569a636baee6b23a7647365e86d7b61cdf5932537f11 |
 
 ## Tool Recommendations

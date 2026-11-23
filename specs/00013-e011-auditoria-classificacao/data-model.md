@@ -22,4 +22,4 @@ Storage: `data/domains/<id>.db` (sql.js). 00013 adiciona 1 tabela em `migrateSch
 
 - `CREATE TABLE IF NOT EXISTS task_classifications (...)` em `migrateSchema()`, guardado por `tableExists`, ANTES de `applySchema()` — mesmo padrão do `alert_events` (Q5/E004): roda a cada abertura do banco do domínio, dispara exatamente uma vez por arquivo.
 - Banco antigo: sem linhas → visão de auditoria vazia com 200, nenhuma reescrita; bancos novos recebem a tabela na criação.
-- `MIGRATION` do spec é só aditivo: nenhuma coluna ou tabela existente é alterada, removida ou renomeada.
+- `MIGRATION` do spec cria `task_classifications` de forma aditiva e faz rebuild guardado de `users`: o CHECK passa a aceitar `auditor`, com copia linha a linha preservando ids, hashes e datas. `tasks`, `task_history`, `task_photos`, `comments` e `attachments` seguem intactos; nenhuma coluna ou tabela desses conjuntos é alterada, removida ou renomeada.
