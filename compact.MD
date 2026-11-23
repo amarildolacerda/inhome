@@ -1,7 +1,25 @@
 # compact.MD — contexto compactado da sessão
 
-> Atualizado em [22/11] para restauração de contexto. Repo `/mnt/windows/git/inhome`, branch `dev`.
+> Atualizado em [23/11] para restauração de contexto. Repo `/mnt/windows/git/inhome`, branch `dev`.
 > Estado anterior: HEAD `5aeb2db` = `origin/dev`; QC de E018 completo, pronto para commit e push em `dev`.
+
+## Sessão G — 23/11 (pesquisa de mercado refeita)
+
+### Objetivo e resultado
+
+- Refazer a pesquisa de mercado (anterior: `docs/resources.md`, set/2026) para identificar novos requisitos desejáveis pelos usuários.
+- Relatório novo: `docs/pesquisa-mercado-2026-11.md` — 12 desejos novos mapeados sobre o produto entregue (E001–E018), priorizados em P1/P2/P3, com fontes e limitações.
+
+### Achados principais
+
+- Eixo novo BR: dossiê documental do prestador (ASO, NRs, certidões) com vencimento, alerta e bloqueio — ausente no produto.
+- Importação de acervo (XLSX/CSV + PDFs em massa) confirmada como barreira de adoção; reabre `PDD-007`.
+- Manutenção preventiva recorrente que gera tarefas; régua de notificação configurável; WhatsApp como canal (reabre `PDD-008`, padrão BR com preço público por mensagem); nota de desempenho por prestador (IDF/SPI/OTIF).
+- Mantidos fora de escopo: assinatura ICP (`PDD-009`), reajuste por índice, IA generativa externa (extrator local validado: 92% do mercado exige revisão humana).
+
+### Pendência registrada
+
+- `TODO.md` V3: entrada nova indicando bloqueio — revisão explícita de `PDD-007`/`PDD-008` antes de especificar qualquer candidato.
 
 ## Sessão F — 22/11 (E018 previsibilidade financeira)
 
