@@ -762,6 +762,45 @@ check_http "biblioteca negada a prestador" 403
 api POST "/api/v2/contracts/$CONTRACT_ID/documents/$DOC_ATTACH_ID/review" '{}' "$PRESTADOR_TOKEN"
 check_http "conferencia negada a prestador" 403
 
+# 00022 (E020): importação de acervo — template, prévia somente leitura e
+# confirmação atômica com PDF em massa. Nenhuma dependência nova.
+api GET "/api/v2/contracts?limit=200" "" "$ADMIN_TOKEN"
+CONTRACTS_BEFORE="$(jget total)"
+
+api GET "/api/v2/contracts/import/template" "" "$USER_TOKEN"
+check_http "template de acervo (gestor)" 200
+check_val "template com cabecalhos" "1" "$(printf '%s' "$BODY" | grep -c '^name,start_date,forecast_date')"
+api GET "/api/v2/contracts/import/template" "" "$PRESTADOR_TOKEN"
+check_http "template negado a prestador" 403
+
+IMPORT_HEADERS='name;start_date;forecast_date;object;purpose;provider;perpetual'
+IMPORT_CSV_B64="$(printf '%s\n%s\n%s\n' "$IMPORT_HEADERS" 'Acervo Um;2026-01-01;2026-12-31;Servico;;;' 'Acervo Dois;data-invalida;2026-12-31;Servico;;;' | base64 -w0)"
+IMPORT_MAPPING='{"name":"name","start_date":"start_date","forecast_date":"forecast_date","object":"object","purpose":"purpose","provider":"provider","perpetual":"perpetual"}'
+IMPORT_PDF_B64="$(printf '%%PDF-1.4 smoke' | base64 -w0)"
+
+api POST "/api/v2/contracts/import/preview" "{\"fileName\":\"acervo.csv\",\"dataBase64\":\"$IMPORT_CSV_B64\",\"mapping\":$IMPORT_MAPPING}" "$USER_TOKEN"
+check_http "previa de acervo" 200
+check_val "previa conta linhas" "2" "$(jget total)"
+check_val "previa conta validas" "1" "$(jget valid)"
+check_val "previa conta invalidas" "1" "$(jget invalid)"
+check_val "erro por campo na previa" "start_date" "$(jget rows.1.errors.0.field)"
+api GET "/api/v2/contracts?limit=200" "" "$ADMIN_TOKEN"
+check_val "previa nao grava contrato" "$CONTRACTS_BEFORE" "$(jget total)"
+
+api POST "/api/v2/contracts/import/preview" "{\"fileName\":\"acervo.csv\",\"dataBase64\":\"$IMPORT_CSV_B64\",\"mapping\":{\"name\":\"name\"}}" "$USER_TOKEN"
+check_http "mapeamento incompleto" 400
+check_val "code do mapeamento" "IMPORT_MAPPING_REQUIRED" "$(jget code)"
+
+api POST "/api/v2/contracts/import/confirm" "{\"fileName\":\"acervo.csv\",\"dataBase64\":\"$IMPORT_CSV_B64\",\"mapping\":$IMPORT_MAPPING,\"pdfs\":[{\"name\":\"Acervo Um.pdf\",\"dataBase64\":\"$IMPORT_PDF_B64\"},{\"name\":\"Sem Linha.pdf\",\"dataBase64\":\"$IMPORT_PDF_B64\"}]}" "$ADMIN_TOKEN"
+check_http "confirmacao da importacao" 201
+check_val "contratos criados na confirmacao" "1" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(String(JSON.parse(d).created.length)))')"
+check_val "pdf anexado ao contrato" "1" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(String(JSON.parse(d).attached.length)))')"
+check_val "pdf sem linha e pulado" "no matching imported row" "$(jget skippedPdfs.0.reason)"
+api GET "/api/v2/contracts?limit=200" "" "$ADMIN_TOKEN"
+check_val "contrato importado persistido" "$((CONTRACTS_BEFORE + 1))" "$(jget total)"
+api GET "/api/v2/contracts/$CONTRACT_ID/documents" "" "$ADMIN_TOKEN"
+check_val "importacao nao apaga anexos existentes" "1" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const rows=JSON.parse(d).documents||[];process.stdout.write(String(rows.filter(r=>r.id===Number(process.argv[1])).length));})' "$DOC_ATTACH_ID")"
+
 # --- summary ----------------------------------------------------------------
 echo ""
 if [ "$FAIL" -eq 0 ]; then

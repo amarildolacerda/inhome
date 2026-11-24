@@ -1,7 +1,82 @@
 # compact.MD — contexto compactado da sessão
 
-> Atualizado em [23/11] para restauração de contexto. Repo `/mnt/windows/git/inhome`, branch `dev`.
-> Estado anterior: HEAD `5aeb2db` = `origin/dev`; QC de E018 completo, pronto para commit e push em `dev`.
+> Atualizado em [24/11] para restauração de contexto. Repo `/mnt/windows/git/inhome`, branch `dev`.
+> Estado atual: `dev` = `origin/dev` = `0a60319`; `main` = `origin/main` = `49bb566` (promoção concluída). Wave 11 (E020) com QC PASS no baseline de `dev`, pronta para commit e push.
+
+## Sessão I — 24/11 (Wave 11 E020 — importação de acervo)
+
+### Objetivo e resultado
+
+- Usuário pediu para promover para `main` (concluído antes deste ciclo) e implementar a Wave 11. Escopo aprovado: `PDD-007` revisada; `PDD-008` e `PDD-009` não reabertas. `HYP-002` segue aberta até validação com uso real.
+- `main` permanece em `49bb566`; este ciclo termina em `dev`. Feature `specs/00022-importacao-acervo`, épica E020, P1.
+
+### Decisões
+
+- CSV/XLSX lidos por parser embutido com `zlib`: 0 dependência nova. `xlsx`, `read-excel-file` e `exceljs` rejeitados por advisories sem correção.
+- Prévia somente leitura; confirmação revalida o mesmo payload e grava em transação única. Linhas inválidas viram itens pulados no relatório; PDFs sem linha também são pulados.
+- `attachments.contract_id` entra por rebuild guardado, preservando ids/categorias/pais de E016/E018/E019. PDFs reaproveitam `saveToUploads`/`decodeAndValidate`; arquivos escritos são removidos se a transação reverter.
+- Rotas em `backend/src/routes/imports.js`, sob `/api/v2/contracts`, somente `admin`/`gestor`, com `authenticateToken → scopeDomain → requireRole` antes de ler o payload.
+- API Flutter extraída para `frontend/lib/services/imports_api.dart` (extensão de `ApiService`) para manter `api_service.dart` em 966 linhas. Tela dividida em `imports_screen.dart` (454) + `imports_screen_report.dart` (66) para respeitar o limite de 500 linhas.
+- Limites: 500 linhas e 4 MB por planilha, 2 MB por PDF.
+
+### Entregas
+
+- Backend: `GET /contracts/import/template`, `POST /contracts/import/preview` (com `detectHeaders` para mapear colunas), `POST /contracts/import/confirm`; parser CSV/XLSX, migração de `attachments`, fluxo HTTP no smoke.
+- Frontend: tela em cinco etapas (arquivo → mapeamento → prévia → confirmação → relatório), entrada `Importar` no rail de admin/gestor, 3 testes de widget com seams de rede e de diálogo.
+- Docs: `TECHNICAL.md`, `TODO.md`, `specs/project-plan.md` (Wave 11 concluída), `analysis-report.md` e `autopilot-log.md` da feature.
+
+### Evidências
+
+- 32/32 tasks `[X]`, 9/9 FR P1, 4/4 SC, 3/3 checklists (24/24 itens); gates `evaluateSpecGate`, `evaluatePlanGate`, `evaluateTasksGate` e `evaluateCheckedTaskProvenance` PASS.
+- Bateria: parser 5/5, migração 17/17, rotas 9/9, `npm test` 227/227, `bash backend/test.sh` 218/218, `flutter test` 105/105, `flutter analyze lib test` 0 issues, `npm audit --audit-level=high` em `backend/` 0 vulnerabilidades.
+- QC real: `qc-report.md` com 35 linhas de manifesto, `Overall Verdict: PASS`, `.completed` + `.qc-passed` no baseline `0a60319`; `derive-completion-state` = `complete`, 0 issues.
+
+### Commit/push
+
+- A registrar após o push em `dev`.
+
+## Promoção dev → main — 23/11
+
+- Gate de produção PASS: `npm test` 212/212, `bash backend/test.sh` 201/201, `flutter test` 102/102, `flutter analyze lib test` 0 issues, `npm audit --audit-level=high` 0 vulnerabilidades.
+- `main` tinha 2 commits próprios (`527d689` merge do PR #1, `3c00d74` promoção E017); o 2º pai de `3c00d74` (`3ca7d21`) já estava em `dev`. Merge `--no-ff` limpo, sem conflitos.
+- Commit de promoção `49bb566` — `Promotion dev → main: E018 (00020) previsibilidade financeira + E019 (00021) gestão documental (Waves 9-10)`; 143 arquivos, 13097 inserções, 383 remoções.
+- Push: `3c00d74..49bb566  main -> main`. `dev` permanece `0a60319`; markers locais seguem no baseline de `dev`.
+- Comando com token: `git -c credential.helper='!f() { echo username=x-access-token; echo "password=$(cat .git_token)"; }; f' push origin main`.
+
+## Sessão H — 23/11 (limpeza técnica 00013 + Wave 10 E019)
+
+### Objetivo e resultado
+
+- Usuário pediu "limpeza técnica primeiro, depois Wave 10". Limpeza: prosa de migração do CHECK `users` em `specs/00013-e011-auditoria-classificacao` alinhada ao rebuild; IDs, P1 `FR-001`..`FR-007` e snapshot preservados; spec 10195 B, data-model 3057 B; gate PASS; QC revalidado. Commit `0ec34ad` em `dev`.
+- Wave 10 confirmada: gestão documental do contrato, P2, autopilot completo. Épica E019 / feature `specs/00021-gestao-documental-contrato`.
+
+### Decisões
+
+- 0 tabela nova. `attachments` ganha `reviewed_by`/`reviewed_at` por rebuild guardado, preservando ids, categorias, `message_id` e `payment_id`.
+- Origem documental derivada de `message_id`/`payment_id`; tarefa é a origem padrão.
+- Reaproveita `attachments`, `document_analyses`, categorias e alertas de E016; sem dependência nova. Não reabre PDD-008 (reajuste por índice) nem PDD-009 (assinatura eletrônica) sem revisão do PRD.
+- Rotas em `backend/src/routes/documents.js`, registradas em `backend/src/server.js` (não existe `routes/index.js`); `scopeDomain()` chamado como fábrica.
+- UI extraída em `part` (`contract_detail_screen_documents.dart`), seção restrita a admin/gestor, `ExpansionTile` fechado com `ConstrainedBox(maxHeight: 180)` + `SingleChildScrollView`; bloco superior da tela envolto em `Flexible`/`SingleChildScrollView` para evitar overflow no teste de nav.
+- Spec toda P2 (`FR-064`..`FR-070`); Clarify skipado (0 `NEEDS CLARIFICATION`, 0 STF); `AUTOPILOT=true`.
+
+### Entregas
+
+- Backend: 3 endpoints (`GET /contracts/:id/documents`, `PATCH .../documents/:attachmentId`, `POST .../documents/:attachmentId/review`), migration em `database.js`, smoke em `backend/test.sh`, 4 testes HTTP.
+- Frontend: `getContractDocuments()`, `updateDocumentCategory()`, `reviewDocument()`, `_DocumentsSection`, hook protegido por papel; 4 testes de widget.
+- Docs: `TECHNICAL.md`, `README.md`, `TODO.md`, `specs/project-plan.md` (Wave 10 concluída, 19/21 épicos).
+
+### Evidências
+
+- 25/25 tasks `[X]`, 7/7 FR P2, `AD-001`..`AD-007` referenciados, 3/3 checklists (24/24 itens).
+- Gates PASS: `evaluateSpecGate`, `evaluatePlanGate`, `evaluateTasksGate`, `evaluateCheckedTaskProvenance`; `derive-completion-state` = `complete`.
+- Bateria: migration 16/16, rotas 4/4, widgets 4/4, `npm test` 212/212, `bash backend/test.sh` 201/201, `flutter test` 102/102, `flutter analyze lib test` 0 issues, `npm audit --audit-level=high` 0 vulnerabilidades.
+- QC real: `qc-report.md` com 23 linhas de manifesto, `Overall Verdict: PASS`, `.completed` + `.qc-passed` emitidos.
+
+### Push
+
+- Commits `b860ebd` + `39a3eaa` (pesquisa/roadmap) e `0a60319` (E019 completo) em `origin/dev`; `main` intocada em `3c00d744`.
+- Push com token: `git -c credential.helper='!f() { echo username=x-access-token; echo "password=$(cat .git_token)"; }; f' push origin dev` → `89c2304..0a60319  dev -> dev`.
+- Pós-push: 5 features (00013, 00016, 00017, 00020, 00021) com QC re-assinado no baseline `0a60319`; `derive-completion-state` = `complete` em todos. Markers ficam modificados no working tree (padrão do repo).
 
 ## Sessão G — 23/11 (pesquisa de mercado refeita)
 

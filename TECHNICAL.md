@@ -61,6 +61,14 @@ Regras do E017:
 
 Somente `admin` e `gestor` do domínio. Nenhuma tabela nova: `attachments` ganha `reviewed_by`/`reviewed_at` por rebuild guardado que preserva ids, categorias, `message_id` e `payment_id`.
 
+#### Importação de acervo (E020)
+
+- `GET /api/v2/contracts/import/template` — CSV versionado com as sete colunas aceitas (`name`, `start_date`, `forecast_date`, `object`, `purpose`, `provider`, `perpetual`).
+- `POST /api/v2/contracts/import/preview` — recebe `fileName`, `dataBase64` e `mapping`; com `detectHeaders: true` devolve só os cabeçalhos. Caso contrário classifica cada linha e devolve `total`, `valid`, `invalid` e `errors` por campo. Não grava nada.
+- `POST /api/v2/contracts/import/confirm` — revalida o mesmo payload, grava as linhas válidas em uma transação e anexa os PDFs recebidos em `pdfs[]` (`name` + `dataBase64`). Devolve `created`, `skipped`, `attached` e `skippedPdfs`.
+
+Somente `admin` e `gestor` do domínio, com `authenticateToken → scopeDomain → requireRole` antes de ler o payload. CSV e XLSX são lidos por parser embutido (`zlib`), sem dependência nova. Limites: 500 linhas e 4 MB por planilha, 2 MB por PDF. `attachments.contract_id` entra por rebuild guardado; a transação remove do disco os PDFs escritos se o banco reverter.
+
 #### Tarefas
 - `GET /api/v2/tasks` — listar tarefas
 - `GET /api/v2/tasks/:id` — detalhe da tarefa

@@ -324,16 +324,18 @@ const CONTRACT_PAYMENTS_DDL = `CREATE TABLE IF NOT EXISTS contract_payments (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`;
 
-// Anexo de chat e comprovante de pagamento usam a mesma tabela, com pais
-// alternativos. SQLite não altera CHECK: rebuild preguiçoso em migrateSchema
-// preserva ids e linhas (E016 para message_id/chat, E018 para payment_id/payment,
-// E019 para reviewed_by/reviewed_at da conferência documental).
+// Anexo de chat, comprovante de pagamento e documento importado usam a mesma
+// tabela, com pais alternativos. SQLite não altera CHECK: rebuild preguiçoso em
+// migrateSchema preserva ids e linhas (E016 message_id/chat, E018
+// payment_id/payment, E019 reviewed_by/reviewed_at, E020 contract_id da
+// importação de acervo).
 const ATTACHMENTS_DDL = `CREATE TABLE IF NOT EXISTS attachments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     task_id INTEGER REFERENCES tasks(id),
     comment_id INTEGER REFERENCES comments(id),
     message_id INTEGER REFERENCES chat_messages(id),
     payment_id INTEGER REFERENCES contract_payments(id),
+    contract_id INTEGER REFERENCES contracts(id),
     kind TEXT NOT NULL DEFAULT 'file' CHECK (kind IN ('photo','file')),
     path TEXT NOT NULL,
     original_name TEXT,
@@ -342,7 +344,7 @@ const ATTACHMENTS_DDL = `CREATE TABLE IF NOT EXISTS attachments (
     reviewed_by INTEGER REFERENCES users(id),
     reviewed_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    CHECK (task_id IS NOT NULL OR message_id IS NOT NULL OR payment_id IS NOT NULL)
+    CHECK (task_id IS NOT NULL OR message_id IS NOT NULL OR payment_id IS NOT NULL OR contract_id IS NOT NULL)
   )`;
 
 const DOMAIN_SCHEMA = [
@@ -733,6 +735,24 @@ function migrateSchema(wrapper) {
         .map((column) => column.name)
         .filter((name) => name !== 'reviewed_by' && name !== 'reviewed_at');
       const temp = 'attachments_e019';
+      wrapper.transaction((tx) => {
+        tx.run(ATTACHMENTS_DDL.replace('CREATE TABLE IF NOT EXISTS attachments', `CREATE TABLE ${temp}`));
+        tx.run(`INSERT INTO ${temp}(${present.join(', ')}) SELECT ${present.join(', ')} FROM attachments`);
+        tx.run('DROP TABLE attachments');
+        tx.run(`ALTER TABLE ${temp} RENAME TO attachments`);
+      });
+    }
+
+    // 00022 (E020): o PDF importado entra como attachments.contract_id. A
+    // guarda cobre coluna e CHECK — um banco que já tinha a coluna mas o CHECK
+    // antigo também precisa do rebuild, senão o INSERT do importado falha.
+    const importedColumns = wrapper.all('PRAGMA table_info(attachments)').map((column) => column.name);
+    const importedSql = wrapper.get(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'attachments'"
+    )?.sql ?? '';
+    if (!importedColumns.includes('contract_id') || !/contract_id\s+REFERENCES\s+contracts/.test(importedSql)) {
+      const present = importedColumns.filter((name) => name !== 'contract_id');
+      const temp = 'attachments_e020';
       wrapper.transaction((tx) => {
         tx.run(ATTACHMENTS_DDL.replace('CREATE TABLE IF NOT EXISTS attachments', `CREATE TABLE ${temp}`));
         tx.run(`INSERT INTO ${temp}(${present.join(', ')}) SELECT ${present.join(', ')} FROM attachments`);

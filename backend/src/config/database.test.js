@@ -139,6 +139,52 @@ test('perpetual migration for legacy domain dbs', async () => {
   database.getPlatformDb();
 });
 
+// 00022 (E020): PDFs importados usam attachments.contract_id. O rebuild
+// guardado preserva a linha legada e amplia o CHECK para o novo pai.
+test('contract_id migration for legacy attachment dbs', async () => {
+  const SQL = await database.initSqlDriver();
+  const platform = database.getPlatformDb();
+  platform.run('INSERT INTO domains(name, slug) VALUES (?, ?)', ['LegacyImports', 'legacy-imports']);
+  const legacy = platform.get('SELECT id FROM domains WHERE slug = ?', ['legacy-imports']);
+
+  const file = path.join(dataDir, 'domains', `${legacy.id}.db`);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const raw = new SQL.Database();
+  raw.run(`CREATE TABLE attachments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER REFERENCES tasks(id),
+    comment_id INTEGER REFERENCES comments(id),
+    kind TEXT NOT NULL DEFAULT 'file' CHECK (kind IN ('photo','file')),
+    path TEXT NOT NULL,
+    original_name TEXT,
+    uploaded_by INTEGER,
+    category TEXT NOT NULL DEFAULT 'evidence' CHECK (category IN ('evidence','documentation','chat','payment')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    CHECK (task_id IS NOT NULL)
+  )`);
+  raw.run("INSERT INTO attachments(task_id, path, original_name, category) VALUES (1, 'uploads/old.pdf', 'old.pdf', 'evidence')");
+  fs.writeFileSync(file, Buffer.from(raw.export()));
+  raw.close();
+
+  const db = database.getDomainDb(legacy.id);
+  const columns = db.all('PRAGMA table_info(attachments)').map((column) => column.name);
+  assert.ok(columns.includes('contract_id'), 'contract_id column migrated');
+  const old = db.get("SELECT id, original_name, category FROM attachments WHERE original_name = 'old.pdf'");
+  assert.strictEqual(old.id, 1, 'legacy id preserved');
+  assert.strictEqual(old.category, 'evidence', 'legacy category preserved');
+
+  db.run("INSERT INTO contracts(name, start_date, forecast_date) VALUES ('Importado', '2026-01-01', '2026-12-31')");
+  const contractId = db.get('SELECT MAX(id) AS id FROM contracts').id;
+  db.run(
+    "INSERT INTO attachments(contract_id, path, original_name, category) VALUES (?, 'uploads/new.pdf', 'new.pdf', 'documentation')",
+    [contractId]
+  );
+  assert.strictEqual(
+    db.get("SELECT contract_id FROM attachments WHERE original_name = 'new.pdf'").contract_id,
+    contractId
+  );
+});
+
 // E011 (FR-005): domains created before the auditor role carry the old role
 // CHECK — SQLite cannot ALTER it, so the users table is rebuilt in place on
 // open: existing rows keep their ids, auditor becomes insertable.

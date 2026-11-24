@@ -89,6 +89,7 @@ app.use('/api/v2/contracts', tasksRouter.nested);
 app.use('/api/v2/contracts', chatRouter);
 // 00020 E018: parcelas, pagamentos e exportação financeira por contrato.
 app.use('/api/v2/contracts', require('./routes/finance'));
+app.use('/api/v2/contracts', require('./routes/imports')); // 00022 E020: importação de acervo
 // 00021 E019: biblioteca documental do contrato sobre attachments.
 app.use('/api/v2/contracts', require('./routes/documents'));
 app.use('/api/v2/tasks', tasksRouter);

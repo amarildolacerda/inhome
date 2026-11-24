@@ -13,6 +13,7 @@ import 'screens/audit_screen.dart';
 import 'screens/invites_screen.dart';
 import 'screens/invite_register_screen.dart';
 import 'screens/chat_screen.dart';
+import 'screens/imports_screen.dart'; // 00022 E020: importação de acervo
 import 'services/theme_preference_store.dart';
 import 'theme/app_theme.dart';
 
@@ -404,6 +405,13 @@ class _MainShellState extends State<MainShell> {
             Icons.sell,
             FinalidadesScreen(),
           ),
+          // [E020] importação de acervo com prévia e confirmação.
+          _NavEntry(
+            'Importar',
+            Icons.file_upload_outlined,
+            Icons.file_upload,
+            ImportsScreen(),
+          ),
           // [E016] canal por contrato com cards e extração de documentos.
           _NavEntry(
             'Chat',
@@ -443,6 +451,13 @@ class _MainShellState extends State<MainShell> {
             Icons.mail_outline,
             Icons.mail,
             InvitesScreen(),
+          ),
+          // [E020] importação de acervo com prévia e confirmação.
+          _NavEntry(
+            'Importar',
+            Icons.file_upload_outlined,
+            Icons.file_upload,
+            ImportsScreen(),
           ),
           // [E016] canal por contrato com cards e extração de documentos.
           _NavEntry(

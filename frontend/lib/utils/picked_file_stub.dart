@@ -15,3 +15,9 @@ class PickedFile {
 /// do diálogo não emite evento (limitação do dart:html) — a future simplesmente
 /// não completa e nenhuma ação é disparada.
 Future<PickedFile?> pickFileForUpload() async => null;
+
+/// [E020] Sem seletor fora da web: nenhuma planilha é escolhida.
+Future<PickedFile?> pickSpreadsheetForImport() async => null;
+
+/// [E020] Sem seletor fora da web: nenhum PDF é escolhido.
+Future<List<PickedFile>> pickPdfsForImport() async => const [];

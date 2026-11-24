@@ -50,7 +50,7 @@ void main() {
   });
 
   testWidgets(
-      'SC-005 admin abre Dashboard, Vencimentos, Projetos, Usuários, Convites e Finalidades',
+      'SC-005 admin abre Dashboard, Vencimentos, Projetos, Usuários, Convites, Finalidades e Importar',
       (tester) async {
     final labels = await openShellFor(tester, 'admin');
 
@@ -61,6 +61,7 @@ void main() {
       'Usuários',
       'Convites',
       'Finalidades',
+      'Importar',
       'Chat',
       'Auditoria',
     ]);
@@ -68,7 +69,7 @@ void main() {
   });
 
   testWidgets(
-      'SC-005 gestor abre Dashboard, Vencimentos, Projetos, Usuários e Convites',
+      'SC-005 gestor abre Dashboard, Vencimentos, Projetos, Usuários, Convites e Importar',
       (tester) async {
     final labels = await openShellFor(tester, 'gestor');
 
@@ -78,6 +79,7 @@ void main() {
       'Projetos',
       'Usuários',
       'Convites',
+      'Importar',
       'Chat',
       'Auditoria',
     ]);
@@ -92,6 +94,7 @@ void main() {
     expect(find.text('Convites'), findsNothing);
     expect(find.text('Usuários'), findsNothing);
     expect(find.text('Auditoria'), findsNothing);
+    expect(find.text('Importar'), findsNothing);
   });
 
   testWidgets('SC-005 prestador abre Dashboard, Projetos e Minhas Tarefas',
@@ -103,5 +106,6 @@ void main() {
     expect(find.text('Usuários'), findsNothing);
     expect(find.text('Finalidades'), findsNothing);
     expect(find.text('Vencimentos'), findsNothing);
+    expect(find.text('Importar'), findsNothing);
   });
 }

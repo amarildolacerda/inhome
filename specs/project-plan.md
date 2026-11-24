@@ -92,7 +92,7 @@ dod_source: none
 
 > R3 do roadmap (`docs/roadmap.md`), aprovado pelo usuário em 2026-11-23 — `PDD-007` revisada e importação reaberta; `HYP-002` segue aberta até validação com uso real. Pesquisa nov/2026 confirma migração de acervo como etapa obrigatória de onboarding.
 
-- [ ] E020 [P1] [PRODUCT] {PRD:CAP-002} Importação de acervo — planilha com mapeamento de colunas e PDFs em massa [→ Details](plan/E020.md)
+- [X] E020 [P1] [PRODUCT] {PRD:CAP-002} Importação de acervo — planilha com mapeamento de colunas e PDFs em massa [→ Details](plan/E020.md)
 
 ### Wave 12 — Dossiê documental do prestador
 
@@ -151,7 +151,7 @@ Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_
 | 8 | E015, E016 | Não | Concluída | 2026-11-21 | E015 entregue em 2026-11-20 (spec `00016`, QC PASS) e E016 em 2026-11-21 (spec `00017`, QC PASS); última data é o `QC Passed` de E016 |
 | 9 | E018 | Sim | Concluída | 2026-11-22 | E018 entregue em 2026-11-22 (spec `00020`, QC PASS) |
 | 10 | E019 | Sim | Concluída | 2026-11-23 | E019 entregue em 2026-11-23 (spec `00021`, QC PASS) |
-| 11 | E020 | Sim | Pendente | — | R3 do roadmap; `PDD-007` revisada em 2026-11-23; abre após E019 |
+| 11 | E020 | Sim | Concluída | 2026-11-24 | R3 do roadmap; `PDD-007` revisada em 2026-11-23; abre após E019 |
 | 12 | E021 | Sim | Pendente | — | R7 do roadmap (pesquisa nov/2026); abre após E020 |
 
 > **Status**: derivado dos checkboxes da Epic Checklist (onda concluída = todos os épicos `[X]`); data = último `QC Passed` dos markers `.qc-passed` dos épicos da onda.
@@ -161,7 +161,7 @@ Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_
 - **Independent Epics**: Wave 1 — E001, E002, E003, E006, E009 em paralelo; E007 entra depois de E002/E003 na mesma onda. Wave 2 — E004 e E008 sem contato. Wave 3 — E005 e E010 sem contato. Wave 5 — E012 sozinha, estende CAP-003 sem tocar em E011. Wave 6 — E013 e E014 sem backend, mas sequenciais entre si pelo tema compartilhado. Wave 7 — E017 sozinha. Wave 8 — E015 e E016 sem dependência entre si, mas sem `[P]` pela superfície de tarefas e guards que ambos visitam; ordem sugerida E015 → E016.
 - **Integration Risks**: E007 pode mexer em índices usados pelas listagens de contrato/tarefa (E002/E003). E006 altera `frontend/lib/main.dart` e `frontend/lib/theme/app_theme.dart`, importados por todas as telas — qualquer épica de tela da onda deve rebaixar sobre esses arquivos. E004 e E007 escrevem em `config/database.js` (migração × índices), mas estão em ondas diferentes. E012 adiciona coluna em `attachments` e ações em `tasks.js` — superfície já entregue por E003, em onda posterior. Wave 6 estende `app_theme.dart` e `main.dart` (superfície de E006) e reescreve `dashboard_screen.dart` — qualquer trabalho de tela simultâneo rebaixa sobre esses arquivos; E014 assume a top toolbar do MainShell já entregue pela obra ad-hoc em andamento. Wave 8: E015 adiciona o papel `visitante` à matriz de E001 e restringe leitura em rotas de tarefa de E003; E016 cria canais e cards que movem tarefas — trabalho simultâneo em `tasks.js` e `tasks_screen.dart` exige rebaixo cuidadoso.
 - **Shared Resource Conflicts**: `backend/src/config/database.js` (E004 migração, E007 índices — ondas distintas); `frontend/lib/main.dart` e `app_theme.dart` (E006, compartilhado com qualquer trabalho de tela; E013 e E014 estendem na onda 6); `frontend/nginx.conf` (só E003); salas Socket.io `domain_<id>` (leitura por E004/E005, escrita já entregue); `backend/src/routes/tasks.js` e `frontend/lib/screens/tasks_screen.dart` (E003 origem, E012 extensão na onda 5, E015/E016 extensões na onda 8); `frontend/lib/screens/dashboard_screen.dart` (E006 origem, E013 reescrita na onda 6, E017 extensão na onda 7); `backend/src/routes/alerts.js` (E004 origem, E005 painel, E017 exclusão de perpétuos); migração preguiçosa em `config/database.js` na onda 8 (E015 convites, E016 mensagens/análises — executar em ordem).
-- **Waves 10–12**: E019 em execução (Implement em TDD na feature `00021`); E020 cria contratos em lote sobre `routes/contracts.js` e o storage de E003; E021 cria tabelas de documentos do prestador e regra de bloqueio sobre `tasks.js`/`routes/contracts.js`, além do motor de E004. Executar em ordem (Wave Transition Protocol): E019 → E020 → E021. `backend/src/routes/documents.js` nasce em E019 e é superfície de E020/E021 se forem tocadas.
+- **Waves 10–12**: E019 e E020 concluídas (features `00021` e `00022`); E021 cria tabelas de documentos do prestador e regra de bloqueio sobre `tasks.js`/`routes/contracts.js`, além do motor de E004. Ordem mantida (Wave Transition Protocol): E019 → E020 → E021. `backend/src/routes/documents.js` nasce em E019 e é superfície de E020/E021 se forem tocadas.
 
 ## Coverage Validation
 
