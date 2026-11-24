@@ -152,6 +152,15 @@ async function runExpirySweep({ notifyFn, domainId, emailTimeoutMs } = {}) {
       } catch {
         // Swallowed on purpose: per-domain sweep is best-effort (SC-005).
       }
+
+      // 00023 (E021/FR-088/FR-089): documentos do dossiê entram no mesmo painel
+      // de alertas extraídos. Usa as janelas do domínio e mantém o formato de
+      // retorno da varredura inalterado (4 contadores).
+      try {
+        require('./providerDocumentAlerts').syncProviderDocumentAlerts(db, { windows });
+      } catch {
+        // Best-effort, como a varredura financeira: falha isolada por domínio.
+      }
     } catch {
       // FR-002/SC-005: swallow per-domain errors; the loop continues.
     }

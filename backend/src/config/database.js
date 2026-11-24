@@ -300,6 +300,43 @@ const EXTRACTED_ALERTS_DDL = `CREATE TABLE IF NOT EXISTS extracted_alerts (
     UNIQUE (contract_id, source_kind, source_id)
   )`;
 
+// 00023 (E021/AD-001): dossiê documental do prestador em tabelas próprias —
+// vigência e conferência pertencem ao documento, não ao anexo genérico. Códigos
+// INTEGER vêm de enums.js (AD-007), sem literal de enum no SQL.
+const PROVIDER_WORKERS_DDL = `CREATE TABLE IF NOT EXISTS provider_workers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider_id INTEGER NOT NULL REFERENCES users(id),
+    name TEXT NOT NULL CHECK (length(name) BETWEEN 1 AND 120),
+    role TEXT NOT NULL CHECK (length(role) BETWEEN 1 AND 120),
+    active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0,1)),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`;
+
+const PROVIDER_DOCUMENTS_DDL = `CREATE TABLE IF NOT EXISTS provider_documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider_id INTEGER NOT NULL REFERENCES users(id),
+    worker_id INTEGER REFERENCES provider_workers(id),
+    document_type INTEGER NOT NULL CHECK (document_type IN ${sqlCodes('provider_documents.document_type', 'ASO', 'NR-10', 'NR-35', 'Certidão', 'Outro')}),
+    number TEXT NOT NULL CHECK (length(number) BETWEEN 1 AND 120),
+    path TEXT NOT NULL,
+    valid_until TEXT NOT NULL CHECK (length(valid_until) = 10),
+    reviewed_by INTEGER REFERENCES users(id),
+    reviewed_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    CHECK ((reviewed_by IS NULL) = (reviewed_at IS NULL))
+  )`;
+
+const PURPOSE_DOCUMENT_REQUIREMENTS_DDL = `CREATE TABLE IF NOT EXISTS purpose_document_requirements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    purpose_id INTEGER REFERENCES purposes(id),
+    document_type INTEGER NOT NULL CHECK (document_type IN ${sqlCodes('provider_documents.document_type', 'ASO', 'NR-10', 'NR-35', 'Certidão', 'Outro')}),
+    applies_to INTEGER NOT NULL CHECK (applies_to IN ${sqlCodes('purpose_document_requirements.applies_to', 'provider', 'worker')}),
+    active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0,1)),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`;
+
 // 00020 (E018): parcelas e pagamentos por contrato. Valores em centavos
 // inteiros (BRL fixo), mesma convenção de DDL em inglês dos domínios. O
 // pagamento é imutável na superfície HTTP; o saldo é verificado na rota
@@ -445,6 +482,9 @@ const DOMAIN_SCHEMA = [
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE (entity_type, entity_id, version)
   )`,
+  PROVIDER_WORKERS_DDL,
+  PROVIDER_DOCUMENTS_DDL,
+  PURPOSE_DOCUMENT_REQUIREMENTS_DDL,
 ];
 
 // FR-026 / HINT-005: index hot paths before paged list queries.
@@ -493,6 +533,12 @@ const DOMAIN_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_invites_contract ON invites(contract_id)',
   'CREATE INDEX IF NOT EXISTS idx_access_history_invite ON access_history(invite_id)',
   'CREATE INDEX IF NOT EXISTS idx_access_history_user ON access_history(user_id)',
+  // --- 00023 E021: hot paths da guarda, do dossiê e da limpeza de alertas ---
+  'CREATE INDEX IF NOT EXISTS idx_provider_workers_provider ON provider_workers(provider_id, active)',
+  'CREATE INDEX IF NOT EXISTS idx_provider_documents_provider ON provider_documents(provider_id, document_type, valid_until)',
+  'CREATE INDEX IF NOT EXISTS idx_provider_documents_worker ON provider_documents(worker_id, document_type, valid_until)',
+  'CREATE INDEX IF NOT EXISTS idx_provider_requirements_purpose ON purpose_document_requirements(purpose_id, active)',
+  'CREATE INDEX IF NOT EXISTS idx_extracted_alerts_source ON extracted_alerts(source_kind, source_id)',
 ];
 
 function ensureIndexes(wrapper) {
@@ -898,4 +944,7 @@ module.exports = {
   CONTRACT_INSTALLMENTS_DDL,
   CONTRACT_PAYMENTS_DDL,
   ATTACHMENTS_DDL,
+  PROVIDER_WORKERS_DDL,
+  PROVIDER_DOCUMENTS_DDL,
+  PURPOSE_DOCUMENT_REQUIREMENTS_DDL,
 };

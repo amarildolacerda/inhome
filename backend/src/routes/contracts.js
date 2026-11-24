@@ -8,6 +8,7 @@ const { validate } = require('../middleware/validate');
 const { getDomainDb } = require('../config/database');
 const { generateContractPdf, exportContractCsv } = require('../services/report');
 const { code, label } = require('../config/enums');
+const { assertProviderCompliant } = require('../services/providerCompliance');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -20,8 +21,11 @@ function httpError(status, message, code) {
 }
 
 // fase 5: emite o code estável junto do texto, quando o erro carrega um.
+// E021 (FR-085): `missing` explica quais documentos faltam/venceram.
 function errorPayload(error) {
-  return error.code ? { error: error.message, code: error.code } : { error: error.message };
+  const payload = error.code ? { error: error.message, code: error.code } : { error: error.message };
+  if (error.missing) payload.missing = error.missing;
+  return payload;
 }
 
 function validDate(value) {
@@ -236,6 +240,9 @@ function linkPrestador(req, res) {
       [row.id, userId]
     );
     if (existing) return res.status(409).json({ error: 'Prestador already linked' });
+    // FR-085: guarda nova, com o checklist da finalidade do contrato. A
+    // avaliação é leitura pura e não desfaz vínculos/tarefas anteriores.
+    assertProviderCompliant(db, { providerId: userId, purposeId: row.purpose_id });
     db.run('INSERT INTO contract_providers(contract_id, user_id) VALUES (?, ?)', [row.id, userId]);
     res.status(201).json({ contract: Contract.decorate(db, getContractOr404(db, row.id)) });
   } catch (error) {

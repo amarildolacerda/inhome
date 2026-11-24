@@ -10,6 +10,7 @@ const { saveToUploads, decodeAndValidate } = require('../middleware/upload');
 const { notify } = require('../services/email');
 const { emitDomainEvent } = require('../services/events');
 const { code, label } = require('../config/enums');
+const { assertProviderCompliant } = require('../services/providerCompliance');
 
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -23,8 +24,11 @@ function httpError(status, message, code) {
 }
 
 // fase 5: emite o code estável junto do texto, quando o erro carrega um.
+// E021 (FR-086): `missing` explica o motivo da recusa na atribuição.
 function errorPayload(error) {
-  return error.code ? { error: error.message, code: error.code } : { error: error.message };
+  const payload = error.code ? { error: error.message, code: error.code } : { error: error.message };
+  if (error.missing) payload.missing = error.missing;
+  return payload;
 }
 
 // FR-010 / SC-004: a task may only be assigned to a prestador who is linked
@@ -40,6 +44,10 @@ function assertLinkedPrestador(db, contractId, userId) {
   if (!linked) {
     throw httpError(400, 'Prestador is not linked to this contract', 'PRESTADOR_NOT_LINKED');
   }
+  // FR-086: a mesma conformidade do vínculo vale para atribuição e
+  // reatribuição. Antes de qualquer escrita, sem tocar tarefa ou histórico.
+  const contract = db.get('SELECT purpose_id FROM contracts WHERE id = ?', [contractId]);
+  assertProviderCompliant(db, { providerId: user.id, purposeId: contract ? contract.purpose_id : null });
   return user.id;
 }
 

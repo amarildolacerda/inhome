@@ -1193,3 +1193,29 @@ test('00021 E019 document review columns rebuild preserves rows and ids', async 
   const again = database.getDomainDb(21000);
   assert.strictEqual(again.all('PRAGMA table_info(attachments)').filter((c) => c.name === 'reviewed_by').length, 1, 'idempotente');
 });
+
+// E021 (FR-080/081/083): tabelas próprias do dossiê e índices de hot path.
+test('FR-080 FR-081 FR-083 tabelas e indices do dossie existem', async () => {
+  await database.initSqlDriver();
+  await database.initDatabase();
+  const platform = database.getPlatformDb();
+  platform.run("INSERT INTO domains(name, slug) VALUES ('Dossie', 'dossie-schema')");
+  const id = platform.get("SELECT id FROM domains WHERE slug = 'dossie-schema'").id;
+  const db = database.getDomainDb(id);
+
+  for (const table of ['provider_workers', 'provider_documents', 'purpose_document_requirements']) {
+    assert.ok(
+      db.get("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", [table]),
+      `${table} criada`
+    );
+  }
+  const documentColumns = db.all('PRAGMA table_info(provider_documents)').map((column) => column.name);
+  for (const column of ['provider_id', 'worker_id', 'document_type', 'number', 'path', 'valid_until', 'reviewed_by', 'reviewed_at']) {
+    assert.ok(documentColumns.includes(column), `coluna ${column}`);
+  }
+  const indexes = db.all("SELECT name FROM sqlite_master WHERE type = 'index'").map((row) => row.name);
+  for (const index of ['idx_provider_documents_provider', 'idx_provider_documents_worker', 'idx_provider_requirements_purpose']) {
+    assert.ok(indexes.includes(index), `índice ${index}`);
+  }
+  assert.ok(database.PROVIDER_WORKERS_DDL && database.PROVIDER_DOCUMENTS_DDL && database.PURPOSE_DOCUMENT_REQUIREMENTS_DDL);
+});

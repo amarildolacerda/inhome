@@ -28,6 +28,16 @@ const ENUMS = Object.freeze({
   'task_suggestions.kind': Object.freeze({ analise: 1, revisao: 2 }),
   'workflow_versions.status': Object.freeze({ ativo: 1, substituido: 2 }),
   'execution_plans.status': Object.freeze({ pendente: 1, gerado: 2, falha: 3 }),
+  // 00023 (E021): tipos de documento e abrangência seguem a mesma convenção —
+  // INTEGER no banco, rótulo PT na borda. Nenhum DDL novo repete literais.
+  'provider_documents.document_type': Object.freeze({
+    ASO: 1,
+    'NR-10': 2,
+    'NR-35': 3,
+    'Certidão': 4,
+    'Outro': 5,
+  }),
+  'purpose_document_requirements.applies_to': Object.freeze({ provider: 1, worker: 2 }),
 });
 
 function enumTable(enumName) {

@@ -14,6 +14,7 @@ import 'screens/invites_screen.dart';
 import 'screens/invite_register_screen.dart';
 import 'screens/chat_screen.dart';
 import 'screens/imports_screen.dart'; // 00022 E020: importação de acervo
+import 'screens/dossier_screen.dart'; // 00023 E021: dossiê do prestador
 import 'services/theme_preference_store.dart';
 import 'theme/app_theme.dart';
 
@@ -412,6 +413,13 @@ class _MainShellState extends State<MainShell> {
             Icons.file_upload,
             ImportsScreen(),
           ),
+          // [E021] dossiê documental com conformidade e checklist.
+          _NavEntry(
+            'Dossiê',
+            Icons.description_outlined,
+            Icons.description,
+            DossierScreen(),
+          ),
           // [E016] canal por contrato com cards e extração de documentos.
           _NavEntry(
             'Chat',
@@ -458,6 +466,13 @@ class _MainShellState extends State<MainShell> {
             Icons.file_upload_outlined,
             Icons.file_upload,
             ImportsScreen(),
+          ),
+          // [E021] dossiê documental com conformidade e checklist.
+          _NavEntry(
+            'Dossiê',
+            Icons.description_outlined,
+            Icons.description,
+            DossierScreen(),
           ),
           // [E016] canal por contrato com cards e extração de documentos.
           _NavEntry(

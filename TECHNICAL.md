@@ -69,6 +69,16 @@ Somente `admin` e `gestor` do domínio. Nenhuma tabela nova: `attachments` ganha
 
 Somente `admin` e `gestor` do domínio, com `authenticateToken → scopeDomain → requireRole` antes de ler o payload. CSV e XLSX são lidos por parser embutido (`zlib`), sem dependência nova. Limites: 500 linhas e 4 MB por planilha, 2 MB por PDF. `attachments.contract_id` entra por rebuild guardado; a transação remove do disco os PDFs escritos se o banco reverter.
 
+#### Dossiê documental do prestador (E021)
+
+- `GET /api/v2/providers/:id/dossier` — trabalhadores, documentos e conformidade; aceita `?purposeId=`. Prestador só lê o próprio registro.
+- `POST /api/v2/providers/:id/workers` — cadastra trabalhador com `name` e `role`; `PATCH /api/v2/providers/:id/workers/:workerId` alterna `active`.
+- `POST /api/v2/providers/:id/documents` — anexa ASO, NR-10, NR-35, certidão ou outro com `type`, `number`, `validUntil`, `fileName` e `dataBase64`; `workerId` opcional (ausente = documento do prestador).
+- `PATCH /api/v2/providers/:id/documents/:docId` — altera `number`/`validUntil` e registra conferência com autor e data via `review: {}`; `DELETE` remove o documento e seus alertas.
+- `GET|POST /api/v2/providers/requirements` e `DELETE /api/v2/providers/requirements/:reqId` — checklist por finalidade, com `type` e `appliesTo` (`provider` ou `worker`). Item sem `purposeId` é global.
+
+Escrita restrita a `admin` e `gestor`; leitura também para `prestador` no próprio dossiê. Vínculo (`POST /api/v2/contracts/:id/providers`) e atribuição/reatribuição (`POST /api/v2/contracts/:id/tasks`, `PUT /api/v2/tasks/:id`) avaliam o checklist antes de gravar e respondem 400 com `code=PROVIDER_DOCUMENTS_MISSING` e `missing[]` quando falta documento vigente e conferido. Documento que vence depois não desfaz vínculo, tarefa ou histórico. A varredura de E004 publica alertas `provider_document` em `extracted_alerts` e os remove na regularização ou no fim do vínculo.
+
 #### Tarefas
 - `GET /api/v2/tasks` — listar tarefas
 - `GET /api/v2/tasks/:id` — detalhe da tarefa

@@ -1343,3 +1343,45 @@ test('FR-047 visitante vê só tarefas do contrato do convite', async () => {
     .send({ status: 'Em Progresso' });
   assert.strictEqual(patch.status, 403);
 });
+
+// E021 (FR-086): atribuição e reatribuição usam a mesma guarda, sem gravar
+// tarefa nem histórico na recusa.
+test('FR-086 atribuicao recusa sem documento vigente e nao grava historico', async () => {
+  const db = getDomainDb(domainId);
+  const aso = code('provider_documents.document_type', 'ASO');
+  const provider = code('purpose_document_requirements.applies_to', 'provider');
+  db.run(
+    'INSERT INTO purpose_document_requirements(purpose_id, document_type, applies_to, active) VALUES (NULL, ?, ?, 1)',
+    [aso, provider]
+  );
+  const before = db.get('SELECT COUNT(*) AS c FROM tasks').c;
+  const historyBefore = db.get('SELECT COUNT(*) AS c FROM task_history').c;
+
+  const refused = await request(app)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
+    .set(as(gestorToken))
+    .send({ title: 'E021 Sem ASO', assignee_id: movId });
+  assert.strictEqual(refused.status, 400, JSON.stringify(refused.body));
+  assert.strictEqual(refused.body.code, 'PROVIDER_DOCUMENTS_MISSING');
+  assert.ok(Array.isArray(refused.body.missing) && refused.body.missing.length > 0);
+  assert.strictEqual(db.get('SELECT COUNT(*) AS c FROM tasks').c, before);
+  assert.strictEqual(db.get('SELECT COUNT(*) AS c FROM task_history').c, historyBefore);
+
+  db.run(
+    `INSERT INTO provider_documents(provider_id, document_type, number, path, valid_until, reviewed_by, reviewed_at)
+     VALUES (?, ?, 'ASO-OK', 'uploads/aso.pdf', ?, ?, date('now'))`,
+    [movId, aso, futureDate(30), movId]
+  );
+  const created = await request(app)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
+    .set(as(gestorToken))
+    .send({ title: 'E021 Com ASO', assignee_id: movId });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.body));
+
+  const reassigned = await request(app)
+    .post(`/api/v2/contracts/${contractId}/tasks`)
+    .set(as(gestorToken))
+    .send({ title: 'E021 Reatribuicao', assignee_id: outId });
+  assert.strictEqual(reassigned.status, 400, JSON.stringify(reassigned.body));
+  assert.strictEqual(reassigned.body.code, 'PROVIDER_DOCUMENTS_MISSING');
+});

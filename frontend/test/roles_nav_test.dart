@@ -50,7 +50,7 @@ void main() {
   });
 
   testWidgets(
-      'SC-005 admin abre Dashboard, Vencimentos, Projetos, Usuários, Convites, Finalidades e Importar',
+      'SC-005 admin abre Dashboard, Vencimentos, Projetos, Usuários, Convites, Finalidades, Importar e Dossiê',
       (tester) async {
     final labels = await openShellFor(tester, 'admin');
 
@@ -62,6 +62,7 @@ void main() {
       'Convites',
       'Finalidades',
       'Importar',
+      'Dossiê',
       'Chat',
       'Auditoria',
     ]);
@@ -69,7 +70,7 @@ void main() {
   });
 
   testWidgets(
-      'SC-005 gestor abre Dashboard, Vencimentos, Projetos, Usuários, Convites e Importar',
+      'SC-005 gestor abre Dashboard, Vencimentos, Projetos, Usuários, Convites, Importar e Dossiê',
       (tester) async {
     final labels = await openShellFor(tester, 'gestor');
 
@@ -80,6 +81,7 @@ void main() {
       'Usuários',
       'Convites',
       'Importar',
+      'Dossiê',
       'Chat',
       'Auditoria',
     ]);

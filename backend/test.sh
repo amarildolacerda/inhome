@@ -801,6 +801,97 @@ check_val "contrato importado persistido" "$((CONTRACTS_BEFORE + 1))" "$(jget to
 api GET "/api/v2/contracts/$CONTRACT_ID/documents" "" "$ADMIN_TOKEN"
 check_val "importacao nao apaga anexos existentes" "1" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const rows=JSON.parse(d).documents||[];process.stdout.write(String(rows.filter(r=>r.id===Number(process.argv[1])).length));})' "$DOC_ATTACH_ID")"
 
+# --- 24. Dossiê documental do prestador (00023 / E021) ----------------------
+echo ""
+echo "=== 24. Dossiê documental do prestador (E021) ==="
+
+api POST /api/v2/users '{"name":"Dossier Provider","username":"dossier.provider","email":"dossier-provider@example.com","password":"Secret9!","role":"prestador"}' "$ADMIN_TOKEN"
+check_http "POST /api/v2/users (prestador do dossiê)" 201
+E021_PROVIDER_ID="$(jget user.id)"
+
+api POST /api/v2/contracts "{\"name\":\"E021 Smoke\",\"purpose_id\":$PURPOSE_V2_ID,\"start_date\":\"2026-01-01\",\"forecast_date\":\"2027-12-31\"}" "$ADMIN_TOKEN"
+check_http "POST /api/v2/contracts (E021)" 201
+E021_CONTRACT_ID="$(jget contract.id)"
+
+# Checklist global: ASO do prestador, aplicável a qualquer finalidade.
+api POST /api/v2/providers/requirements '{"type":"ASO","appliesTo":"provider"}' "$ADMIN_TOKEN"
+check_http "POST /api/v2/providers/requirements" 201
+E021_REQ_ID="$(jget requirement.id)"
+check_val "requisito global sem finalidade" "null" "$(jget requirement.purposeId)"
+
+api POST "/api/v2/contracts/$E021_CONTRACT_ID/providers" "{\"user_id\":$E021_PROVIDER_ID}" "$ADMIN_TOKEN"
+check_http "vínculo recusado sem ASO vigente" 400
+check_val "motivo do vínculo recusado" "PROVIDER_DOCUMENTS_MISSING" "$(jget code)"
+check_nonempty "missing explica o documento" "$(jget missing.0.type)"
+
+E021_ASO_30="$(date -d '+30 days' +%F)"
+E021_PDF="$(printf '%%PDF-1.4 dossie' | base64 -w0)"
+api POST "/api/v2/providers/$E021_PROVIDER_ID/documents" "{\"type\":\"ASO\",\"number\":\"ASO-E021\",\"validUntil\":\"$E021_ASO_30\",\"fileName\":\"aso.pdf\",\"dataBase64\":\"$E021_PDF\"}" "$ADMIN_TOKEN"
+check_http "POST /api/v2/providers/:id/documents" 201
+E021_DOC_ID="$(jget document.id)"
+check_val "documento começa sem conferência" "null" "$(jget document.reviewedAt)"
+
+api PATCH "/api/v2/providers/$E021_PROVIDER_ID/documents/$E021_DOC_ID" '{"review":{}}' "$ADMIN_TOKEN"
+check_http "conferência do documento" 200
+check_nonempty "conferência registra autor" "$(jget document.reviewedBy)"
+
+api POST "/api/v2/contracts/$E021_CONTRACT_ID/providers" "{\"user_id\":$E021_PROVIDER_ID}" "$ADMIN_TOKEN"
+check_http "vínculo aceito após conferência" 201
+
+api POST "/api/v2/providers/$E021_PROVIDER_ID/workers" '{"name":"João da Silva","role":"Eletricista"}' "$ADMIN_TOKEN"
+check_http "POST /api/v2/providers/:id/workers" 201
+E021_WORKER_ID="$(jget worker.id)"
+
+api POST /api/v2/providers/requirements "{\"purposeId\":$PURPOSE_V2_ID,\"type\":\"NR-35\",\"appliesTo\":\"worker\"}" "$ADMIN_TOKEN"
+check_http "requisito por finalidade e trabalhador" 201
+
+api POST "/api/v2/contracts/$E021_CONTRACT_ID/tasks" "{\"title\":\"E021 sem NR-35\",\"assignee_id\":$E021_PROVIDER_ID}" "$ADMIN_TOKEN"
+check_http "atribuição recusada sem NR-35 do trabalhador" 400
+check_val "motivo da atribuição recusada" "PROVIDER_DOCUMENTS_MISSING" "$(jget code)"
+check_val "recusa aponta o trabalhador" "worker" "$(jget missing.0.appliesTo)"
+check_nonempty "recusa aponta o nome" "$(jget missing.0.workerName)"
+
+api POST "/api/v2/providers/$E021_PROVIDER_ID/documents" "{\"workerId\":$E021_WORKER_ID,\"type\":\"NR-35\",\"number\":\"NR35-E021\",\"validUntil\":\"$E021_ASO_30\",\"fileName\":\"nr35.pdf\",\"dataBase64\":\"$E021_PDF\"}" "$ADMIN_TOKEN"
+check_http "NR-35 do trabalhador anexada" 201
+E021_NR_ID="$(jget document.id)"
+api PATCH "/api/v2/providers/$E021_PROVIDER_ID/documents/$E021_NR_ID" '{"review":{}}' "$ADMIN_TOKEN"
+check_http "conferência da NR-35" 200
+
+api POST "/api/v2/contracts/$E021_CONTRACT_ID/tasks" "{\"title\":\"E021 com documentação\",\"assignee_id\":$E021_PROVIDER_ID}" "$ADMIN_TOKEN"
+check_http "atribuição aceita com documentação" 201
+E021_TASK_ID="$(jget task.id)"
+check_nonempty "tarefa gravada" "$E021_TASK_ID"
+
+api GET "/api/v2/providers/$E021_PROVIDER_ID/dossier" "" "$ADMIN_TOKEN"
+check_http "GET /api/v2/providers/:id/dossier" 200
+check_val "dossiê lista os dois documentos" "2" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(String((JSON.parse(d).documents||[]).length)))')"
+check_val "dossiê lista o trabalhador" "1" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(String((JSON.parse(d).workers||[]).length)))')"
+
+# Alerta antecedente: ASO e NR-35 a 30 dias viram linhas provider_document.
+api POST /api/v2/alerts/sweep '{}' "$ADMIN_TOKEN"
+check_http "varredura de alertas (E021)" 200
+api GET /api/v2/alerts/panel "" "$ADMIN_TOKEN"
+check_http "painel de alertas (E021)" 200
+check_val "documentos em janelas geram alertas" "2" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(String((JSON.parse(d).extracted||[]).filter(r=>r.source_kind==="provider_document"&&r.contract_id===Number(process.argv[1])).length)))' "$E021_CONTRACT_ID")"
+
+api POST /api/v2/alerts/sweep '{}' "$ADMIN_TOKEN"
+check_http "varredura repetida (E021)" 200
+api GET /api/v2/alerts/panel "" "$ADMIN_TOKEN"
+check_val "varredura repetida não duplica" "2" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(String((JSON.parse(d).extracted||[]).filter(r=>r.source_kind==="provider_document"&&r.contract_id===Number(process.argv[1])).length)))' "$E021_CONTRACT_ID")"
+
+E021_FUTURE="$(date -d '+400 days' +%F)"
+api PATCH "/api/v2/providers/$E021_PROVIDER_ID/documents/$E021_DOC_ID" "{\"validUntil\":\"$E021_FUTURE\"}" "$ADMIN_TOKEN"
+check_http "regularização da ASO" 200
+api PATCH "/api/v2/providers/$E021_PROVIDER_ID/documents/$E021_NR_ID" "{\"validUntil\":\"$E021_FUTURE\"}" "$ADMIN_TOKEN"
+check_http "regularização da NR-35" 200
+api POST /api/v2/alerts/sweep '{}' "$ADMIN_TOKEN"
+check_http "varredura após regularização" 200
+api GET /api/v2/alerts/panel "" "$ADMIN_TOKEN"
+check_val "regularização remove os alertas" "0" "$(printf '%s' "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>process.stdout.write(String((JSON.parse(d).extracted||[]).filter(r=>r.source_kind==="provider_document"&&r.contract_id===Number(process.argv[1])).length)))' "$E021_CONTRACT_ID")"
+
+api DELETE "/api/v2/providers/requirements/$E021_REQ_ID" "" "$ADMIN_TOKEN"
+check_http "DELETE /api/v2/providers/requirements/:id" 200
+
 # --- summary ----------------------------------------------------------------
 echo ""
 if [ "$FAIL" -eq 0 ]; then

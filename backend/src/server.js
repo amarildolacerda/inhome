@@ -100,6 +100,9 @@ app.use('/api/v2/search', require('./routes/search'));
 app.use('/api/v2/dashboard', require('./routes/dashboard'));
 app.use('/api/v2/alerts', require('./routes/alerts'));
 app.use('/api/v2/audits', require('./routes/audits'));
+// 00023 E021: dossiê documental do prestador (trabalhadores, documentos e
+// checklist por finalidade sob /api/v2/providers).
+app.use('/api/v2/providers', require('./routes/providerDocuments'));
 
 // Health check
 app.get('/api/v2/health', (req, res) => {

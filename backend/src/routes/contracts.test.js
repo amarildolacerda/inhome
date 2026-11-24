@@ -1103,3 +1103,48 @@ test('FR-069 forecast opcional só com perpétuo', async () => {
     .send({ name: 'Sem Previsão Bloqueado', start_date: '2026-01-01' });
   assert.strictEqual(semPrevisao.status, 400, JSON.stringify(semPrevisao.body));
 });
+
+// E021 (FR-085): o vínculo avalia o checklist e recusa com motivo explícito.
+test('FR-085 vinculo recusa sem documento vigente e nada e gravado', async () => {
+  const db = getDomainDb(domainId);
+  const created = await request(app)
+    .post('/api/v2/contracts')
+    .set(as(gestorToken))
+    .send({
+      name: 'E021 Vinculo',
+      purpose_id: finalidadeId,
+      start_date: futureDate(0),
+      forecast_date: futureDate(60),
+    });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.body));
+  const id = created.body.contract.id;
+  const aso = code('provider_documents.document_type', 'ASO');
+  const provider = code('purpose_document_requirements.applies_to', 'provider');
+  db.run(
+    'INSERT INTO purpose_document_requirements(purpose_id, document_type, applies_to, active) VALUES (?, ?, ?, 1)',
+    [finalidadeId, aso, provider]
+  );
+
+  const refused = await request(app)
+    .post(`/api/v2/contracts/${id}/providers`)
+    .set(as(gestorToken))
+    .send({ user_id: prestadorId });
+  assert.strictEqual(refused.status, 400, JSON.stringify(refused.body));
+  assert.strictEqual(refused.body.code, 'PROVIDER_DOCUMENTS_MISSING');
+  assert.ok(Array.isArray(refused.body.missing) && refused.body.missing.length > 0);
+  assert.strictEqual(
+    db.get('SELECT COUNT(*) AS c FROM contract_providers WHERE contract_id = ? AND user_id = ?', [id, prestadorId]).c,
+    0
+  );
+
+  db.run(
+    `INSERT INTO provider_documents(provider_id, document_type, number, path, valid_until, reviewed_by, reviewed_at)
+     VALUES (?, ?, 'ASO-VINC', 'uploads/aso.pdf', ?, ?, date('now'))`,
+    [prestadorId, aso, futureDate(30), prestadorId]
+  );
+  const linked = await request(app)
+    .post(`/api/v2/contracts/${id}/providers`)
+    .set(as(gestorToken))
+    .send({ user_id: prestadorId });
+  assert.strictEqual(linked.status, 201, JSON.stringify(linked.body));
+});
