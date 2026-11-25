@@ -92,12 +92,18 @@ app.use('/api/v2/contracts', require('./routes/finance'));
 app.use('/api/v2/contracts', require('./routes/imports')); // 00022 E020: importação de acervo
 // 00021 E019: biblioteca documental do contrato sobre attachments.
 app.use('/api/v2/contracts', require('./routes/documents'));
+// 00024 E022: agenda de manutenção preventiva (nested no contrato + sweep).
+const maintenanceRouter = require('./routes/maintenanceSchedules');
+app.use('/api/v2/contracts', maintenanceRouter.nested);
+app.use('/api/v2/maintenance', maintenanceRouter);
 app.use('/api/v2/tasks', tasksRouter);
 app.use('/api/v2/tasks', require('./routes/executionPlan'));
 app.use('/api/v2/tasks', require('./routes/comments'));
 app.use('/api/v2/tasks', require('./routes/attachments'));
 app.use('/api/v2/search', require('./routes/search'));
 app.use('/api/v2/dashboard', require('./routes/dashboard'));
+// 00025 E023: régua de notificação configurável (rotas /api/v2/alerts/rules).
+app.use('/api/v2/alerts', require('./routes/notificationRules'));
 app.use('/api/v2/alerts', require('./routes/alerts'));
 app.use('/api/v2/audits', require('./routes/audits'));
 // 00023 E021: dossiê documental do prestador (trabalhadores, documentos e
@@ -182,6 +188,20 @@ async function start(port = Number(process.env.PORT) || DEFAULT_PORT) {
   const expirySweep = () => runExpirySweep().catch(() => { });
   expirySweep();
   setInterval(expirySweep, 60 * 60 * 1000).unref();
+  // 00024 E022: geração de manutenção no mesmo worker boot/hora, isolada por
+  // domínio e na mesma transação da sincronização de alertas.
+  const { runMaintenanceSweep } = require('./services/maintenanceSchedules');
+  // O serviço é síncrono e já isola falhas por domínio; aqui só impedimos que
+  // uma exceção inesperada derrube o boot do worker.
+  const maintenanceSweep = () => {
+    try {
+      runMaintenanceSweep();
+    } catch {
+      // varredura é best-effort, fora do caminho de requisição
+    }
+  };
+  maintenanceSweep();
+  setInterval(maintenanceSweep, 60 * 60 * 1000).unref();
   return new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(port, () => resolve(server));

@@ -91,19 +91,19 @@
 | Path | SHA-256 |
 |------|---------|
 | .github/sddp-config.md | 643a1aeeb889417f72050009a807a4869e4b526517262428997377203c47753d |
-| README.md | 58829643cb21cb336b480a244f0ab94a7662f2a403d478ec122d55d27cb34c2c |
-| TECHNICAL.md | a305de6394ad922dd4432d1dbfd10913341ee1ab238267e883d52745b9d47143 |
-| TODO.md | 5c4ac6d0f42af95aca7d3158464f754622ea80f9f146c304da38d7de125c700f |
-| backend/src/config/database.js | 40f24309f1c2c06b407d914565e700d68be2344c96697f01936907d0da711c15 |
-| backend/src/config/database.test.js | 5f703260f13bbf49e70bd6c9586434b8d84f16574b502ad64ae713883c37f340 |
+| README.md | e4f7a08969ac5f71e49cc8f095cd32d394617e47f2765d84b4122b08304d09c8 |
+| TECHNICAL.md | 37ffb200e44efd8c8fb05a75dfac366c52716f434388fe336f6cf7d0146c00d6 |
+| TODO.md | 3a7ae3e39e9467af12cda70b446b25e5faed7397139bb7ba9436e9ca82236186 |
+| backend/src/config/database.js | 7299afa5fe1887ded3c4f6a27c7c3ab9d99a875dbe2a6c44574c11ede8152b9a |
+| backend/src/config/database.test.js | 915786fc58c7c498e374537eba158897ca49966e04843cbdf64f31e331f5dd84 |
 | backend/src/routes/alerts.js | 1cd7aa575b869966419bf51fcf76e7ee4ed3d1fadfd91c9b7318f252f54b8387 |
 | backend/src/routes/alerts.test.js | ad74822ed133578611afc8d0c4dfd31452a264364e081e7048f37f40eba832fc |
 | backend/src/routes/dashboard.js | a70d413b0af4914ab5f0337bc887bff5c8b7aad3002b8fe2a148947968720e8f |
 | backend/src/routes/dashboard.test.js | f7927fbe742c1bcfff1310f7f7a52e9f90c6b43d37eb7ec9b51f3738d5b5b728 |
 | backend/src/routes/finance.js | 3dcccbdcae357ef724f0c411c25543f9dc4977f6525602e178385f6ef309963b |
 | backend/src/routes/finance.test.js | 9314563f681b5c434994c6bc1eb130ac9c99c68de67ed3a13a44fa2fc1e70f4c |
-| backend/src/server.js | 12ff02b362e2f32df2858c223d3c5b97f99eee91f2600d425eb1f8d76ab75ceb |
-| backend/src/services/alerts.js | 4ab99fc08df309ba0cb191fbda191c5db04323c01866958476fb7f906d45deb6 |
+| backend/src/server.js | 694b486bb0ba63cf6434e8e535684def34bb6134ae9b7daa1f9e3a02e1d90f7c |
+| backend/src/services/alerts.js | 128e37512f03ab2119ed3d58685a50dd36f64e6ffbe3ffb06f18aa9b5319ffd1 |
 | backend/src/services/finance.js | a10b5c5da9431c18b0a05a06086dedea58e09847c6a1618bec3ecbdd0f2d47c0 |
 | backend/src/services/finance.test.js | e0b5ad7bc255f22d6cfaa4ed007c9b5df7af4c960dddc1efbb7981a9532861c8 |
 | backend/src/services/financeAlerts.js | 3b1231ac68f5bfd1dbfdbd59e5d0e4ffaafe73196e51785538697b735ad6d416 |
@@ -111,13 +111,13 @@
 | backend/src/services/financeReport.js | 9b33d8c28616a63733fa79d167b3e283f8a9b295d020fba8aac6b0ca58f47768 |
 | backend/src/services/financeReport.test.js | 1a972e4633612204acc5ab09f3a308a52563d34e3133ae3518bc2df57c50bb0b |
 | backend/src/services/report.js | 43a9df777866ad2eb16caeba9c29661fbbee5c7b21eccebed622dc8986523b12 |
-| backend/test.sh | f95a057191e6aaef504ee5b208eaf015f1bff1beb82f06c698f83700760f8642 |
-| frontend/lib/screens/contract_detail_screen.dart | cd11c11884ba0635fab0b55fbe1b966f33576f8c4706cda06d01e9da4468d48f |
+| backend/test.sh | 88b70e4ae65d805d78da802e8b68a5764102f9d19cd7574817d0b6584bad126a |
+| frontend/lib/screens/contract_detail_screen.dart | 24848ca8d8e182b53822722492cddaee2e51f7cc12e05c906a66148394212342 |
 | frontend/lib/screens/contract_detail_screen_finance.dart | f77b911ccc730e250271691305f666d01116a2241f09365383e720327066e61b |
 | frontend/lib/screens/contract_detail_screen_finance_dialogs.dart | 34c32f1908d7aea4da31a12e0c9e72ebe1360be6f2cd9388e5e850506a3264c5 |
 | frontend/lib/screens/dashboard_screen.dart | 8d0ac4232a782560cd79c274c904e1de6df12bf4a9a0a57a7120332c9909b83b |
 | frontend/lib/screens/dashboard_screen_finance.dart | 1bdf734df682d4a690969ce5a3c96a70c246514c9da14fa092f062ebc8fe588e |
-| frontend/lib/services/api_service.dart | 9dbf923cdca70ab5f66ca715395d8c39b983253f2fc9722b7166a6dcf4c4de45 |
+| frontend/lib/services/api_service.dart | 8f942e4c4acb0f84e0809a47551d971fd703a1ba7ab2014a19b8fe6080b92a2e |
 | frontend/lib/utils/download_file.dart | 98512e3f23cb4d760589306758a465f6d4c13be82369b4a8317b564600c9da9f |
 | frontend/lib/utils/download_file_stub.dart | ed18c6064045b9b82db5ab0cf83c664eedca74a3295a3d7a71dcf746b22f9525 |
 | frontend/lib/utils/download_file_web.dart | f611cf5e6b3806097fe696007d8ed552331e3a6826dd88b76891dd6cf93bab25 |
@@ -141,7 +141,7 @@
 | specs/00020-previsibilidade-financeira/spec.md | 23ce23e6a955b8cd67df0537361259f3197ca0933d2e8b146229060d3b3d5269 |
 | specs/00020-previsibilidade-financeira/tasks.md | bed565f942f2d6b1553fc3d8753a8038d66593c08d3750bc98109bbec7facd86 |
 | specs/plan/E018.md | 16968793a9fd326c993f681d8b035a9930afcf7f1c9f0075ab2e8b2b7a6b530b |
-| specs/project-plan.md | 6476100814b27589b00dc23912db3235c79ae4f47223d4c377faa965cb334683 |
+| specs/project-plan.md | 302156a83e49eb3ee5b87c9235ef9654442788dec69f5a3da10f30f170f53f77 |
 ## Tool Recommendations
 - None
 

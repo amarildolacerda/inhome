@@ -88,57 +88,79 @@ async function runExpirySweep({ notifyFn, domainId, emailTimeoutMs } = {}) {
         `SELECT c.id, c.name, c.forecast_date, c.perpetual, u.email AS creator_email
          FROM contracts c LEFT JOIN users u ON u.id = c.created_by`
       );
-      for (const contract of contracts) {
-        if (contract.perpetual || !contract.forecast_date) continue;
-        const days = daysUntil(contract.forecast_date);
-        if (days < 0) continue;
-        // FR-005/SC-001: one alert per pass — the tightest window that still
-        // contains the days left (20 days out -> the 30-day window, not 60/90
-        // as well). Already-fired windows stay deduped by UNIQUE.
-        const applicable = windows.filter((window) => window >= days);
-        if (applicable.length === 0) continue;
-        const window = Math.min(...applicable);
-        // FR-003: persist the dedup fact BEFORE any side effect. UNIQUE
-        // constraint does the idempotency; a duplicate means this window
-        // was already alerted and nothing downstream runs again.
-        try {
-          db.run(
-            "INSERT INTO alert_events(contract_id, window_days, email_status) VALUES (?, ?, 'skipped')",
-            [contract.id, window]
-          );
-        } catch {
-          continue;
-        }
-        swept += 1;
-        emitDomainEvent('contract_alert', domain.id, {
-          contractId: contract.id,
-          name: contract.name,
-          windowDays: window,
-          forecastDate: contract.forecast_date,
+      // 00025 (E023/AD-005): uma leitura da régua por domínio no início da
+      // varredura. O snapshot vale até o fim da passagem; uma mudança
+      // concorrente só aparece na próxima (FR-111/STF-002).
+      const { loadRuleSnapshot, hasActiveRule, emitRuleReminders } = require('./notificationRules');
+      const snapshot = loadRuleSnapshot(db);
+      if (hasActiveRule(snapshot, 'vigencia')) {
+        const ruleResult = await emitRuleReminders({
+          db,
+          domainId: domain.id,
+          contracts,
+          windows,
+          snapshot,
+          notifyFn: notify,
+          emailTimeoutMs: timeoutMs,
         });
-        emitted += 1;
-        if (contract.creator_email) {
-          const result = await withTimeout(
-            notify('contract_alert', {
-              to: [contract.creator_email],
-              subject: `Contrato próximo do vencimento (${window} dias): ${contract.name}`,
-              text: `Contrato: ${contract.name}\nPrevisão: ${contract.forecast_date}\nJanela: ${window} dias`,
-            }),
-            timeoutMs
-          );
-          if (result.sent) {
-            db.run("UPDATE alert_events SET email_status = 'sent' WHERE contract_id = ? AND window_days = ?", [
-              contract.id,
-              window,
-            ]);
-            emailed += 1;
-          } else if (!result.skipped) {
-            // error or timeout — record and keep sweeping (SC-003)
-            db.run("UPDATE alert_events SET email_status = 'failed' WHERE contract_id = ? AND window_days = ?", [
-              contract.id,
-              window,
-            ]);
-            failed += 1;
+        swept += ruleResult.swept;
+        emitted += ruleResult.emitted;
+        emailed += ruleResult.emailed;
+        failed += ruleResult.failed;
+      } else {
+        // FR-114: sem régua ativa, E004/E010 seguem exatamente como antes.
+        for (const contract of contracts) {
+          if (contract.perpetual || !contract.forecast_date) continue;
+          const days = daysUntil(contract.forecast_date);
+          if (days < 0) continue;
+          // FR-005/SC-001: one alert per pass — the tightest window that still
+          // contains the days left (20 days out -> the 30-day window, not 60/90
+          // as well). Already-fired windows stay deduped by UNIQUE.
+          const applicable = windows.filter((window) => window >= days);
+          if (applicable.length === 0) continue;
+          const window = Math.min(...applicable);
+          // FR-003: persist the dedup fact BEFORE any side effect. UNIQUE
+          // constraint does the idempotency; a duplicate means this window
+          // was already alerted and nothing downstream runs again.
+          try {
+            db.run(
+              "INSERT INTO alert_events(contract_id, window_days, email_status) VALUES (?, ?, 'skipped')",
+              [contract.id, window]
+            );
+          } catch {
+            continue;
+          }
+          swept += 1;
+          emitDomainEvent('contract_alert', domain.id, {
+            contractId: contract.id,
+            name: contract.name,
+            windowDays: window,
+            forecastDate: contract.forecast_date,
+          });
+          emitted += 1;
+          if (contract.creator_email) {
+            const result = await withTimeout(
+              notify('contract_alert', {
+                to: [contract.creator_email],
+                subject: `Contrato próximo do vencimento (${window} dias): ${contract.name}`,
+                text: `Contrato: ${contract.name}\nPrevisão: ${contract.forecast_date}\nJanela: ${window} dias`,
+              }),
+              timeoutMs
+            );
+            if (result.sent) {
+              db.run("UPDATE alert_events SET email_status = 'sent' WHERE contract_id = ? AND window_days = ?", [
+                contract.id,
+                window,
+              ]);
+              emailed += 1;
+            } else if (!result.skipped) {
+              // error or timeout — record and keep sweeping (SC-003)
+              db.run("UPDATE alert_events SET email_status = 'failed' WHERE contract_id = ? AND window_days = ?", [
+                contract.id,
+                window,
+              ]);
+              failed += 1;
+            }
           }
         }
       }

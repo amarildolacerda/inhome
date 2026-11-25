@@ -92,14 +92,14 @@
 | Path | SHA-256 |
 |------|---------|
 | README.md | e4f7a08969ac5f71e49cc8f095cd32d394617e47f2765d84b4122b08304d09c8 |
-| TECHNICAL.md | 059778b92d0273c72056124b2bb213dfef4699dbdc8fa94b7181e75fc4d07fd0 |
-| TODO.md | 7fed2294f9aad47344d3497025355098a4c43c3155411b683f0685dc6545e56e |
-| backend/src/config/database.js | da3976d1b3cfa18b6f655c9a094a7e2b40dd016c301754c5249288a32fa58d49 |
-| backend/src/config/database.test.js | efe896a2045bcfbe75e6349a78ca545144976998ecaa99955fbf8f4df0e0439e |
+| TECHNICAL.md | 37ffb200e44efd8c8fb05a75dfac366c52716f434388fe336f6cf7d0146c00d6 |
+| TODO.md | 3a7ae3e39e9467af12cda70b446b25e5faed7397139bb7ba9436e9ca82236186 |
+| backend/src/config/database.js | 7299afa5fe1887ded3c4f6a27c7c3ab9d99a875dbe2a6c44574c11ede8152b9a |
+| backend/src/config/database.test.js | 915786fc58c7c498e374537eba158897ca49966e04843cbdf64f31e331f5dd84 |
 | backend/src/routes/documents.js | d5ef2acd8fe30a04a7552ac2272b83b55998b4c8285b27191813cd0ca5d16857 |
 | backend/src/routes/documents.test.js | ae498abec21e079e40d1b1bdca02a7eb7f82b5f9b415d33445c80bdf0c6db401 |
-| backend/src/server.js | b6f3883aa358a88f7ce14aaaff55e493b69a84e59a87f757e85cc2935abf46e4 |
-| backend/test.sh | 50f696b025b69bd5b5a7812e0d8bc964ceb9af4d2f53c3ccac411087b7cb5047 |
+| backend/src/server.js | 694b486bb0ba63cf6434e8e535684def34bb6134ae9b7daa1f9e3a02e1d90f7c |
+| backend/test.sh | 88b70e4ae65d805d78da802e8b68a5764102f9d19cd7574817d0b6584bad126a |
 | frontend/lib/screens/contract_detail_screen.dart | 24848ca8d8e182b53822722492cddaee2e51f7cc12e05c906a66148394212342 |
 | frontend/lib/screens/contract_detail_screen_documents.dart | ea8be679e05d66428021c6a147ace1eae3c8d323c7810c22ad198217c7494694 |
 | frontend/lib/services/api_service.dart | 8f942e4c4acb0f84e0809a47551d971fd703a1ba7ab2014a19b8fe6080b92a2e |
@@ -113,7 +113,7 @@
 | specs/00021-gestao-documental-contrato/plan.md | d063ddc00410e0b10a6f15d3d98aaa32f9237a6a03c26e7f5359124bbadced83 |
 | specs/00021-gestao-documental-contrato/spec.md | 16748c8ba7fff680b5cc7fd3795d082374cbac508b1c23bad09a6f6db061bfe3 |
 | specs/00021-gestao-documental-contrato/tasks.md | b0b762c7c911387581c342bafdf5cbbdee269ea4879f16833ae7a24a358d3dba |
-| specs/project-plan.md | 5560b1afb62fc3387230388e650a69a2f55df1f98d03ce46f0c875caeef45767 |
+| specs/project-plan.md | 302156a83e49eb3ee5b87c9235ef9654442788dec69f5a3da10f30f170f53f77 |
 
 ## Tool Recommendations
 - Nenhuma ferramenta SKIPPED que seja exigida pelas regras do projeto.

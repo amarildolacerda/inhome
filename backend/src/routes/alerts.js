@@ -147,6 +147,9 @@ function listPanel(req, res) {
          FROM extracted_alerts ea JOIN contracts c ON c.id = ea.contract_id
         ORDER BY ea.due_date, ea.id LIMIT 200`
     );
+    // 00025 (E023/FR-112): o painel passa a expor a régua do domínio e a
+    // trilha de lembretes emitidos (tipo, etapa/janela e situação por canal).
+    const { listRules, listReminders } = require('../services/notificationRules');
     res.json({
       items: [...incompleteItems, ...complete],
       incomplete: incompleteTotal,
@@ -155,6 +158,8 @@ function listPanel(req, res) {
       offset,
       windows,
       extracted,
+      rules: listRules(db),
+      reminders: listReminders(db),
     });
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });

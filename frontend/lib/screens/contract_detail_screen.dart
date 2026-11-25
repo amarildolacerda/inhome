@@ -10,6 +10,7 @@ import '../utils/picked_file.dart';
 import '../widgets/suggestion_panel.dart';
 import '../widgets/task_detail_sheet.dart';
 import '../widgets/task_list_tile.dart';
+import '../widgets/maintenance_schedule_section.dart';
 
 part 'contract_detail_screen_schedule.dart';
 part 'contract_detail_screen_dialogs.dart';
@@ -414,6 +415,15 @@ class _ContractDetailScreenState extends State<ContractDetailScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child:
                           _DocumentsSection(api: api, contractId: contract.id),
+                    ),
+                  // 00024 (E022/FR-102): agenda preventiva — admin/gestor veem
+                  // regras, ocorrências e ações; prestador não recebe a seção.
+                  if (canManageProviders)
+                    MaintenanceScheduleSection(
+                      api: api,
+                      contractId: contract.id,
+                      canManage: canManageProviders,
+                      onChanged: _loadTasks,
                     ),
                   const Divider(height: 1),
                 ],

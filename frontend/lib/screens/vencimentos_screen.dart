@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
+import '../services/notification_rules_api.dart';
+import '../widgets/notification_rule_section.dart';
 
 typedef AlertPanelLoader = Future<Map<String, dynamic>> Function(
   int? limit,
@@ -16,7 +18,14 @@ typedef AlertWindowsSaver = Future<List<int>> Function(List<int>? windows);
 /// máxima "fora das janelas". Os blocos são derivados dos itens de uma
 /// única leitura (FR-004) — nenhuma requisição por bloco.
 class VencimentosScreen extends StatefulWidget {
-  const VencimentosScreen({super.key, this.loader, this.saver});
+  const VencimentosScreen({
+    super.key,
+    this.loader,
+    this.saver,
+    this.rulesApi,
+    this.ruleSaver,
+    this.ruleToggler,
+  });
 
   /// Seam de teste: substitui a chamada real de `ApiService.getPanel`.
   final AlertPanelLoader? loader;
@@ -24,6 +33,11 @@ class VencimentosScreen extends StatefulWidget {
   /// Seam de teste: substitui a chamada real de `ApiService.putWindows`
   /// (null restaura o default no backend).
   final AlertWindowsSaver? saver;
+
+  /// E023: seams do cliente da régua e das duas escritas (PUT/PATCH).
+  final NotificationRulesApi? rulesApi;
+  final RuleSaver? ruleSaver;
+  final RuleToggler? ruleToggler;
 
   @override
   State<VencimentosScreen> createState() => _VencimentosScreenState();
@@ -33,6 +47,8 @@ class _VencimentosScreenState extends State<VencimentosScreen> {
   final api = ApiService();
   List<Map<String, dynamic>> _items = const [];
   List<int> _windows = const [90, 60, 30, 15];
+  List<Map<String, dynamic>> _rules = const [];
+  List<Map<String, dynamic>> _reminders = const [];
   int _incomplete = 0;
   int _total = 0;
   int _limit = 50;
@@ -63,10 +79,20 @@ class _VencimentosScreenState extends State<VencimentosScreen> {
           .whereType<num>()
           .map((entry) => entry.toInt())
           .toList();
+      final rules = (result['rules'] as List? ?? const [])
+          .whereType<Map>()
+          .map((entry) => Map<String, dynamic>.from(entry))
+          .toList();
+      final reminders = (result['reminders'] as List? ?? const [])
+          .whereType<Map>()
+          .map((entry) => Map<String, dynamic>.from(entry))
+          .toList();
       if (!mounted) return;
       setState(() {
         _items = offset == 0 ? incoming : [..._items, ...incoming];
         _windows = windows.isNotEmpty ? windows : const [90, 60, 30, 15];
+        _rules = rules;
+        _reminders = reminders;
         _incomplete = (result['incomplete'] as num?)?.toInt() ?? 0;
         _total = (result['total'] as num?)?.toInt() ?? 0;
         _limit = (result['limit'] as num?)?.toInt() ?? 50;
@@ -151,6 +177,15 @@ class _VencimentosScreenState extends State<VencimentosScreen> {
           ),
           onTap: _openWindowsDialog,
         ),
+      ),
+      // E023 (FR-112/FR-115): régua configurável e trilha de lembretes. Fica
+      // fora dos blocos e visível mesmo sem contrato vigente, como a config
+      // de janelas.
+      NotificationRuleSection(
+        rules: _rules,
+        reminders: _reminders,
+        onSave: _saveRule,
+        onToggle: _toggleRule,
       ),
     ];
 
@@ -244,6 +279,54 @@ class _VencimentosScreenState extends State<VencimentosScreen> {
         const SnackBar(content: Text('Janelas atualizadas')),
       );
       // O agrupamento depende das janelas: relê a página inteira na hora.
+      await _load(offset: 0);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$error')),
+      );
+    }
+  }
+
+  Future<void> _saveRule(
+    String eventType,
+    int maxReminders,
+    int intervalDays,
+    bool active,
+  ) async {
+    try {
+      final save = widget.ruleSaver ??
+          (String type, int reminders, int interval, bool enabled) async {
+            await (widget.rulesApi ?? NotificationRulesApi()).saveRule(
+              type,
+              maxReminders: reminders,
+              intervalDays: interval,
+              active: enabled,
+            );
+          };
+      await save(eventType, maxReminders, intervalDays, active);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Régua atualizada')),
+      );
+      await _load(offset: 0);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$error')),
+      );
+    }
+  }
+
+  Future<void> _toggleRule(String eventType, bool active) async {
+    try {
+      final toggle = widget.ruleToggler ??
+          (String type, bool enabled) async {
+            await (widget.rulesApi ?? NotificationRulesApi())
+                .setRuleActive(type, enabled);
+          };
+      await toggle(eventType, active);
+      if (!mounted) return;
       await _load(offset: 0);
     } catch (error) {
       if (!mounted) return;

@@ -93,18 +93,18 @@
 | Path | SHA-256 |
 |------|---------|
 | README.md | e4f7a08969ac5f71e49cc8f095cd32d394617e47f2765d84b4122b08304d09c8 |
-| TECHNICAL.md | e9aac237b5eead20553f800bbf8f4983c44d1260e0c6c4ff98af3c62709c0b11 |
-| TODO.md | 42b8574572fe77beca31ec53bb3c0cc77cb4334ce7920b2783519b179236df8f |
+| TECHNICAL.md | 37ffb200e44efd8c8fb05a75dfac366c52716f434388fe336f6cf7d0146c00d6 |
+| TODO.md | 3a7ae3e39e9467af12cda70b446b25e5faed7397139bb7ba9436e9ca82236186 |
 | backend/assets/contract-import-template.csv | ea5adcd6d3d8d7dab6fa72ba63f30cb32ce7abc62163e0ed07915d1a7459ac12 |
-| backend/src/config/database.js | 87ecc408f57ccc386e9900520f4cd4ee217e081fa25c26ef2e9178e03bea0941 |
-| backend/src/config/database.test.js | d268a9b0dbe4437573a9975de7d051d21fc5071321fd4ddc206cf442586ccfde |
+| backend/src/config/database.js | 7299afa5fe1887ded3c4f6a27c7c3ab9d99a875dbe2a6c44574c11ede8152b9a |
+| backend/src/config/database.test.js | 915786fc58c7c498e374537eba158897ca49966e04843cbdf64f31e331f5dd84 |
 | backend/src/routes/imports.js | 36a32037d693cdcf5fb9b122217376587607d33b2fc09872ad7a9457c701dec2 |
 | backend/src/routes/imports.test.js | e076f781ca7867561940246595257a4aa41b133b10b0a2b84ca9fe07a5c6a839 |
-| backend/src/server.js | 0eb4cc570a356ab0ba739a501f7d80d3a680a811cb8836d840a2d09a3b89a3f7 |
+| backend/src/server.js | 694b486bb0ba63cf6434e8e535684def34bb6134ae9b7daa1f9e3a02e1d90f7c |
 | backend/src/utils/spreadsheet.js | 2f9bdde89d312cf3d7054a6e9f75a4f198f37bb08ab5d9e0f9249df38bfc5a8a |
 | backend/src/utils/spreadsheet.test.js | 812f2fd20c1e62056154caab792145e1d90ac8df53d0897a0a9f344ad77151c1 |
-| backend/test.sh | 75783ff84b3d23c71568ed7b0bb603a98d94b6071543077f4cea8d5a6d1d6b46 |
-| frontend/lib/main.dart | c5f500d13033e8559c9117326216182a57d0d6c8524c4bc39acf0122352f3679 |
+| backend/test.sh | 88b70e4ae65d805d78da802e8b68a5764102f9d19cd7574817d0b6584bad126a |
+| frontend/lib/main.dart | e520ce6c0ff6c4743441b74c241fca6cda988bb5143171c2a414e27715c09857 |
 | frontend/lib/screens/imports_screen.dart | 4c0221fd33e047c92b7dbcdf510a278f087862582f0a17fec9060fcd4a2b10ad |
 | frontend/lib/screens/imports_screen_report.dart | b3f5d264a0a7635f7c5f1ac17ba1393f0d73816be36d5660f9b7e19b651b362e |
 | frontend/lib/services/api_service.dart | 8f942e4c4acb0f84e0809a47551d971fd703a1ba7ab2014a19b8fe6080b92a2e |
@@ -116,7 +116,7 @@
 | frontend/lib/utils/picked_file_stub.dart | f8fed69e67be935ee737f9bef176d817856cf446c860a7a4512164b0382e7efb |
 | frontend/lib/utils/picked_file_web.dart | 627d927083670d0f25e948bfa2fd3c180c14cf4bbc52d68c1a417c3f822a79bf |
 | frontend/test/imports_screen_test.dart | 2a23554c3ed045ac5eee7f37f266b67ced258a668d14d683e9bf2a5841251539 |
-| frontend/test/roles_nav_test.dart | f24b0d849f8a06940dab6d71314f67d97d0b60e32265db27c2654d69e83af6cd |
+| frontend/test/roles_nav_test.dart | 36f561086b7e437c2a3d11827991f2b1f32f59fc49dff28b7a94103492b1490a |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00022-importacao-acervo/analysis-report.md | f5f10fb029fe7cc656ad552d4ea3732dc3cfaca0ff3a20552070b6620e9c00c2 |
 | specs/00022-importacao-acervo/autopilot-log.md | 00410f64bd8cff94f0035ea18934f1b7aaab2bd147d57a32899af6a0a9b61413 |
@@ -126,7 +126,7 @@
 | specs/00022-importacao-acervo/plan.md | 8485dccbede96d30e0900c68ed18d2416eadae5685bf3a7d4eec8714542a9924 |
 | specs/00022-importacao-acervo/spec.md | 633b740b120061a26cf16b8bf9eac314188d9dc78e6113c73e33ff98737b65bf |
 | specs/00022-importacao-acervo/tasks.md | f6ff65a349249edb27b689216361d69653cee357f9aba100d578bf2a3d63e780 |
-| specs/project-plan.md | 1bce26aa4823db32a4e747d7c1e383b153cf3a3b6c21a9f3e1d0bcc4f026bf6a |
+| specs/project-plan.md | 302156a83e49eb3ee5b87c9235ef9654442788dec69f5a3da10f30f170f53f77 |
 
 ## Tool Recommendations
 - Nenhuma ferramenta obrigatória ausente. `npm audit` só roda em `backend/`, onde existe `package-lock.json`.

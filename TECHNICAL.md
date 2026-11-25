@@ -3,9 +3,9 @@
 ## Status do estado atual
 
 - Repositório em desenvolvimento na branch `dev`.
-- Última feature entregue: `E019` — gestão documental do contrato (biblioteca sobre `attachments`, filtros, categoria e conferência com autor/data).
-- Feature anterior: `E018` — previsibilidade financeira por contrato (parcelas, pagamentos com comprovante, indicadores e exportação CSV/PDF).
-- Situação: `E015`, `E016`, `E018` e `E019` concluídos e validados; `E019` com QC PASS em 2026-11-23. Nenhuma promoção `dev` → `main` neste ciclo.
+- Última feature entregue: `E021` — dossiê documental do prestador (trabalhadores, documentos com vigência, checklist por finalidade e guarda de vínculo e atribuição).
+- Feature anterior: `E020` — importação de acervo (prévia e confirmação de CSV/XLSX com anexos).
+- Situação: `E015`, `E016`, `E018`, `E019`, `E020`, `E021`, `E022` e `E023` concluídos e validados. Nenhuma promoção `dev` → `main` neste ciclo.
 
 ## Arquitetura
 
@@ -78,6 +78,24 @@ Somente `admin` e `gestor` do domínio, com `authenticateToken → scopeDomain �
 - `GET|POST /api/v2/providers/requirements` e `DELETE /api/v2/providers/requirements/:reqId` — checklist por finalidade, com `type` e `appliesTo` (`provider` ou `worker`). Item sem `purposeId` é global.
 
 Escrita restrita a `admin` e `gestor`; leitura também para `prestador` no próprio dossiê. Vínculo (`POST /api/v2/contracts/:id/providers`) e atribuição/reatribuição (`POST /api/v2/contracts/:id/tasks`, `PUT /api/v2/tasks/:id`) avaliam o checklist antes de gravar e respondem 400 com `code=PROVIDER_DOCUMENTS_MISSING` e `missing[]` quando falta documento vigente e conferido. Documento que vence depois não desfaz vínculo, tarefa ou histórico. A varredura de E004 publica alertas `provider_document` em `extracted_alerts` e os remove na regularização ou no fim do vínculo.
+
+#### Régua de notificação configurável (E023 — concluída)
+
+- `GET /api/v2/alerts/rules` — réguas ativas e etapas do domínio.
+- `PUT /api/v2/alerts/rules/:eventType` — cria ou ajusta régua com até cinco lembretes e intervalo em dias.
+- `PATCH /api/v2/alerts/rules/:eventType` — ativa ou desativa sem apagar eventos.
+- `GET /api/v2/alerts/panel` — painel acrescido de `rules` e `reminders`.
+
+Duas tabelas por domínio (`notification_rules`, `notification_rule_steps`) e colunas aditivas em `alert_events`, com `alert_event_channels` para a trilha por canal. As etapas derivam das janelas ativas de E004, da menor para a maior, respeitando o intervalo; a configuração é lida uma vez por varredura. Cada lembrete tem identidade estável por `(alerta, evento, etapa, canal)`, com `UNIQUE` antes do envio. Entrega só por aviso no aplicativo (`emitDomainEvent`) e e-mail opt-in de E010 (`notify`); falha de SMTP marca `failed` sem derrubar o aviso interno. Escrita restrita a admin e gestor. WhatsApp segue fora, condicionado a `PDD-008`.
+
+#### Agenda de manutenção preventiva (E022 — concluída)
+
+- `GET /api/v2/contracts/:id/maintenance-schedules` — regras e ocorrências geradas do contrato.
+- `POST /api/v2/contracts/:id/maintenance-schedules` — cria regra com `title`, `intervalDays` (1–365), `startDate`, `assigneeId` opcional e `leadDays` (0–90).
+- `PATCH /api/v2/contracts/:id/maintenance-schedules/:ruleId` — edita ou inativa a regra, registrando autor e data.
+- `POST /api/v2/maintenance/sweep` — acionamento manual da varredura, com contadores de criadas e ignoradas.
+
+Duas tabelas por domínio (`maintenance_rules`, `maintenance_occurrences`) com chave estável `UNIQUE(rule_id, due_date)`. A grade é fixa, ancorada em `startDate`; datas passadas e além de 90 dias são ignoradas. Cada ocorrência gera uma tarefa de E003 (`A Fazer`) e um alerta `maintenance_schedule` em `extracted_alerts`, deduplicado por contrato, origem e janela. As janelas efetivas são as do domínio acrescidas de `leadDays`. Geração e sincronização de alertas rodam na mesma transação por domínio, no worker boot/hora e no acionamento manual. Editar ou inativar a regra não apaga tarefas, ocorrências nem histórico.
 
 #### Tarefas
 - `GET /api/v2/tasks` — listar tarefas
@@ -267,6 +285,9 @@ frontend/lib/
 - `TECHNICAL.md`: status atualizado para `E016` em progresso em 2026-11-21, após refinamento do plano.
 - `TECHNICAL.md`: status atualizado para `E016` concluído em 2026-11-21, após as suítes verdes e o QC.
 - `TECHNICAL.md`: status atualizado para `E019` concluído em 2026-11-23, após as suítes verdes e o QC; endpoints documental adicionados.
+- `TECHNICAL.md`: status atualizado para `E022` em progresso em 2026-11-24, após o plano validado; endpoints de agenda documentados.
+- `TECHNICAL.md`: status atualizado para `E022` concluído e `E023` em progresso em 2026-11-24, após o plano da régua validado; endpoints da régua documentados.
+- `TECHNICAL.md`: status atualizado para `E023` concluído em 2026-11-25, após as suítes verdes e o QC.
 - `README.md`: atualizado com o comportamento de contratos perpétuos e do painel.
 
 ---

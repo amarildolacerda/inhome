@@ -2,19 +2,23 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/contract.dart';
 import 'contract_detail_screen.dart';
+import 'chat_screen.dart';
 
 /// [FR-006] / [AD-003]: lista de contratos do domínio em /api/v2/contracts.
 /// O endpoint antigo /projects não existe — todo retorno é tratado aqui,
 /// com SnackBar para sucesso e para falha de rede/servidor.
 class ProjectsScreen extends StatefulWidget {
-  const ProjectsScreen({super.key});
+  const ProjectsScreen({super.key, this.api});
+
+  /// Fachada injetável nos testes; a tela real usa a ApiService padrão.
+  final ApiService? api;
 
   @override
   State<ProjectsScreen> createState() => _ProjectsScreenState();
 }
 
 class _ProjectsScreenState extends State<ProjectsScreen> {
-  final api = ApiService();
+  late final ApiService api;
   List<Contract> _contracts = [];
   bool _loading = true;
   String? _role;
@@ -25,6 +29,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   @override
   void initState() {
     super.initState();
+    api = widget.api ?? ApiService();
     _loadContracts();
     _resolveRole();
   }
@@ -142,6 +147,16 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         '${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
+  /// Abre o canal do contrato direto pelo card da lista. Os guards do
+  /// backend (FR-053/E016) decidem quem pode ler e escrever no canal.
+  Future<void> _openChat(int contractId) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(contractId: contractId),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final selected = _selectedContract;
@@ -234,6 +249,12 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                           Chip(
                             label: Text(contract.status),
                             visualDensity: VisualDensity.compact,
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.chat_bubble_outline),
+                            tooltip: 'Abrir chat do contrato',
+                            onPressed: () => _openChat(contract.id),
                           ),
                           if (_role == 'admin') ...[
                             const SizedBox(width: 8),

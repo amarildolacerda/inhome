@@ -2,9 +2,6 @@
 
 Custom project TODOs. Agents read this file at session start.
 
-## em execução
-Nenhuma.
-
 ## Pending
 
 ### V1
@@ -27,6 +24,8 @@ Nenhuma.
 - [X] Épico E019 — Gestão documental do contrato (feature `00021-gestao-documental-contrato`): biblioteca sobre `attachments` com origem derivada, filtros, análise/alertas de E016, categoria e conferência idempotente; 2 colunas aditivas, 0 tabela nova; somente admin/gestor. QC PASS (`.qc-passed`), 25/25 tasks, 7/7 FR P2 · backend 212/212 · smoke 201/201 · flutter 102/102 · audit 0 (2026-11-23). Fecha o item 2 da avaliação V3.
 - [X] Épico E020 — Importação de acervo (feature `00022-importacao-acervo`): CSV/XLSX com mapeamento de colunas, prévia somente leitura e confirmação atômica com PDFs em massa; parser embutido via `zlib`, 0 dependência nova, `attachments.contract_id` por rebuild guardado; somente admin/gestor. QC PASS (`.qc-passed`), 32/32 tasks, 9/9 FR P1 · backend 227/227 · smoke 218/218 · flutter 105/105 · audit 0 (2026-11-24). Fecha R3 do roadmap; `HYP-002` segue aberta até uso real.
 - [X] Épico E021 — Dossiê documental do prestador (feature `00023-dossie-documental-do-prestador`): trabalhadores, ASO/NR/certidões com vigência e conferência, checklist por finalidade com fallback ASO global, alertas deduplicados em `extracted_alerts` e bloqueio explícito de vínculo/atribuição com `PROVIDER_DOCUMENTS_MISSING`; 3 tabelas novas, 0 dependência. QC PASS (`.qc-passed`), 34/34 tasks, 12/12 FR P1 · backend 244/244 · smoke 253/253 · flutter 110/110 · audit 0 (2026-11-24). Fecha R7 do roadmap; `PDD-008` segue pendente e `HYP-002` aberta até uso real.
+- [X] Épico E022 — Agenda de manutenção preventiva recorrente (feature `00024-agenda-de-manutencao-preventiva-recorrente`): regra por contrato com título, intervalo, início, responsável e antecedência; grade fixa gera uma tarefa por ocorrência, idempotente por `UNIQUE(rule_id,due_date)`, sobre E003/E012, com alerta `maintenance_schedule` deduplicado no motor E004 e removido na conclusão, inativação ou encerramento; detalhe do contrato lista regras e ocorrências; escrita, consulta e varredura restritas a admin/gestor. 2 tabelas novas, 0 dependência. QC PASS (`.qc-passed`), 28/28 tasks, 13/13 FR (12 P1, 1 P2) · backend 256/256 · smoke 253/253 · flutter 117/117 · audit 0 (2026-11-24). Fecha a Wave 13 do roadmap; sem dependência de `PDD-008`.
+- [X] Épico E023 — Régua de notificação configurável (Wave 14 entregue em 2026-11-25, spec `00025-regua-de-notificacao-configuravel`, QC PASS): frequência e momentos por domínio/tipo de evento sobre as janelas de E004 e os canais in-app/e-mail opt-in de E010; WhatsApp fora do escopo, condicionado a `PDD-008`.
 
 ## Done
 

@@ -434,4 +434,99 @@ void main() {
     expect(b30 < bFora, isTrue, reason: 'janelas antes do fora');
     expect(bFora < bSem, isTrue, reason: 'incompleto por último');
   });
+
+  // E023 (FR-112/FR-115): a régua e a trilha de lembretes vêm no payload do
+  // painel; as duas escritas passam pelos seams sem rede e recarregam a leitura.
+  testWidgets('FR-112/FR-115 mostra régua e lembretes e grava PUT/PATCH',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 2000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    var loaderCalls = 0;
+    final saves = <List<dynamic>>[];
+    final toggles = <List<dynamic>>[];
+
+    Map<String, dynamic> payload() {
+      loaderCalls += 1;
+      return {
+        ...panelPayload(items: const []),
+        'rules': [
+          {
+            'eventType': 'vigencia',
+            'maxReminders': 3,
+            'intervalDays': 7,
+            'active': true,
+            'steps': [
+              {'step': 1, 'windowDays': 7},
+              {'step': 2, 'windowDays': 15},
+              {'step': 3, 'windowDays': 30},
+            ],
+            'createdBy': 'Gestor',
+            'createdAt': '2026-11-24T12:00:00.000Z',
+          },
+        ],
+        'reminders': [
+          {
+            'contractId': 1,
+            'eventType': 'vigencia',
+            'step': 1,
+            'windowDays': 7,
+            'channel': 'in_app',
+            'status': 'sent',
+          },
+          {
+            'contractId': 1,
+            'eventType': 'vigencia',
+            'step': 1,
+            'windowDays': 7,
+            'channel': 'email',
+            'status': 'failed',
+          },
+        ],
+      };
+    }
+
+    await tester.pumpWidget(MaterialApp(
+      home: VencimentosScreen(
+        loader: (limit, offset) async => payload(),
+        ruleSaver: (eventType, maxReminders, intervalDays, active) async {
+          saves.add([eventType, maxReminders, intervalDays, active]);
+        },
+        ruleToggler: (eventType, active) async {
+          toggles.add([eventType, active]);
+        },
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Régua de notificação'), findsOneWidget);
+    expect(
+      find.text('vigencia • 3 lembretes • intervalo 7 dias'),
+      findsOneWidget,
+    );
+    expect(find.text('Janelas: 7, 15, 30'), findsOneWidget);
+    expect(find.text('Lembretes emitidos'), findsOneWidget);
+    expect(find.text('vigencia • etapa 1 (7 dias)'), findsNWidgets(2));
+    expect(find.text('in_app: sent'), findsOneWidget);
+    expect(find.text('email: failed'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Editar régua'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).at(0), '2');
+    await tester.enterText(find.byType(TextFormField).at(1), '15');
+    await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
+    await tester.pumpAndSettle();
+
+    expect(saves, [
+      ['vigencia', 2, 15, true]
+    ]);
+    expect(loaderCalls, 2, reason: 'PUT recarrega o painel');
+
+    await tester.tap(find.byTooltip('Desativar régua'));
+    await tester.pumpAndSettle();
+
+    expect(toggles, [
+      ['vigencia', false]
+    ]);
+    expect(loaderCalls, 3, reason: 'PATCH recarrega o painel');
+  });
 }

@@ -21,6 +21,7 @@ Organize contratos de terceiros, acompanhe o trabalho contratado e mantenha a ex
 - Crie tarefas no contrato e atribua a quem vai executar
 - Acompanhe o fluxo: **A Fazer → Em Progresso → Revisão → Concluída**
 - Na conclusão, o prestador descreve o que feito e anexa fotos como evidência
+- **Manutenção preventiva recorrente**: cadastre uma regra por contrato (título, intervalo, início e antecedência); o sistema gera a próxima visita na data certa e avisa no painel, sem reancorar a grade quando a tarefa é concluída
 - Precisou refazer? O gestor reabre a tarefa com o motivo registrado no histórico
 - Comentários e anexos ficam junto da tarefa
 
@@ -64,6 +65,7 @@ Organize contratos de terceiros, acompanhe o trabalho contratado e mantenha a ex
 | Dashboard | ❌ | completo | completo | só as suas tarefas |
 | Vencimentos (painel + janelas) | ❌ | ✅ | ✅ | ❌ |
 | Chat do contrato (mensagens e cards) | ❌ | ✅ | ✅ | ✅ (contratos vinculados) |
+| Agenda de manutenção (regras e ocorrências) | ❌ | ✅ | ✅ | ❌ |
 
 Cada cliente (domínio) tem os dados separados: o que acontece em um domínio não aparece em outro. Suspender um domínio bloqueia o acesso, mas **nunca apaga** os dados.
 
@@ -89,3 +91,4 @@ Cada cliente (domínio) tem os dados separados: o que acontece em um domínio n�
 - **00021-gestao-documental-contrato** (E019 — Gestão documental do contrato): biblioteca no detalhe do contrato com os anexos já enviados via tarefa, chat ou comprovante de pagamento. Filtros por categoria e origem, resumo da análise e dos alertas extraídos, troca de categoria e marcação de conferido com autor e data. Nenhum arquivo é duplicado; apenas admin e gestor veem e alteram a biblioteca.
 
 - **00020-previsibilidade-financeira** (E018 — Previsibilidade financeira por contrato): parcelas previstas e pagamentos com comprovante opcional, valores em centavos (BRL fixo). Painel e detalhe de contrato mostram previsto, pago, saldo e atrasadas; parcelas vencidas alimentam alertas deduplicados no motor E004. Exportação CSV/PDF autenticada. Dados financeiros restritos a admin/gestor.
+- **00024-agenda-de-manutencao-preventiva-recorrente** (E022 — Agenda de manutenção preventiva): regra por contrato com título, intervalo, início, responsável e antecedência; grade fixa gera uma tarefa por ocorrência, idempotente por regra e data. Alertas deduplicados por contrato, origem e janela no motor E004, removidos na conclusão, inativação ou encerramento. Detalhe do contrato lista regras e ocorrências; escrita e varredura restritas a admin/gestor.

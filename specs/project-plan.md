@@ -13,11 +13,11 @@ dod_source: none
 | **Product** | Gestão de Contratos de Terceiros |
 | **Created** | 2026-09-27 |
 | **Status** | active |
-| **Epics** | 21 — 16 × P1, 5 × P2 |
-| **Categories** | 21 PRODUCT, 0 TECHNICAL, 0 OPERATIONAL |
+| **Epics** | 23 — 16 × P1, 7 × P2 |
+| **Categories** | 23 PRODUCT, 0 TECHNICAL, 0 OPERATIONAL |
 | **Author** | Amarildo de Lacerda |
-| **Waves** | 12 |
-| **Progress** | 19/21 épicos (E001–E019, Waves 1–10 concluídas); Waves 11–12 pendentes |
+| **Waves** | 14 |
+| **Progress** | 23/23 épicos (E001–E023, Waves 1–14 concluídas) |
 
 ## Epic Checklist
 
@@ -100,6 +100,18 @@ dod_source: none
 
 - [X] E021 [P1] [PRODUCT] {PRD:CAP-002,CAP-004} Dossiê documental do prestador — documentos, vigências e bloqueio [→ Details](plan/E021.md)
 
+### Wave 13 — Agenda de manutenção preventiva
+
+> P2 priorizado na pesquisa nov/2026 (`docs/pesquisa-mercado-2026-11.md`): recorrência por contrato ou tipo de serviço que cria a tarefa automaticamente na data certa. Aprovado pelo usuário em 2026-11-24; reaproveita `tasks` de E003 e o fluxo de manutenção de E012, sem depender de `PDD-008`.
+
+- [X] E022 [P2] [PRODUCT] {PRD:CAP-003,CAP-004} Agenda de manutenção preventiva recorrente [→ Details](plan/E022.md)
+
+### Wave 14 — Régua de notificação configurável
+
+> R8 do roadmap (`docs/roadmap.md`), quarto item da pesquisa nov/2026 (`docs/pesquisa-mercado-2026-11.md`). Entregue em 2026-11-25 como épica P2 (spec `00025-regua-de-notificacao-configuravel`, QC PASS). Mantém as janelas de E004 e os canais in-app/e-mail opt-in de E010; WhatsApp segue fora e depende da revisão de `PDD-008`.
+
+- [X] E023 [P2] [PRODUCT] {PRD:CAP-004} Régua de notificação configurável — janelas, frequência e canais existentes [→ Details](plan/E023.md)
+
 ## Dependency Diagram
 
 ```mermaid
@@ -133,9 +145,11 @@ graph LR
   C -->|"E020"| S["Importação<br>de acervo"]
   C -->|"E021"| T["Dossiê do<br>prestador"]
   H -->|"E021"| T
+  H -->|"E023"| V["Régua de notificação<br>frequência e canais"]
+  K -->|"E023"| V
 ```
 
-Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_<id>` da infraestrutura já entregue (T033), não a saída de E009 — criar a aresta faria uma capacidade P2 (CAP-008) ser prerequisite de uma P1 e inflaria a prioridade de E009 contra o PRD. E011 e E012 apontam das entregas de base que consomem (E001 guards/papéis, E003 `tasks`/`task_history`/anexos), não da infraestrutura de tempo real. Wave 6: E013 consome o painel por papel de E006 e as janelas de vencimento de E005 (KPI `a vencer`), não o motor de E004 diretamente; E014 parte do tema produzido por E006 — a ordem E013 → E014 dentro da onda é só para rebaixar seguro sobre `app_theme.dart`, não um contrato de dependência. Wave 7: E017 consome a tabela de contratos de E002, as tarefas de E003, a lista de "sem previsão" de E005 e o card/KPIs de E013. Wave 8: E015 estende a matriz de papéis de E001 com o escopo de contrato de E003; E016 reutiliza o fluxo de tarefas de E003, a sala socket de E009 e o motor de alertas de E004 — o provedor de IA é configuração nova decidida dentro da própria épica. Waves 10–12: E019 consome os anexos de E003/E016 e as análises de E016, com duas colunas aditivas em `attachments`; E020 cria contratos em lote sobre a superfície de E002 e o storage de E003; E021 estende o vínculo de E002 com o motor de alertas de E004 — as três seguem o Wave Transition Protocol (E019 → E020 → E021).
+Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_<id>` da infraestrutura já entregue (T033), não a saída de E009 — criar a aresta faria uma capacidade P2 (CAP-008) ser prerequisite de uma P1 e inflaria a prioridade de E009 contra o PRD. E011 e E012 apontam das entregas de base que consomem (E001 guards/papéis, E003 `tasks`/`task_history`/anexos), não da infraestrutura de tempo real. Wave 6: E013 consome o painel por papel de E006 e as janelas de vencimento de E005 (KPI `a vencer`), não o motor de E004 diretamente; E014 parte do tema produzido por E006 — a ordem E013 → E014 dentro da onda é só para rebaixar seguro sobre `app_theme.dart`, não um contrato de dependência. Wave 7: E017 consome a tabela de contratos de E002, as tarefas de E003, a lista de "sem previsão" de E005 e o card/KPIs de E013. Wave 8: E015 estende a matriz de papéis de E001 com o escopo de contrato de E003; E016 reutiliza o fluxo de tarefas de E003, a sala socket de E009 e o motor de alertas de E004 — o provedor de IA é configuração nova decidida dentro da própria épica. Waves 10–12: E019 consome os anexos de E003/E016 e as análises de E016, com duas colunas aditivas em `attachments`; E020 cria contratos em lote sobre a superfície de E002 e o storage de E003; E021 estende o vínculo de E002 com o motor de alertas de E004 — as três seguem o Wave Transition Protocol (E019 → E020 → E021). Wave 13: E022 reutiliza a criação de tarefas de E003 e o fluxo de manutenção de E012, com alertas pelo motor de E004; não depende de `PDD-008`. Wave 14: E023 consome as janelas e os eventos deduplicados de E004 e o e-mail opt-in de E010 para compor a régua por domínio/tipo de evento; nenhum canal novo entra nesta onda, e WhatsApp continua condicionado à revisão de `PDD-008`.
 
 ## Execution Wave Summary
 
@@ -153,8 +167,10 @@ Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_
 | 10 | E019 | Sim | Concluída | 2026-11-23 | E019 entregue em 2026-11-23 (spec `00021`, QC PASS) |
 | 11 | E020 | Sim | Concluída | 2026-11-24 | R3 do roadmap; `PDD-007` revisada em 2026-11-23; abre após E019 |
 | 12 | E021 | Sim | Concluída | 2026-11-24 | R7 do roadmap (pesquisa nov/2026); abre após E020; QC PASS (spec `00023`) |
+| 13 | E022 | Não | Concluída | 2026-11-24 | P2 do research nov/2026; agenda recorrente cria tarefa sobre E003/E012 e alimenta E004; QC PASS (spec `00024`) |
+| 14 | E023 | Sim | Concluída | 2026-11-25 | R8 do roadmap; régua sobre E004/E010, sem WhatsApp e sem `PDD-008`; QC PASS (spec `00025`) |
 
-> **Status**: derivado dos checkboxes da Epic Checklist (onda concluída = todos os épicos `[X]`); data = último `QC Passed` dos markers `.qc-passed` dos épicos da onda.
+> **Status**: derivado dos checkboxes da Epic Checklist (onda concluída = todos os épicos `[X]`); data = último `QC Passed` dos markers `.qc-passed` dos épicos da onda. Wave 14 está concluída.
 
 ## Parallel Execution Guidance
 
@@ -162,6 +178,8 @@ Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_
 - **Integration Risks**: E007 pode mexer em índices usados pelas listagens de contrato/tarefa (E002/E003). E006 altera `frontend/lib/main.dart` e `frontend/lib/theme/app_theme.dart`, importados por todas as telas — qualquer épica de tela da onda deve rebaixar sobre esses arquivos. E004 e E007 escrevem em `config/database.js` (migração × índices), mas estão em ondas diferentes. E012 adiciona coluna em `attachments` e ações em `tasks.js` — superfície já entregue por E003, em onda posterior. Wave 6 estende `app_theme.dart` e `main.dart` (superfície de E006) e reescreve `dashboard_screen.dart` — qualquer trabalho de tela simultâneo rebaixa sobre esses arquivos; E014 assume a top toolbar do MainShell já entregue pela obra ad-hoc em andamento. Wave 8: E015 adiciona o papel `visitante` à matriz de E001 e restringe leitura em rotas de tarefa de E003; E016 cria canais e cards que movem tarefas — trabalho simultâneo em `tasks.js` e `tasks_screen.dart` exige rebaixo cuidadoso.
 - **Shared Resource Conflicts**: `backend/src/config/database.js` (E004 migração, E007 índices — ondas distintas); `frontend/lib/main.dart` e `app_theme.dart` (E006, compartilhado com qualquer trabalho de tela; E013 e E014 estendem na onda 6); `frontend/nginx.conf` (só E003); salas Socket.io `domain_<id>` (leitura por E004/E005, escrita já entregue); `backend/src/routes/tasks.js` e `frontend/lib/screens/tasks_screen.dart` (E003 origem, E012 extensão na onda 5, E015/E016 extensões na onda 8); `frontend/lib/screens/dashboard_screen.dart` (E006 origem, E013 reescrita na onda 6, E017 extensão na onda 7); `backend/src/routes/alerts.js` (E004 origem, E005 painel, E017 exclusão de perpétuos); migração preguiçosa em `config/database.js` na onda 8 (E015 convites, E016 mensagens/análises — executar em ordem).
 - **Waves 10–12**: E019, E020 e E021 concluídas (features `00021`, `00022` e `00023`); E021 criou tabelas de documentos do prestador e regra de bloqueio sobre `tasks.js`/`routes/contracts.js`, além do motor de E004. Ordem mantida (Wave Transition Protocol): E019 → E020 → E021. `backend/src/routes/documents.js` nasce em E019 e é superfície de E020/E021 se forem tocadas.
+- **Wave 13**: E022 concluída (feature `00024`); regras e ocorrências em tabelas próprias, grade fixa ancorada em `start_date`, tarefa por ocorrência sobre E003/E012 e alerta deduplicado no motor de E004. Sem dependência de `PDD-008`.
+- **Wave 14**: E023 concluída (feature `00025`); a régua reaproveita janelas, eventos e dedup de E004 e o envio opt-in de E010. Canal in-app e e-mail são os únicos considerados; qualquer integração com WhatsApp passa primeiro pela revisão de `PDD-008`.
 
 ## Coverage Validation
 
@@ -171,8 +189,8 @@ Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_
 |------------|-------|----------|-------|
 | CAP-001 | Ciclo de domínio, papéis e acesso | P1 | E001, E015 |
 | CAP-002 | Contrato e vigência | P1 | E002, E017, E019, E020, E021 |
-| CAP-003 | Execução de tarefas com evidência | P1 | E003, E011, E012, E015, E016, E019 |
-| CAP-004 | Alertas de vigência e painel de próximos vencimentos | P1 | E004, E005, E013, E016, E017, E021 |
+| CAP-003 | Execução de tarefas com evidência | P1 | E003, E011, E012, E015, E016, E019, E022 |
+| CAP-004 | Alertas de vigência e painel de próximos vencimentos | P1 | E004, E005, E013, E016, E017, E021, E022, E023 |
 | CAP-005 | Painel por papel | P1 | E006, E013, E014, E017 |
 | CAP-006 | Busca e filtros | P1 | E007 |
 | CAP-007 | Relatório de serviços executados em PDF e CSV | P1 | E008 |
@@ -181,7 +199,7 @@ Aresta ausente de propósito: E004 consome `emitDomainEvent()` e a sala `domain_
 
 9/9 capacidades cobertas. Digest do PRD no frontmatter: `79217e0462c05e3342ef34636a7e0c7169ac118e0113805b979c0d091b2000ca`.
 
-E015 e E016 (Wave 8) são extensões do V2 rastreadas às capacidades mais próximas — convite/visitante estende o ciclo de acesso e a execução de tarefas; chat reutiliza execução, alertas e tempo real. O mapa de capacidades do PRD permanece inalterado (9 CAPs), na mesma linha de E013/E014/E017. E019–E021 (Waves 10–12) seguem o mesmo padrão: gestão documental rastreada a CAP-002/CAP-003, importação de acervo a CAP-002 (cria contratos) e dossiê do prestador a CAP-002/CAP-004 (vínculo + alerta de vencimento).
+E015 e E016 (Wave 8) são extensões do V2 rastreadas às capacidades mais próximas — convite/visitante estende o ciclo de acesso e a execução de tarefas; chat reutiliza execução, alertas e tempo real. O mapa de capacidades do PRD permanece inalterado (9 CAPs), na mesma linha de E013/E014/E017. E019–E021 (Waves 10–12) seguem o mesmo padrão: gestão documental rastreada a CAP-002/CAP-003, importação de acervo a CAP-002 (cria contratos) e dossiê do prestador a CAP-002/CAP-004 (vínculo + alerta de vencimento). E022 (Wave 13) segue o mesmo padrão: agenda recorrente rastreada a CAP-003 (criação automática de tarefa) e CAP-004 (alerta de vencimento). E023 (Wave 14) amplia CAP-004 sem criar capacidade nova: a régua atua sobre janelas e canais já existentes em E004/E010.
 
 ### SAD Coverage
 

@@ -59,8 +59,10 @@ class Sqlite {
   run(sql, params = []) {
     if (params.length) this.db.run(sql, normalize(params));
     else this.db.run(sql);
+    // sql.js export() zera getRowsModified(): capturar antes do persist().
+    const changes = this.db.getRowsModified();
     if (!this._inTx) this.persist();
-    return { changes: this.db.getRowsModified() };
+    return { changes };
   }
 
   // Single persist for bulk writes (used by perf seeding, FR-026).
@@ -69,8 +71,9 @@ class Sqlite {
       if (item.params && item.params.length) this.db.run(item.sql, normalize(item.params));
       else this.db.run(item.sql);
     }
+    const changes = this.db.getRowsModified();
     if (!this._inTx) this.persist();
-    return { changes: this.db.getRowsModified() };
+    return { changes };
   }
 
   // FR-009/FR-010 (and FR-008 refinement): all-or-nothing writes. Statements
@@ -384,6 +387,74 @@ const ATTACHMENTS_DDL = `CREATE TABLE IF NOT EXISTS attachments (
     CHECK (task_id IS NOT NULL OR message_id IS NOT NULL OR payment_id IS NOT NULL OR contract_id IS NOT NULL)
   )`;
 
+// 00024 (E022/AD-001): regra e ocorrência de manutenção preventiva. A grade é
+// fixa, ancorada em start_date; a chave (rule_id, due_date) absorve sweeps
+// concorrentes sem segunda tarefa (FR-095/FR-096). A antecedência efetiva
+// fica na ocorrência para dedup de alertas por janela (AD-006).
+const MAINTENANCE_RULES_DDL = `CREATE TABLE IF NOT EXISTS maintenance_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    title TEXT NOT NULL CHECK (length(title) BETWEEN 1 AND 120),
+    description TEXT,
+    interval_days INTEGER NOT NULL CHECK (interval_days BETWEEN 1 AND 365),
+    start_date TEXT NOT NULL CHECK (length(start_date) = 10),
+    assignee_id INTEGER REFERENCES users(id),
+    lead_days INTEGER NOT NULL DEFAULT 15 CHECK (lead_days BETWEEN 0 AND 90),
+    active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0,1)),
+    created_by INTEGER REFERENCES users(id),
+    updated_by INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`;
+
+const MAINTENANCE_OCCURRENCES_DDL = `CREATE TABLE IF NOT EXISTS maintenance_occurrences (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    rule_id INTEGER NOT NULL REFERENCES maintenance_rules(id),
+    contract_id INTEGER NOT NULL REFERENCES contracts(id),
+    due_date TEXT NOT NULL CHECK (length(due_date) = 10),
+    task_id INTEGER REFERENCES tasks(id),
+    lead_days INTEGER NOT NULL CHECK (lead_days BETWEEN 0 AND 90),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (rule_id, due_date)
+  )`;
+
+// 00025 (E023/AD-001): régua de notificação por domínio e tipo de evento.
+// Etapas derivadas das janelas de E004 (AD-002); identidade de emissão por
+// (alerta, evento, etapa, canal) com UNIQUE antes de qualquer aviso (AD-003).
+// Inativação é lógica (AD-004) para preservar eventos já emitidos.
+const NOTIFICATION_RULES_DDL = `CREATE TABLE IF NOT EXISTS notification_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_type TEXT NOT NULL UNIQUE,
+    max_reminders INTEGER NOT NULL CHECK (max_reminders BETWEEN 1 AND 5),
+    interval_days INTEGER NOT NULL CHECK (interval_days > 0),
+    active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0,1)),
+    created_by INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_by INTEGER,
+    updated_at TEXT
+  )`;
+
+const NOTIFICATION_RULE_STEPS_DDL = `CREATE TABLE IF NOT EXISTS notification_rule_steps (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    rule_id INTEGER NOT NULL REFERENCES notification_rules(id) ON DELETE CASCADE,
+    step INTEGER NOT NULL,
+    window_days INTEGER NOT NULL CHECK (window_days > 0),
+    UNIQUE (rule_id, step),
+    UNIQUE (rule_id, window_days)
+  )`;
+
+const ALERT_EVENT_CHANNELS_DDL = `CREATE TABLE IF NOT EXISTS alert_event_channels (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    alert_event_id INTEGER NOT NULL REFERENCES alert_events(id),
+    contract_id INTEGER NOT NULL,
+    event_type TEXT NOT NULL,
+    step INTEGER NOT NULL,
+    channel TEXT NOT NULL CHECK (channel IN ('in_app','email')),
+    status TEXT NOT NULL DEFAULT 'skipped' CHECK (status IN ('skipped','sent','failed')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (contract_id, event_type, step, channel)
+  )`;
+
 const DOMAIN_SCHEMA = [
   USERS_DDL,
   `CREATE TABLE IF NOT EXISTS purposes (
@@ -485,6 +556,11 @@ const DOMAIN_SCHEMA = [
   PROVIDER_WORKERS_DDL,
   PROVIDER_DOCUMENTS_DDL,
   PURPOSE_DOCUMENT_REQUIREMENTS_DDL,
+  MAINTENANCE_RULES_DDL,
+  MAINTENANCE_OCCURRENCES_DDL,
+  NOTIFICATION_RULES_DDL,
+  NOTIFICATION_RULE_STEPS_DDL,
+  ALERT_EVENT_CHANNELS_DDL,
 ];
 
 // FR-026 / HINT-005: index hot paths before paged list queries.
@@ -539,6 +615,10 @@ const DOMAIN_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_provider_documents_worker ON provider_documents(worker_id, document_type, valid_until)',
   'CREATE INDEX IF NOT EXISTS idx_provider_requirements_purpose ON purpose_document_requirements(purpose_id, active)',
   'CREATE INDEX IF NOT EXISTS idx_extracted_alerts_source ON extracted_alerts(source_kind, source_id)',
+  // --- 00024 E022: grade por contrato/regra e limpeza de alertas ---
+  'CREATE INDEX IF NOT EXISTS idx_maintenance_rules_contract ON maintenance_rules(contract_id, active)',
+  'CREATE INDEX IF NOT EXISTS idx_maintenance_occurrences_rule ON maintenance_occurrences(rule_id, due_date)',
+  'CREATE INDEX IF NOT EXISTS idx_maintenance_occurrences_contract ON maintenance_occurrences(contract_id, due_date)',
 ];
 
 function ensureIndexes(wrapper) {
@@ -593,8 +673,40 @@ function migrateSchema(wrapper) {
         window_days INTEGER NOT NULL,
         email_status TEXT NOT NULL CHECK (email_status IN ('sent','failed','skipped')),
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        event_type TEXT NOT NULL DEFAULT 'vigencia',
+        rule_id INTEGER,
+        step INTEGER NOT NULL DEFAULT 0,
         UNIQUE(contract_id, window_days)
       )`
+    );
+  } else {
+    // 00025 (E023): colunas aditivas em bancos E004 já abertos. Valores
+    // padrão preservam todas as linhas: legado vira evento 'vigencia', sem
+    // regra, com step igual à janela (HINT-002).
+    const alertColumns = wrapper.all('PRAGMA table_info(alert_events)').map((column) => column.name);
+    if (!alertColumns.includes('event_type')) {
+      wrapper.run("ALTER TABLE alert_events ADD COLUMN event_type TEXT NOT NULL DEFAULT 'vigencia'");
+    }
+    if (!alertColumns.includes('rule_id')) {
+      wrapper.run('ALTER TABLE alert_events ADD COLUMN rule_id INTEGER');
+    }
+    if (!alertColumns.includes('step')) {
+      wrapper.run('ALTER TABLE alert_events ADD COLUMN step INTEGER NOT NULL DEFAULT 0');
+      wrapper.run('UPDATE alert_events SET step = window_days WHERE step = 0');
+    }
+  }
+
+  // E023: tabelas da régua e da trilha por canal, guardadas por tableExists no
+  // mesmo ponto do alert_events (antes de applySchema).
+  if (!tableExists(wrapper, 'notification_rules')) wrapper.run(NOTIFICATION_RULES_DDL);
+  if (!tableExists(wrapper, 'notification_rule_steps')) wrapper.run(NOTIFICATION_RULE_STEPS_DDL);
+  if (!tableExists(wrapper, 'alert_event_channels')) {
+    wrapper.run(ALERT_EVENT_CHANNELS_DDL);
+    // HINT-002: eventos E004 legados ganham uma linha in_app sem reenviar nada.
+    wrapper.run(
+      `INSERT OR IGNORE INTO alert_event_channels
+         (alert_event_id, contract_id, event_type, step, channel, status)
+       SELECT id, contract_id, event_type, step, 'in_app', 'sent' FROM alert_events`
     );
   }
 
@@ -947,4 +1059,9 @@ module.exports = {
   PROVIDER_WORKERS_DDL,
   PROVIDER_DOCUMENTS_DDL,
   PURPOSE_DOCUMENT_REQUIREMENTS_DDL,
+  MAINTENANCE_RULES_DDL,
+  MAINTENANCE_OCCURRENCES_DDL,
+  NOTIFICATION_RULES_DDL,
+  NOTIFICATION_RULE_STEPS_DDL,
+  ALERT_EVENT_CHANNELS_DDL,
 };

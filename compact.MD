@@ -1,7 +1,43 @@
 # compact.MD — contexto compactado da sessão
 
 > Atualizado em [24/11] para restauração de contexto. Repo `/mnt/windows/git/inhome`, branch `dev`.
-> Estado atual: `dev` = `origin/dev` = `0a60319`; `main` = `origin/main` = `49bb566` (promoção concluída). Wave 11 (E020) com QC PASS no baseline de `dev`, pronta para commit e push.
+> Estado atual: `dev` = `origin/dev` = `32b9c71`; `main` = `origin/main` = `49bb566` (promoção concluída). Wave 12 (E021) publicada em `dev`; 7 features com QC re-assinado no novo baseline.
+
+## Sessão J — 24/11 (Wave 12 E021 — dossiê documental do prestador)
+
+### Objetivo e resultado
+
+- Usuário autorizou "ok, wave 12". Ciclo SDD completo (Specify → Clarify → Plan → Checklist → Tasks → Analyze → Implement → QC) para a épica E021, feature `specs/00023-dossie-documental-do-prestador`, P1.
+- Push em `dev`; `main` permanece em `49bb5666b21383cc6144b33bee7d9a3f9097e6d1`. Escopo: `PDD-007` revisada na Wave 11; `PDD-008`/`PDD-009` não reabertas; `HYP-002` segue aberta até uso real.
+
+### Decisões
+
+- Clarify Q1: checklist configurável por finalidade em `purpose_document_requirements`, com `appliesTo` (`provider`/`worker`); sem itens ativos na finalidade, vale o ASO global.
+- Clarify Q2: documento vencido não desfaz vínculo nem tarefa existentes; a guarda vale só para vínculo novo e atribuição/reatribuição.
+- 3 tabelas novas (`provider_workers`, `provider_documents`, `purpose_document_requirements`), 0 dependência. Tipos INTEGER via `enums.js`.
+- Alertas reusam `extracted_alerts` com `source_kind='provider_document'`, `source_id=<documentId>:<window>`; dedup por `(contract_id, source_kind, source_id)`; remoção por documento com `LIKE '<id>:%'`.
+- Guarda única em `services/providerCompliance.js`: erro 400 `PROVIDER_DOCUMENTS_MISSING` com `missing[]` (`type`, `appliesTo`, `reason`, `workerName`); `assertProviderCompliant` roda antes de gravar em `linkPrestador` e `assertLinkedPrestador`.
+- `findValidDocument` exige `reviewed_at IS NOT NULL` e `valid_until >= hoje`; vigência igual a hoje conta como vigente.
+- API em `routes/providerDocuments.js` sob `/api/v2/providers`, com `decodeAndValidate` antes de `saveToUploads`; UI extraída em `provider_documents_api.dart`, `dossier_screen.dart` (492 linhas) e `dossier_checklist_screen.dart` (250).
+
+### Entregas
+
+- Backend: 3 DDLs/índices, serviços de conformidade e alertas, 8 endpoints + PATCH de trabalhador, guards em `contracts.js`/`tasks.js`, sincronização em `runExpirySweep`, seção 24 no `backend/test.sh`.
+- Frontend: dossiê com trabalhadores/documentos/conferência, checklist por finalidade, entrada `Dossiê` no rail para admin/gestor, 5 testes de widget.
+- Docs: `TECHNICAL.md`, `TODO.md`, `specs/project-plan.md` (Wave 12 concluída), `analysis-report.md` e `autopilot-log.md` da feature.
+
+### Evidências
+
+- 34/34 tasks `[X]`, 12/12 FR P1, 4/4 SC, 3/3 checklists (24/24 itens), 3 STFs resolvidos; gates spec/plan/tasks/provenance PASS após reconciliação de proveniência.
+- Bateria: `npm test` 244/244, `bash backend/test.sh` 253/253, `flutter test` 110/110, `flutter analyze lib test` 0 issues, `npm audit --audit-level=high` (backend) 0 vulnerabilidades. `npm audit` na raiz falha com `ENOLOCK` (sem lockfile).
+- QC real: `qc-report.md` com manifesto, `Overall Verdict: PASS`, `.completed` + `.qc-passed`; `derive-completion-state` = `complete`, 0 issues.
+
+### Commit/push
+
+- Commit `32b9c71924ddc9d1ed08c1dfa4c03e6a3f872c27` — `Wave 12: E021 dossie documental do prestador`; 39 arquivos.
+- Push: `71e8fc4..32b9c71  dev -> dev`. `main` intocada.
+- Pós-push: 7 features (00013, 00016, 00017, 00020, 00021, 00022, 00023) com manifestos e `.qc-passed` re-assinados no baseline `32b9c71`; os 12 arquivos do padrão pós-push (`compact.MD`, 6 `.qc-passed`, 5 `qc-report.md`) seguem modificados no working tree e não entram em commit novo.
+- Comando com token: `git -c credential.helper='!f() { echo username=x-access-token; echo "password=$(cat .git_token)"; }; f' push origin dev`.
 
 ## Sessão I — 24/11 (Wave 11 E020 — importação de acervo)
 
@@ -33,7 +69,10 @@
 
 ### Commit/push
 
-- A registrar após o push em `dev`.
+- Commit `71e8fc47fbe501592210ea85e58591ca60d24f64` — `Wave 11: E020 importacao de acervo com previa e confirmacao atomica`; 33 arquivos, 2599 inserções, 24 remoções.
+- Push: `0a60319..71e8fc4  dev -> dev`. `main` intocada em `49bb5666b21383cc6144b33bee7d9a3f9097e6d1`.
+- Pós-push: 6 features (00013, 00016, 00017, 00020, 00021, 00022) com manifestos e `.qc-passed` re-assinados no baseline `71e8fc4`; `derive-completion-state` = `complete` em todas. Markers ficam modificados no working tree (padrão do repo).
+- Unit tests gate preservado: `npm test` 227/227 verde no momento do push. Nenhuma promoção para `main` neste ciclo.
 
 ## Promoção dev → main — 23/11
 

@@ -6,7 +6,7 @@ Prazos não são promessa, ordem é.
 
 Base de pesquisa: `docs/resources.md` (set/2026) e
 `docs/pesquisa-mercado-2026-11.md` (nov/2026, atualiza a anterior). Itens
-R0–R6 preservam os IDs originais; R7–R11 são os novos desejos da pesquisa
+R0–R6 preservam os IDs originais; R7–R12 são os novos desejos da pesquisa
 de nov/2026.
 
 ## Status geral
@@ -15,16 +15,17 @@ de nov/2026.
 |------|------|--------|
 | R0 | Chat por contrato | Entregue — E016, QC PASS 2026-11-21 |
 | R1 | Alertas de vigência + painel "vence primeiro" | Entregue — E004, E005, E010 |
-| R2 | Central documental do contrato | Em execução — E019 (`specs/00021-gestao-documental-contrato`) |
-| R3 | Onboarding de baixa fricção | Wave 11 registrada — E020 (importação de acervo); `PDD-007` revisada em 2026-11-23 |
+| R2 | Central documental do contrato | Parcial — E019 entregue; trilha de alterações pendente |
+| R3 | Onboarding de baixa fricção | Entregue — E020; HYP-002 aberta |
 | R4 | Acompanhamento de prestadores | Pendente |
 | R5 | Canais e automações | Pendente — WhatsApp e reajuste dependem de `PDD-008` |
 | R6 | Mobile do prestador | Pendente — depende de `PDD-008` |
-| R7 | Dossiê documental do prestador | Wave 12 registrada — E021 (documentos, vigências e bloqueio) |
-| R8 | Régua de notificação (frequência e canal) | Pendente — novo da pesquisa nov/2026 |
+| R7 | Dossiê documental do prestador | Entregue — E021 |
+| R8 | Régua de notificação (frequência e canal) | Entregue — E023 |
 | R9 | Desempenho do prestador (nota e ocorrências) | Pendente — novo, estende R4 |
 | R10 | Checklist por tarefa | Pendente — novo, fecha lacuna da avaliação V3 |
 | R11 | Itens P3 (versão, SLA, link de relatório, busca nos PDFs) | Pendente — novo da pesquisa nov/2026 |
+| R12 | Agenda de manutenção preventiva recorrente | Entregue — E022 |
 
 ## Base: o que a pesquisa diz que mais vale
 
@@ -56,22 +57,22 @@ Entregue como E004 (motor de varredura, dedup e janelas), E005 (painel 90/60/
 30/15) e E010 (e-mail opt-in), com aviso in-app por socket. O status
 `atrasado` deixou de ser a única forma de descobrir o problema.
 
-## R2 — Central documental do contrato — Em execução
+## R2 — Central documental do contrato — Parcial
 
 - Biblioteca por contrato com os anexos já existentes (chat, tarefa, pagamento)
-  com filtro e conferência — E019 em execução, feature
-  `specs/00021-gestao-documental-contrato`.
+  com filtro e conferência: entregue como E019, feature
+  `specs/00021-gestao-documental-contrato`, QC PASS em 2026-11-23.
 - Ocorrências/comunicações: cobertas em essência pelo chat (E016).
 - Trilha de alterações do contrato (quem mudou status/data, quando): segue
   pendente; a auditoria de acesso (E010/E011) não cobre mudança de cadastro.
 
-## R3 — Onboarding de baixa fricção — Parcial
+## R3 — Onboarding de baixa fricção — Entregue
 
 - Painel de vencimentos já populado no primeiro login: entregue (E005).
 - Importação de planilha CSV/XLSX de contratos com mapeamento de colunas e
-  upload em massa de PDFs: aprovada pelo usuário em 2026-11-23 como Wave 11
-  (E020, `specs/plan/E020.md`). `PDD-007` revisada; `HYP-002` segue aberta até
-  validação com uso real.
+  upload em massa de PDFs: entregue como E020, Wave 11, feature
+  `specs/00022-importacao-acervo`, QC PASS em 2026-11-24. `PDD-007` revisada;
+  `HYP-002` segue aberta até validação com uso real.
 
 ## R4 — Acompanhamento de prestadores — Pendente
 
@@ -97,23 +98,28 @@ Entregue como E004 (motor de varredura, dedup e janelas), E005 (painel 90/60/
 - Depende de `PDD-008`. Benefício: diferenciais; não bloqueia o uso principal.
   Esforço: M/L.
 
-## R7 — Dossiê documental do prestador — Pendente (novo, nov/2026)
+## R7 — Dossiê documental do prestador — Entregue
 
 - Documentos por prestador e por trabalhador: ASO, treinamentos de NR,
   certidões e regularidade, com vigência individual.
 - Alerta antes de vencer e bloqueio de vinculação/tarefa quando vencido.
 - Evidência: sistemasgap, Apollus (NR-01), Insoft4, GWS — todos jul–nov/2026.
-- Registrada como Wave 12 (E021, `specs/plan/E021.md`) em 2026-11-23.
+- Entregue como E021, Wave 12, feature `specs/00023-dossie-documental-do-prestador`,
+  QC PASS em 2026-11-24. O checklist por finalidade ficou decidido na Clarify;
+  `PDD-008` segue pendente e `HYP-002` aberta até uso real.
 - Benefício: fecha o maior eixo novo da pesquisa; reduz risco trabalhista da
   contratante. Esforço: M/L. Depende de decisão de escopo: o que é
   obrigatório por tipo de serviço.
 
-## R8 — Régua de notificação (frequência e canal) — Pendente (novo, nov/2026)
+## R8 — Régua de notificação (frequência e canal) — Entregue
 
 - As janelas 90/60/30/15 já são configuráveis (E004); falta régua no estilo
   cobrança: quantas vezes, em que momentos e por qual canal cada aviso sai,
   por domínio ou tipo de evento.
-- WhatsApp entra aqui como canal, condicionado à revisão de `PDD-008`.
+- Entregue como Wave 14 (E023, spec `00025-regua-de-notificacao-configuravel`,
+  QC PASS em 2026-11-25). O escopo preserva as janelas de E004 e os canais
+  in-app e e-mail opt-in de E010; WhatsApp continua fora e depende da revisão de
+  `PDD-008`.
 - Evidência: Conta Azul, Woovi, ForSign, Nu Empresas (out–nov/2026).
 - Benefício: elimina "lembrete único" como limite do motor atual. Esforço: M.
 
@@ -145,6 +151,13 @@ Entregue como E004 (motor de varredura, dedup e janelas), E005 (painel 90/60/
 - Busca no conteúdo dos PDFs anexados (hoje só metadados, FR-016).
 - Cada item em S; só entra se houver demanda registrada.
 
+## R12 — Agenda de manutenção preventiva recorrente — Entregue
+
+- Recorrência por contrato ou tipo de serviço que cria a tarefa na data certa, com aviso antecedente e geração idempotente.
+- Terceiro item da pesquisa nov/2026, classificado como `Alto`: hoje E012 registra a manutenção, mas a recorrência depende da memória de alguém.
+- Reaproveita `tasks` (E003), manutenção (E012) e o motor de alertas (E004); sem dependência de `PDD-008`.
+- Entregue como E022, Wave 13, feature `specs/00024-agenda-de-manutencao-preventiva-recorrente`, QC PASS em 2026-11-24. Esforço: M.
+
 ## Decisões a revisar antes de implementar
 
 - ~~`PDD-007` (importação CSV, R3)~~ revisada em 2026-11-23: importação
@@ -172,4 +185,6 @@ de próximos vencimentos (E005), painéis por tema escuro e redesign
 (E006, E013, E014), busca e filtros (E007), relatórios PDF/CSV (E008), tempo
 real (E009), e-mail opt-in (E010), auditoria e classificação (E011), chat por
 contrato com extração local (E016), indicadores do painel (E017),
-financeiro com parcelas, pagamentos e alerta de atraso (E018).
+financeiro com parcelas, pagamentos e alerta de atraso (E018), gestão
+documental do contrato (E019), importação de acervo (E020), dossiê documental
+do prestador (E021) e agenda de manutenção preventiva recorrente (E022).

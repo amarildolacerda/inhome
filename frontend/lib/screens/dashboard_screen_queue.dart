@@ -182,6 +182,18 @@ class _ContractRowState extends State<_ContractRow> {
     }
   }
 
+  /// Abre o canal do contrato direto pelo card. A autorização é do backend
+  /// (FR-053/E016): no painel pessoal a fila traz só contratos vinculados.
+  Future<void> _openChat() async {
+    final id = widget.contract['id'];
+    if (id is! num) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(contractId: id.toInt()),
+      ),
+    );
+  }
+
   void _snack(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -279,6 +291,19 @@ class _ContractRowState extends State<_ContractRow> {
                       foreground: status.foreground,
                     ),
                   ),
+                  if (contract['id'] is num) ...[
+                    const SizedBox(width: 2),
+                    IconButton(
+                      icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                      tooltip: 'Abrir chat do contrato',
+                      color: scheme.onSurfaceVariant,
+                      constraints:
+                          const BoxConstraints.tightFor(width: 32, height: 32),
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      onPressed: _openChat,
+                    ),
+                  ],
                   if (openable) ...[
                     const SizedBox(width: 6),
                     _opening

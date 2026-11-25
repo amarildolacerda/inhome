@@ -3,6 +3,7 @@ import '../models/contract.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import 'contract_detail_screen.dart';
+import 'chat_screen.dart';
 
 part 'dashboard_screen_header.dart';
 part 'dashboard_screen_kpis.dart';

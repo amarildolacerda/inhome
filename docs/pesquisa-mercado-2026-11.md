@@ -34,7 +34,7 @@ Três eixos seguem válidos da pesquisa anterior: não perder prazo, não perder
 | 1 | Dossiê documental do prestador: ASO, NRs, certidões, com vencimento e alerta | Crítico (novo eixo BR) | sistemasgap jul/2026; Apollus jun/2026 (NR-01); Insoft4 out/nov/2026; GWS out/2026 | Ausente: vínculo prestador existe (E002), sem controle documental |
 | 2 | Importar acervo existente (planilha + PDFs em massa, mapeamento de colunas) | Crítico | Bind jan/2026 (guia Excel→CLM); Tomorro, ProcureDesk, Conexa: importação como rotina; HYP-002 aberta desde set/2026 | Ausente: PDD-007 adiou CSV |
 | 3 | Manutenção preventiva recorrente que gera a tarefa sozinha | Alto | Geosite, Opserax, Field Control: recorrência automática de OS | Parcial: manutenção registra estado (E012), sem agenda recorrente |
-| 4 | Régua de notificação configurável (janelas, canais, frequência) | Alto | Conta Azul (régua por perfil, 9h, dias úteis); Woovi (até 5 lembretes por fase); Projuris abr/2026 pede alertas para vencimento, renovação, reajuste, denúncia, entrega e assinatura | Parcial: janelas fixas 90/60/30/15 no motor de alertas |
+| 4 | Régua de notificação configurável (janelas, canais, frequência) | Alto | Conta Azul (régua por perfil, 9h, dias úteis); Woovi (até 5 lembretes por fase); Projuris abr/2026 pede alertas para vencimento, renovação, reajuste, denúncia, entrega e assinatura | Parcial: janelas fixas 90/60/30/15 no motor de alertas; Wave 14 registrada (E023), sem WhatsApp (`PDD-008`) |
 | 5 | WhatsApp como canal de lembrete | Alto | Conta Azul R$ 0,60/msg; Nu Empresas set/2026; ForSign; Receita Federal: lembretes automáticos elevaram 9% os pagamentos em dia de MEI | Ausente: PDD-008 rejeitou (R5) |
 | 6 | Avaliação de desempenho do prestador (nota, SLA, ocorrências) | Médio | Petrobras IDF (5 macrocritérios, escala 1–6); EDP SPE; Enel SPI; oHub: OTIF e índice de não conformidade | Parcial: KPIs por status (E013, E017), sem nota por prestador |
 | 7 | Checklist/formulário por tarefa (campos foto, assinatura, lógica condicional) | Médio | SafetyCulture, Geosite (15 tipos de campo), Checkmob; Capterra: compliance tracking entre os recursos mais valorizados | Ausente: lacuna "checklists de conformidade" da avaliação V3 |
@@ -56,8 +56,8 @@ Três eixos seguem válidos da pesquisa anterior: não perder prazo, não perder
 
 1. **P1 — Importação de acervo**: XLSX/CSV com mapeamento de colunas + upload em massa de PDFs assinados, com prévia e confirmação antes de gravar. Reabre `PDD-007` (HYP-002).
 2. **P1 — Dossiê documental do prestador**: documentos por prestador e por trabalhador (ASO, NR, certidões) com vigência, alerta antes de vencer e bloqueio de vinculação/tarefa quando vencido. Tema novo: exige decisão de escopo (o que é obrigatório por tipo de serviço).
-3. **P2 — Agenda de manutenção preventiva**: recorrência por contrato/tipo de serviço que cria tarefas automaticamente na data certa.
-4. **P2 — Régua de notificação configurável**: janelas e frequência por domínio/contrato, mantendo o motor de alertas atual.
+3. **P2 — Agenda de manutenção preventiva**: recorrência por contrato/tipo de serviço que cria tarefas automaticamente na data certa. Wave 13 registrada (E022) em 2026-11-24.
+4. **P2 — Régua de notificação configurável**: janelas e frequência por domínio/contrato, mantendo o motor de alertas atual. Wave 14 registrada (E023) em 2026-11-24, sem WhatsApp (`PDD-008`).
 5. **P2 — WhatsApp como canal** (com custo por mensagem configurado): reabre `PDD-008`.
 6. **P2 — Nota de desempenho por prestador**: pontualidade, ocorrências e conclusões no prazo viram nota visível no vínculo.
 7. **P2 — Checklist por tarefa**: formulário com itens obrigatórios e evidência por resposta (fecha a lacuna de checklists da avaliação V3).

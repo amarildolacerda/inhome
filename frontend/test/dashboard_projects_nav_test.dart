@@ -15,6 +15,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:project_manager/screens/chat_screen.dart';
 import 'package:project_manager/screens/contract_detail_screen.dart';
 import 'package:project_manager/screens/dashboard_screen.dart';
 import 'package:project_manager/services/api_service.dart';
@@ -380,5 +381,50 @@ void main() {
     await tester.pumpAndSettle();
     expect(scrollable.position.pixels, greaterThan(0),
         reason: 'Ctrl+setas rolam com a home dentro de Expanded do shell');
+  });
+
+  testWidgets('ícone no card abre o chat do contrato sem abrir o detalhe',
+      (tester) async {
+    final api = _FakeApi(
+      roleValue: 'admin',
+      dashboard: _dashboardPayload(),
+      contract: _contractPayload(),
+    );
+    await _pumpDashboard(tester, api);
+
+    final chatButton = find.byTooltip('Abrir chat do contrato');
+    expect(chatButton, findsOneWidget);
+    await tester.tap(chatButton);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ChatScreen), findsOneWidget);
+    expect(
+      tester.widget<ChatScreen>(find.byType(ChatScreen)).contractId,
+      7,
+    );
+    expect(find.byType(ContractDetailScreen), findsNothing);
+    expect(api.gets, isNot(contains('/contracts/7')),
+        reason: 'toque no ícone não dispara a navegação do InkWell do card');
+  });
+
+  testWidgets('prestador também abre o chat pelo card da própria fila',
+      (tester) async {
+    final api = _FakeApi(
+      roleValue: 'prestador',
+      dashboard: _dashboardPayload(),
+      contract: _contractPayload(),
+    );
+    await _pumpDashboard(tester, api);
+
+    final chatButton = find.byTooltip('Abrir chat do contrato');
+    expect(chatButton, findsOneWidget,
+        reason: 'FR-053: prestador tem canal nos contratos vinculados');
+    await tester.tap(chatButton);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<ChatScreen>(find.byType(ChatScreen)).contractId,
+      7,
+    );
   });
 }

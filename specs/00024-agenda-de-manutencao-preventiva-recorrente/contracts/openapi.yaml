@@ -1,0 +1,111 @@
+openapi: 3.0.3
+info:
+  title: InHome Maintenance Schedule API
+  version: "1.0.0"
+  description: Agenda de manutenção preventiva recorrente (E022). Prefixo completo /api/v2. Datas ISO YYYY-MM-DD.
+servers:
+  - url: /api/v2
+paths:
+  /contracts/{contractId}/maintenance-schedules:
+    get:
+      summary: Listar regras e ocorrências geradas do contrato
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/contractId' }]
+      responses:
+        '200': { description: Regras e tarefas geradas, content: { application/json: { schema: { $ref: '#/components/schemas/ScheduleList' } } } }
+        '403': { description: Papel sem acesso ao contrato }
+        '404': { description: Contrato inexistente }
+    post:
+      summary: Cadastrar regra de recorrência
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/contractId' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ScheduleInput' } } }
+      responses:
+        '201': { description: Regra criada }
+        '400': { description: Intervalo, data, antecedência ou título inválido }
+        '403': { description: Somente admin/gestor }
+  /contracts/{contractId}/maintenance-schedules/{ruleId}:
+    patch:
+      summary: Editar ou inativar regra
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/contractId' }
+        - { $ref: '#/components/parameters/ruleId' }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SchedulePatch' } } }
+      responses:
+        '200': { description: Regra atualizada, auditoria registrada }
+        '400': { description: Payload inválido }
+        '403': { description: Somente admin/gestor }
+        '404': { description: Regra inexistente no contrato }
+  /maintenance/sweep:
+    post:
+      summary: Acionar varredura manual (mesmo serviço do sweep automático)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Contadores de criadas e ignoradas, content: { application/json: { schema: { $ref: '#/components/schemas/SweepResult' } } } }
+        '403': { description: Somente admin/gestor }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    contractId: { name: contractId, in: path, required: true, schema: { type: integer } }
+    ruleId: { name: ruleId, in: path, required: true, schema: { type: integer } }
+  schemas:
+    ScheduleInput:
+      type: object
+      required: [title, intervalDays, startDate]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: string }
+        intervalDays: { type: integer, minimum: 1, maximum: 365 }
+        startDate: { type: string, format: date }
+        assigneeId: { type: integer, nullable: true }
+        leadDays: { type: integer, minimum: 0, maximum: 90, default: 15 }
+    SchedulePatch:
+      type: object
+      properties:
+        title: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: string }
+        intervalDays: { type: integer, minimum: 1, maximum: 365 }
+        startDate: { type: string, format: date }
+        assigneeId: { type: integer, nullable: true }
+        leadDays: { type: integer, minimum: 0, maximum: 90 }
+        active: { type: boolean }
+    ScheduleList:
+      type: object
+      properties:
+        rules: { type: array, items: { $ref: '#/components/schemas/ScheduleRule' } }
+        occurrences: { type: array, items: { $ref: '#/components/schemas/Occurrence' } }
+    ScheduleRule:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        intervalDays: { type: integer }
+        startDate: { type: string, format: date }
+        assigneeId: { type: integer, nullable: true }
+        leadDays: { type: integer }
+        active: { type: boolean }
+        createdBy: { type: integer }
+        createdAt: { type: string }
+        updatedBy: { type: integer, nullable: true }
+        updatedAt: { type: string }
+    Occurrence:
+      type: object
+      properties:
+        id: { type: integer }
+        dueDate: { type: string, format: date }
+        taskId: { type: integer, nullable: true }
+        status: { type: string }
+        assigneeId: { type: integer, nullable: true }
+    SweepResult:
+      type: object
+      properties:
+        created: { type: integer }
+        ignored: { type: integer }
+        alertsUpserted: { type: integer }
+        alertsRemoved: { type: integer }

@@ -106,21 +106,21 @@
 ## QC Evidence Manifest
 | Path | SHA-256 |
 |------|---------|
-| backend/src/config/database.js | 40f24309f1c2c06b407d914565e700d68be2344c96697f01936907d0da711c15 |
-| backend/src/config/database.test.js | 5f703260f13bbf49e70bd6c9586434b8d84f16574b502ad64ae713883c37f340 |
+| backend/src/config/database.js | 7299afa5fe1887ded3c4f6a27c7c3ab9d99a875dbe2a6c44574c11ede8152b9a |
+| backend/src/config/database.test.js | 915786fc58c7c498e374537eba158897ca49966e04843cbdf64f31e331f5dd84 |
 | backend/src/models/TaskClassification.js | 093880e7f719b013b2162b876d1f2f00c6bb47b41c099854cfbde5da68bc32dc |
 | backend/src/models/TaskClassification.test.js | 2f616e075be5ff8e1b71237cb4cd7ea9ef04fdf76899900233479910c2efcb21 |
 | backend/src/routes/audits.js | 10be42189f4f72891bb38cc9a8efa1e9ad8253627ac934ac2f9cf6db5727fff3 |
 | backend/src/routes/audits.test.js | f35758622cc1967a3bd9ff36e27ebe5d6a0c31d84268429cd33a82bb9b33bcb3 |
 | backend/src/routes/users.js | 112700155c60f6298b321d0725a0001628c63ead63ec4fc4cb56106caf1a20b0 |
 | backend/src/routes/users.test.js | e11fd81202f700843dba63b9c285a15bbc9ee75086e9a2850b33f76d7cd9c429 |
-| backend/src/server.js | 12ff02b362e2f32df2858c223d3c5b97f99eee91f2600d425eb1f8d76ab75ceb |
-| frontend/lib/main.dart | 46821a0b164714b534dc922d51729bb2760ec995bf3d91e6c0fee36f192d360c |
+| backend/src/server.js | 694b486bb0ba63cf6434e8e535684def34bb6134ae9b7daa1f9e3a02e1d90f7c |
+| frontend/lib/main.dart | e520ce6c0ff6c4743441b74c241fca6cda988bb5143171c2a414e27715c09857 |
 | frontend/lib/models/user.dart | dbfc8d897f31bb375b17124f8cff8b575b2d176d1098f43adbd1a20ba9933719 |
 | frontend/lib/screens/audit_screen.dart | 27e07ee0779eb0f5f3ea98f321cb4e5d3384762be71dd93fbe876fc006e538fa |
-| frontend/lib/services/api_service.dart | 9dbf923cdca70ab5f66ca715395d8c39b983253f2fc9722b7166a6dcf4c4de45 |
+| frontend/lib/services/api_service.dart | 8f942e4c4acb0f84e0809a47551d971fd703a1ba7ab2014a19b8fe6080b92a2e |
 | frontend/test/audit_nav_test.dart | 6aa8375f0447fd0d8ff651281ce09820edf70912e80c3a53f642e3d28eb5d5db |
-| frontend/test/roles_nav_test.dart | 5b3512ff719693077274f34ed463728caf1ba72f763759967b4211d8b4b62a20 |
+| frontend/test/roles_nav_test.dart | 36f561086b7e437c2a3d11827991f2b1f32f59fc49dff28b7a94103492b1490a |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00013-e011-auditoria-classificacao/checklists/.checklists | 0f7d0ada372454977008cd5f66ec741334f56ab805bfc49cfe55fd6bf6f1f6a0 |
 | specs/00013-e011-auditoria-classificacao/checklists/CHL001-security.md | 9d1fad6ff481c2efcc4ae1f0f40704735af67b3da64648954965fcf487cf2d48 |

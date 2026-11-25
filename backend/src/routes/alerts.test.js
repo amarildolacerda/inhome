@@ -104,7 +104,16 @@ test('FR-001: alert_events existe em domínio aberto após a migração preguiç
   const table = db.get("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'alert_events'");
   assert.ok(table, 'alert_events should be created lazily on domain open');
   const columns = db.all('PRAGMA table_info(alert_events)').map((c) => c.name);
-  assert.deepStrictEqual(columns, ['id', 'contract_id', 'window_days', 'email_status', 'created_at']);
+  assert.deepStrictEqual(columns, [
+    'id',
+    'contract_id',
+    'window_days',
+    'email_status',
+    'created_at',
+    'event_type',
+    'rule_id',
+    'step',
+  ]);
 });
 
 test('FR-005: alert_windows é coluna aditiva na plataforma; NULL cai no default', () => {
@@ -917,4 +926,54 @@ test('00020 FR-068: parcela vencida aparece no painel via runExpirySweep', async
   );
   assert.ok(row, 'painel E005 expõe source_kind/source_id do alerta financeiro');
   assert.strictEqual(row.contract_id, contractA1.id);
+});
+
+// 00025 E023: sem régua ativa o domínio segue com E004/E010; com régua, o
+// painel expõe rules/reminders e a varredura usa as etapas configuradas.
+test('E023 FR-114: domínio sem régua mantém E004 e o painel com rules/reminders vazios', async () => {
+  await ensureSweepDomain();
+  const panel = await request(app).get('/api/v2/alerts/panel').set(as(adminDToken));
+  assert.strictEqual(panel.status, 200);
+  assert.deepStrictEqual(panel.body.rules, []);
+  assert.deepStrictEqual(panel.body.reminders, []);
+
+  const before = getDomainDb(domainD).all('SELECT * FROM alert_events');
+  const result = await runExpirySweep({ domainId: domainD, emailTimeoutMs: 100 });
+  assert.deepStrictEqual(Object.keys(result).sort(), ['emailed', 'emitted', 'failed', 'swept']);
+  assert.deepStrictEqual(getDomainDb(domainD).all('SELECT * FROM alert_events'), before, 'E004 dedup intacto');
+});
+
+test('E023 FR-112: reminders do painel trazem etapa, janela e status por canal', async () => {
+  await ensurePanelDomain();
+  const dbC = getDomainDb(domainC);
+  const contractId = 77777;
+  const event = dbC.get(
+    'INSERT INTO alert_events(contract_id, window_days, event_type, rule_id, step, email_status) VALUES (?, ?, ?, NULL, ?, ?) RETURNING id',
+    [contractId, 15, 'vigencia', 1, 'sent']
+  );
+  dbC.run(
+    `INSERT OR IGNORE INTO alert_event_channels(alert_event_id, contract_id, event_type, step, channel, status)
+     VALUES (?, ?, 'vigencia', 1, 'in_app', 'sent')`,
+    [event.id, contractId]
+  );
+  dbC.run(
+    `INSERT OR IGNORE INTO alert_event_channels(alert_event_id, contract_id, event_type, step, channel, status)
+     VALUES (?, ?, 'vigencia', 1, 'email', 'failed')`,
+    [event.id, contractId]
+  );
+  const panel = await request(app).get('/api/v2/alerts/panel').set(as(gestorCToken));
+  assert.strictEqual(panel.status, 200);
+  const reminder = panel.body.reminders.find(
+    (entry) => entry.contractId === contractId && entry.channel === 'email'
+  );
+  assert.ok(reminder, 'evento por canal aparece na trilha');
+  assert.deepStrictEqual(
+    {
+      eventType: reminder.eventType,
+      step: reminder.step,
+      windowDays: reminder.windowDays,
+      status: reminder.status,
+    },
+    { eventType: 'vigencia', step: 1, windowDays: 15, status: 'failed' }
+  );
 });
