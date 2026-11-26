@@ -108,6 +108,8 @@ app.use('/api/v2/alerts', require('./routes/alerts'));
 app.use('/api/v2/audits', require('./routes/audits'));
 // 00023 E021: dossiê documental do prestador (trabalhadores, documentos e
 // checklist por finalidade sob /api/v2/providers).
+// 00026 E024: nota derivada de desempenho (leitura restrita a admin/gestor).
+app.use('/api/v2/providers', require('./routes/providerPerformance'));
 app.use('/api/v2/providers', require('./routes/providerDocuments'));
 
 // Health check

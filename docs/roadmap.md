@@ -21,8 +21,8 @@ de nov/2026.
 | R5 | Canais e automações | Pendente — WhatsApp e reajuste dependem de `PDD-008` |
 | R6 | Mobile do prestador | Pendente — depende de `PDD-008` |
 | R7 | Dossiê documental do prestador | Entregue — E021 |
-| R8 | Régua de notificação (frequência e canal) | Entregue — E023 |
-| R9 | Desempenho do prestador (nota e ocorrências) | Pendente — novo, estende R4 |
+| R8 | Régua de notificação (frequência e canal) | Reaberta no plano — E023 |
+| R9 | Desempenho do prestador (nota e ocorrências) | Entregue — E024 |
 | R10 | Checklist por tarefa | Pendente — novo, fecha lacuna da avaliação V3 |
 | R11 | Itens P3 (versão, SLA, link de relatório, busca nos PDFs) | Pendente — novo da pesquisa nov/2026 |
 | R12 | Agenda de manutenção preventiva recorrente | Entregue — E022 |
@@ -83,20 +83,22 @@ Entregue como E004 (motor de varredura, dedup e janelas), E005 (painel 90/60/
 
 ## R5 — Canais e automações — Pendente
 
-- WhatsApp como canal de aviso: padrão de ERP brasileiro em nov/2026 (Conta
-  Azul, Woovi, Nu Empresas) com preço público por mensagem. Depende de
-  revisão de `PDD-008`.
+- ~~WhatsApp como canal de aviso~~ resolvido em `PDD-008` (2026-11-25): em vez
+  de integração com WhatsApp, o usuário escolheu app próprio (Wave 16, E025)
+  que carrega o app web e recebe as mensagens.
 - Reajuste automático por IPCA/IGP-M/INPC e prorrogação como fluxo com alerta:
-  segue adiado por `PDD-008`; nenhum achado novo mudou o custo/benefício.
+  mantido fora na revisão de `PDD-008` (2026-11-25); nenhum achado novo mudou
+  o custo/benefício.
 
-## R6 — Mobile (prestador) — Pendente
+## R6 — App próprio do prestador (mobile) — Registrada (Wave 16)
 
+- Revisada em `PDD-008` em 2026-11-25: vira a épica P2 E025 (Wave 16),
+  substituindo a ideia de WhatsApp como canal.
 - App que faz login e acessa os serviços web (Android é prioridade).
 - Usa a câmera para as imagens do serviço realizado.
 - Recebe notificações das tarefas atribuídas e stats das atribuições.
 - Acessa documentos públicos das suas atribuições.
-- Depende de `PDD-008`. Benefício: diferenciais; não bloqueia o uso principal.
-  Esforço: M/L.
+- Benefício: diferenciais; não bloqueia o uso principal. Esforço: M/L.
 
 ## R7 — Dossiê documental do prestador — Entregue
 
@@ -111,19 +113,19 @@ Entregue como E004 (motor de varredura, dedup e janelas), E005 (painel 90/60/
   contratante. Esforço: M/L. Depende de decisão de escopo: o que é
   obrigatório por tipo de serviço.
 
-## R8 — Régua de notificação (frequência e canal) — Entregue
+## R8 — Régua de notificação (frequência e canal) — Reaberta no plano
 
 - As janelas 90/60/30/15 já são configuráveis (E004); falta régua no estilo
   cobrança: quantas vezes, em que momentos e por qual canal cada aviso sai,
   por domínio ou tipo de evento.
-- Entregue como Wave 14 (E023, spec `00025-regua-de-notificacao-configuravel`,
-  QC PASS em 2026-11-25). O escopo preserva as janelas de E004 e os canais
-  in-app e e-mail opt-in de E010; WhatsApp continua fora e depende da revisão de
-  `PDD-008`.
+- Wave 14 reaberta no plano em 2026-11-25 (E023, spec
+  `00025-regua-de-notificacao-configuravel`); implementação e QC preservados.
+  O escopo preserva as janelas de E004 e os canais in-app e e-mail opt-in de
+  E010; WhatsApp continua fora e depende da revisão de `PDD-008`.
 - Evidência: Conta Azul, Woovi, ForSign, Nu Empresas (out–nov/2026).
 - Benefício: elimina "lembrete único" como limite do motor atual. Esforço: M.
 
-## R9 — Desempenho do prestador (nota e ocorrências) — Pendente (novo, nov/2026)
+## R9 — Desempenho do prestador (nota e ocorrências) — Wave 15 registrada
 
 - Nota periódica por prestador: pontualidade, conclusões no prazo e
   ocorrências registradas (modelo simplificado de IDF/OTIF).
@@ -132,6 +134,7 @@ Entregue como E004 (motor de varredura, dedup e janelas), E005 (painel 90/60/
 - Evidência: Petrobras IDF, EDP SPE, Enel SPI, oHub (OTIF).
 - Benefício: renovação e reatribuição decididas com dado, não com memória.
   Esforço: M. Estende R4.
+- Wave 15 concluída em 2026-11-25 como E024: nota derivada de E002/E003/E012/E017, sem tabela de avaliação manual. Leitura para admin e gestor; prestador não acessa a nota nesta épica.
 
 ## R10 — Checklist por tarefa — Pendente (novo, nov/2026)
 
@@ -163,8 +166,10 @@ Entregue como E004 (motor de varredura, dedup e janelas), E005 (painel 90/60/
 - ~~`PDD-007` (importação CSV, R3)~~ revisada em 2026-11-23: importação
   aprovada pelo usuário e registrada como Wave 11 (E020). `HYP-002` segue
   aberta até validação com uso real.
-- `PDD-008` (WhatsApp, reajuste, mobile: R5 e R6): rejeitada em 2026-09-26;
-  WhatsApp voltou como padrão de mercado BR.
+- ~~`PDD-008` (WhatsApp, reajuste, mobile: R5 e R6)~~ revisada em 2026-11-25:
+  WhatsApp como canal de terceiro e reajuste automático permanecem fora; o
+  usuário escolheu app próprio (carrega o app web e recebe mensagens) no lugar
+  do WhatsApp, e mobile (R6) entrou como épica P2 — E025 na Wave 16.
 - `PDD-009` (assinatura ICP-Brasil): segue válida; assinatura continua
   integração com parceiro.
 

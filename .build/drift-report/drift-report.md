@@ -1,6 +1,6 @@
 # Drift Report
 
-- Generated: 2026-11-01T22:38:41.511Z
+- Generated: 2026-11-25T01:59:32.351Z
 - Strict mode: true
 - Host: all
 
@@ -20,9 +20,9 @@
 | --- | ---: |
 | in-sync | 60 |
 | n/a | 32 |
-| missing | 190 |
+| missing | 172 |
 | stale-reference | 36 |
-| normalized-drift | 54 |
+| normalized-drift | 55 |
 | unsupported-extra | 0 |
 | agents-section-drift | 0 |
 
@@ -270,24 +270,7 @@
 - [stale-reference] workflow :: sddp-implement-qc-loop :: Copilot Delegate Graph :: .github/prompts/sddp-implement-qc-loop.prompt.md :: Copilot prompt is missing
 - [stale-reference] workflow :: sddp-devsetup :: Copilot Delegate Graph :: .github/prompts/sddp-devsetup.prompt.md :: Copilot prompt is missing
 - [stale-reference] workflow :: sddp-autopilot :: Copilot Delegate Graph :: .github/prompts/sddp-autopilot.prompt.md :: Copilot prompt is missing
-- [missing] workflow :: sddp-prd :: Copilot Recommendation :: .vscode/settings.json :: Expected prompt recommendation is missing
-- [missing] workflow :: sddp-systemdesign :: Copilot Recommendation :: .vscode/settings.json :: Expected prompt recommendation is missing
-- [missing] workflow :: sddp-devops :: Copilot Recommendation :: .vscode/settings.json :: Expected prompt recommendation is missing
-- [missing] workflow :: sddp-projectplan :: Copilot Recommendation :: .vscode/settings.json :: Expected prompt recommendation is missing
-- [missing] workflow :: sddp-amend :: Copilot Recommendation :: .vscode/settings.json :: Expected prompt recommendation is missing
-- [missing] workflow :: sddp-init :: Copilot Recommendation :: .vscode/settings.json :: Expected prompt recommendation is missing
-- [missing] workflow :: sddp-regen :: Copilot Recommendation :: .vscode/settings.json :: Expected prompt recommendation is missing
-- [missing] workflow :: sddp-specify :: Copilot Recommendation :: .vscode/settings.json :: Expected prompt recommendation is missing
-- [missing] workflow :: sddp-clarify :: Copilot Recommendation :: .vscode/settings.json :: Expected prompt recommendation is missing
-- [missing] workflow :: sddp-plan :: Copilot Recommendation :: .vscode/settings.json :: Expected prompt recommendation is missing
-- [missing] workflow :: sddp-checklist :: Copilot Recommendation :: .vscode/settings.json :: Expected prompt recommendation is missing
-- [missing] workflow :: sddp-tasks :: Copilot Recommendation :: .vscode/settings.json :: Expected prompt recommendation is missing
-- [missing] workflow :: sddp-analyze :: Copilot Recommendation :: .vscode/settings.json :: Expected prompt recommendation is missing
-- [missing] workflow :: sddp-implement :: Copilot Recommendation :: .vscode/settings.json :: Expected prompt recommendation is missing
-- [missing] workflow :: sddp-qc :: Copilot Recommendation :: .vscode/settings.json :: Expected prompt recommendation is missing
-- [missing] workflow :: sddp-implement-qc-loop :: Copilot Recommendation :: .vscode/settings.json :: Expected prompt recommendation is missing
-- [missing] workflow :: sddp-devsetup :: Copilot Recommendation :: .vscode/settings.json :: Expected prompt recommendation is missing
-- [missing] workflow :: sddp-autopilot :: Copilot Recommendation :: .vscode/settings.json :: Expected prompt recommendation is missing
+- [normalized-drift] workflow :: settings.json :: Copilot Recommendation :: .vscode/settings.json :: Malformed Copilot JSONC: prompt recommendations must be an object
 - [missing] workflow :: sddp-prd :: Copilot :: .github/prompts/sddp-prd.prompt.md :: Expected wrapper file is missing
 - [missing] workflow :: sddp-systemdesign :: Copilot :: .github/prompts/sddp-systemdesign.prompt.md :: Expected wrapper file is missing
 - [missing] workflow :: sddp-devops :: Copilot :: .github/prompts/sddp-devops.prompt.md :: Expected wrapper file is missing

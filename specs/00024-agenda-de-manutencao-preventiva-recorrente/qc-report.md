@@ -1,6 +1,6 @@
 # QC Report: Agenda de manutenção preventiva recorrente (00024)
 
-**Date**: 2026-11-25T00:50:56Z
+**Date**: 2026-11-25T01:05:22Z
 **Feature Directory**: `specs/00024-agenda-de-manutencao-preventiva-recorrente`
 **Overall Verdict**: PASS
 
@@ -18,7 +18,7 @@
 | Manifest digests changed | 6 | 10 | +4 |
 
 ## QC Scope Baseline
-- Baseline Commit: 32b9c71924ddc9d1ed08c1dfa4c03e6a3f872c27
+- Baseline Commit: 4cdf523f598e90efa5e7587b65c65ab34ec093a1
 - Mode: Full
 - Prior Baseline: N/A (reutilizado apenas para detecção de re-run)
 - Changed Files: `TODO.md`, `docs/pesquisa-mercado-2026-11.md`, `docs/roadmap.md`, `specs/project-plan.md`, `specs/plan/E023.md`, `specs/00024-agenda-de-manutencao-preventiva-recorrente/autopilot-log.md`
@@ -110,25 +110,25 @@
 | Path | SHA-256 |
 |------|---------|
 | README.md | a01af49503448519e5915c24c57060feeb4d635118f389d32f588a88778d02f8 |
-| TECHNICAL.md | 74ea0b2cb10bcee30561ee6cbb62209e6da209ef3a674ab703b6a7f674c6c287 |
-| TODO.md | 974b3e222f1fcab0c7f98ffeee71d2d02003e50c3559d1864438d81573a8351b |
+| TECHNICAL.md | 8da1b9c102c7e338b09af341ebbe2fee8873d8523a8acd1ced063710568fc09a |
+| TODO.md | 9c958c36415f44157d3e03e24e8d6114ab85be7713e2202a044d350b2047e5ac |
 | backend/src/config/database.js | 569cd1a037716d1c043f6ee1224c1ce90e3037002758a526604dd66384ed2b65 |
 | backend/src/routes/maintenanceSchedules.js | 243291192437949f46402a0f006bb445ed411ced842f2f6641d1f6910af26b27 |
 | backend/src/routes/maintenanceSchedules.test.js | da493197849a29b041c0b13dd1d57747d391c4b72232d3b88bf29a91e3dcfd2e |
-| backend/src/server.js | d68368cdaf3393e77e8d90701cb6e1de2269fbb4edd93f37621564f063438cb1 |
+| backend/src/server.js | e8fad35dce8ce851b48cc49ae3fdac55eb0864686b8d583572a727b98427f880 |
 | backend/src/services/maintenanceSchedules.js | 130d7d5a307db8fe30c1134015485783f712817f5b4cfb9cac14afca67177cca |
 | backend/src/services/maintenanceSchedules.test.js | 1805f3b22300a8ede5240db5541a83d26282623db1cea330cae75536cfc3fce5 |
 | backend/test.sh | 88b70e4ae65d805d78da802e8b68a5764102f9d19cd7574817d0b6584bad126a |
 | compact.MD | 6a414beecb88ac123d1a35d99510885f0a6be95c437b6cd7a20db49a5624cb1a |
 | docs/pesquisa-mercado-2026-11.md | 27860964f2335ffabc9b1f89f8d56c3aff34cb1c51c2016b794abecf1f44988e |
-| docs/roadmap.md | 8c896965a48907ad7877e0688ba537d865434c310cc71effa31022d8821e96d6 |
+| docs/roadmap.md | 818a1f115909694251aa8d31036c3c0274000c9686f759eafcbab8654dd15b05 |
 | frontend/lib/screens/contract_detail_screen.dart | 26a1280e95c91a305908acebad3672b359f02761f541fc802d8eca70c7142692 |
 | frontend/lib/services/maintenance_schedules_api.dart | d3db6ba1bb0fa754afda6e5a38db0c4198799a9774dac2d21e85ac09f075bb92 |
 | frontend/lib/widgets/maintenance_schedule_section.dart | a98b1cdb73cdb0514b0760864e569dec94018fa0ff231581c6d098c625055203 |
 | frontend/test/maintenance_schedule_section_test.dart | 090135c394ee47a9fef20e360c8b7a1d6307cf4d2f06674bc6c69e1cc81ea341 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00024-agenda-de-manutencao-preventiva-recorrente/analysis-report.md | 7392eb97cde55014dc9245138034ab40518fdb18353d7bad3189728de0b65fa0 |
-| specs/00024-agenda-de-manutencao-preventiva-recorrente/autopilot-log.md | 379be350b43c8555986de0ea7b7531ca146824054848f045a94083bdb5f18f35 |
+| specs/00024-agenda-de-manutencao-preventiva-recorrente/autopilot-log.md | 823f06e2444bf855e8ef3f9e91a89949abce9803d21c6502b22d3b49fc204917 |
 | specs/00024-agenda-de-manutencao-preventiva-recorrente/checklists/CHL001-security.md | c41a183e496d361a3cc8cf14454c953a907d6601042ee485d8fbd3296762a0f6 |
 | specs/00024-agenda-de-manutencao-preventiva-recorrente/checklists/CHL002-data-integrity.md | e70e061d807f6f1979bf188b8e40bbd50af7320df9e90ee2267f7ba5540e439d |
 | specs/00024-agenda-de-manutencao-preventiva-recorrente/checklists/CHL003-api-quality.md | 54d80d2482268f94bff5ce9b6234b58a3d19fa867a4700587d1d09e8777ddad1 |
@@ -138,9 +138,9 @@
 | specs/00024-agenda-de-manutencao-preventiva-recorrente/spec.md | 6d6558454ebf54af21b21fedb5856f2e132ce012accb4babe0e2021d88efc823 |
 | specs/00024-agenda-de-manutencao-preventiva-recorrente/tasks.md | d6703fb4b93c09a7cadc6acdc6ad01fda5c38592b66bed5abe8482d2d6cfb61c |
 | specs/plan/E022.md | 0e75387e165ddf0011b69c38295ef702cf6ba190ef15ca828e7ccdd95a55048e |
-| specs/plan/E023.md | 3f5217abddb133f114e832b9930d9c65cf5dbe77d49d7dac62376a17a32dc850 |
+| specs/plan/E023.md | 1cc9e836db718441578f661f8732838076f5f4b663553154aac5792c8f13277d |
 | specs/prd.md | ad5a169ab19d060f0f945bb693f4117bb3e970bc388232bb1ab33f783dd27258 |
-| specs/project-plan.md | 660dac69a8ef95c78a75355b0bbeae03652b5a1655f9ead622520c1cc56b323e |
+| specs/project-plan.md | e27e82f394a480838ca118c187b325bb0a360d9b41a2ca3cb4ad88605041cce5 |
 | specs/sad.md | 62898fc753fe57e4235ded8ef30d4255d088d5963f14e6150c3cf6fd6acaca1a |
 
 ## Tool Recommendations

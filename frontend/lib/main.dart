@@ -15,6 +15,7 @@ import 'screens/invite_register_screen.dart';
 import 'screens/chat_screen.dart';
 import 'screens/imports_screen.dart'; // 00022 E020: importação de acervo
 import 'screens/dossier_screen.dart'; // 00023 E021: dossiê do prestador
+import 'screens/provider_performance_screen.dart'; // 00026 E024: nota do prestador
 import 'services/theme_preference_store.dart';
 import 'theme/app_theme.dart';
 
@@ -420,6 +421,13 @@ class _MainShellState extends State<MainShell> {
             Icons.description,
             DossierScreen(),
           ),
+          // [E024] nota derivada de desempenho, somente para decisores.
+          _NavEntry(
+            'Desempenho',
+            Icons.leaderboard_outlined,
+            Icons.leaderboard,
+            ProviderPerformanceScreen(),
+          ),
           // [E016] canal por contrato com cards e extração de documentos.
           _NavEntry(
             'Chat',
@@ -473,6 +481,13 @@ class _MainShellState extends State<MainShell> {
             Icons.description_outlined,
             Icons.description,
             DossierScreen(),
+          ),
+          // [E024] nota derivada de desempenho, somente para decisores.
+          _NavEntry(
+            'Desempenho',
+            Icons.leaderboard_outlined,
+            Icons.leaderboard,
+            ProviderPerformanceScreen(),
           ),
           // [E016] canal por contrato com cards e extração de documentos.
           _NavEntry(
@@ -555,22 +570,33 @@ class _MainShellState extends State<MainShell> {
                 Semantics(
                   container: true,
                   label: 'Navegação principal',
-                  child: NavigationRail(
-                    selectedIndex: _entries.isEmpty ? null : _selectedIndex,
-                    onDestinationSelected: (index) {
-                      setState(() => _selectedIndex = index);
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final railHeight = 72.0 * (_entries.length + 1) + 80;
+                      return SingleChildScrollView(
+                        child: SizedBox(
+                          height: constraints.maxHeight > railHeight
+                              ? constraints.maxHeight
+                              : railHeight,
+                          child: NavigationRail(
+                            selectedIndex: _entries.isEmpty ? null : _selectedIndex,
+                            onDestinationSelected: (index) {
+                              setState(() => _selectedIndex = index);
+                            },
+                            leading: const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              child: Icon(Icons.dashboard_rounded, size: 32),
+                            ),
+                            // [E024]: admin/gestor chegam a 11 destinos; só o
+                            // selecionado mostra rótulo e o rail rola em telas baixas.
+                            labelType: NavigationRailLabelType.selected,
+                            destinations: [
+                              for (final entry in _entries) entry.toDestination(),
+                            ],
+                          ),
+                        ),
+                      );
                     },
-                    leading: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      child: Icon(Icons.dashboard_rounded, size: 32),
-                    ),
-                    // [E016]: com a entrada Chat o admin/gestor chega a 8
-                    // destinos; só o selecionado mostra rótulo para caber em
-                    // telas baixas. O Text do rótulo segue nos destinations.
-                    labelType: NavigationRailLabelType.selected,
-                    destinations: [
-                      for (final entry in _entries) entry.toDestination(),
-                    ],
                   ),
                 ),
                 const VerticalDivider(width: 1),

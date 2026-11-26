@@ -113,3 +113,10 @@
 | 21:50:56 | Post-Pipeline | decision | Wave 14 concluída; re-selar QC do E022 | accepted | promoção do E023 alterou documentos do manifesto e o estado do repositório | [specs/project-plan.md](../project-plan.md), [TODO.md](../../TODO.md) |
 | 21:50:56 | Post-Pipeline | gate_check | Evidência e testes revalidados | PASS | manifests recalculados; suítes verdes no mesmo commit base | [qc-report.md](qc-report.md) |
 | 21:50:56 | Post-Pipeline | phase_complete | `.qc-passed` re-selado | QC PASS | digests de report/evidence/baseline/repo-state recalculados sobre o estado final | [.qc-passed](.qc-passed) |
+
+## Run 2026-11-25 22:05:22
+
+| Timestamp | Phase | Event | Detail | Outcome | Rationale | Artifacts |
+|-----------|-------|-------|--------|---------|-----------|-----------|
+| 22:05:22 | Post-Pipeline | decision | Commit e push autorizados | accepted | usuário revertou a retenção anterior; re-selagem necessária porque o commit muda o baseline | [git log](../../.git) |
+| 22:05:22 | Post-Pipeline | gate_check | Re-selagem do QC do E022 | PASS | baseline `4cdf523f598e90efa5e7587b65c65ab34ec093a1`; digests recalculados | [qc-report.md](qc-report.md), [.qc-passed](.qc-passed) |

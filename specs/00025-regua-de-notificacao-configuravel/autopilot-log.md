@@ -78,7 +78,23 @@
 | 21:50:56 | QC | decision | Full QC obrigatório | accepted | primeira execução sem `qc-report.md` anterior; baseline `32b9c71924ddc9d1ed08c1dfa4c03e6a3f872c27` | [qc-report.md](qc-report.md) |
 | 21:50:56 | QC | gate_check | Policy Auditor e validators | PASS | 3 artefatos sem violação; spec/plan/tasks válidos; checklist 24/24 | [spec.md](spec.md), [plan.md](plan.md), [tasks.md](tasks.md) |
 | 21:50:56 | QC | gate_check | Testes, analyze, audit e cobertura | PASS | npm 269/269; smoke 253/253; flutter 118/118; analyze 0; audit 0; serviço 94,18% de linhas | [qc-report.md](qc-report.md) |
-| 21:50:56 | QC | gate_check | Rastreabilidade e checklist | PASS | 4/4 US, 10/10 SC, 11/11 FR; 3/3 checklists; 0 gaps | [qc-report.md](qc-report.md), [plan.md](plan.md) |
+| 21:50:56 | QC | gate_check | Rastreabilidade e checklist | PASS | 4/4 US, 6/6 SC, 11/11 FR; 3/3 checklists; 0 gaps | [qc-report.md](qc-report.md), [plan.md](plan.md) |
 | 21:50:56 | QC | gate_check | Browser runtime | SKIPPED | nenhum tool nativo/MCP neste harness; cobertura por flutter test e smoke HTTP | [qc-report.md](qc-report.md) |
 | 21:50:56 | QC | marker | `.qc-passed` criado | QC PASS | digests de report/evidence/baseline/repo-state validados | [.qc-passed](.qc-passed) |
 | 21:50:56 | QC | decision | Promoção documental e commits | promoted / nenhum | E023 marcado concluído em TODO, project-plan, plan/E023, TECHNICAL e roadmap; árvore suja em `dev`, sem commit/push | [TODO.md](../../TODO.md), [specs/project-plan.md](../project-plan.md) |
+
+## Run 2026-11-25 22:05:22
+
+| Timestamp | Phase | Event | Detail | Outcome | Rationale | Artifacts |
+|-----------|-------|-------|--------|---------|-----------|-----------|
+| 22:05:22 | Post-Pipeline | decision | Commit e push autorizados | accepted | usuário revertou a retenção anterior; 80 arquivos do projeto commitados, artefatos do harness mantidos fora | [git log](../../.git) |
+| 22:05:22 | Post-Pipeline | gate_check | Re-selagem dos marcadores QC | PASS | baseline `4cdf523f598e90efa5e7587b65c65ab34ec093a1`; digests de report/evidence/repo-state recalculados | [qc-report.md](qc-report.md), [.qc-passed](.qc-passed) |
+| 22:05:22 | Post-Pipeline | phase_complete | Push em `origin/dev` | pushed | sem promoção para `main`; `main` permanece intocada | [origin/dev](../../.git) |
+
+## Run 2026-11-25 22:20:14
+
+| Timestamp | Phase | Event | Detail | Outcome | Rationale | Artifacts |
+|-----------|-------|-------|--------|---------|-----------|-----------|
+| 22:20:14 | Post-Pipeline | decision | Reabrir Wave 14 no plano | accepted | usuário pediu "voltar" e escolheu reabrir o status documental; código, spec e QC preservados | [project-plan.md](../project-plan.md), [plan/E023.md](../plan/E023.md), [TODO.md](../../TODO.md) |
+| 22:20:14 | Post-Pipeline | gate_check | Status reabertos em documentos | PASS | TODO, project-plan, plan/E023, TECHNICAL e roadmap coerentes; markers e tasks inalterados | [TECHNICAL.md](../../TECHNICAL.md), [docs/roadmap.md](../../docs/roadmap.md) |
+| 22:20:14 | Post-Pipeline | gate_check | Re-selagem dos QC | PASS | digests de report/evidence/repo-state recalculados após a reabertura | [qc-report.md](qc-report.md), [.qc-passed](.qc-passed) |

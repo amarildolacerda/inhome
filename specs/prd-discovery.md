@@ -128,7 +128,7 @@ Não foi criado `specs/prd-research.md`: pesquisa externa não rodou (PDD-001).
 | PDD-005 | Comprador e segmento-alvo | accepted | Mantido como hipótese não verificada `HYP-005`: empresa de médio porte com serviços terceirizados; comprador = responsável pela operação; usuário primário `gestor`, secundário `prestador` | User | PDQ-005; ausência de fonte local | 2026-09-26 |
 | PDD-006 | Métricas de sucesso da primeira release | accepted | 4 métricas com leitura manual nos primeiros 90 dias: previsão cadastrada em 100% dos contratos vigentes, zero atraso sem aviso prévio, 100% das conclusões documentadas, suíte verde em 100% das promoções | User | PDQ-006 | 2026-09-26 |
 | PDD-007 | Importação de planilha CSV (R3) | deferred | Deferida para a release seguinte; `HYP-002` permanece aberta | User | PDQ-007; EVD-003 | 2026-09-26 |
-| PDD-008 | WhatsApp, reajuste automático e mobile (R5) | rejected | Fora de escopo da primeira release | User | PDQ-008; EVD-003 | 2026-09-26 |
+| PDD-008 | WhatsApp, reajuste automático e mobile (R5) | revised 2026-11-25 | Revisão: WhatsApp como canal de terceiro e reajuste automático permanecem fora; app próprio (carrega o app web e recebe mensagens) + mobile (R6) entram como épica P2 E025 na Wave 16 | User | PDQ-008; EVD-003; pesquisa nov/2026 | 2026-09-26 |
 | PDD-009 | Escopo regulado (contratos públicos, fiscal/NFS-e, Lei 14.133, ICP-Brasil) | rejected | Fora de escopo; assinatura, se necessária, entra por integração com parceiro | User | PDQ-009; EVD-003 | 2026-09-26 |
 
 ## Question Ledger

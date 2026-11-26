@@ -63,6 +63,7 @@ void main() {
       'Finalidades',
       'Importar',
       'Dossiê',
+      'Desempenho',
       'Chat',
       'Auditoria',
     ]);
@@ -82,6 +83,7 @@ void main() {
       'Convites',
       'Importar',
       'Dossiê',
+      'Desempenho',
       'Chat',
       'Auditoria',
     ]);

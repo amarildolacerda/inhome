@@ -1,0 +1,149 @@
+openapi: 3.0.3
+info:
+  title: Desempenho do prestador — E024
+  version: 1.0.0
+  description: Leitura derivada de nota, componentes e ocorrências por prestador no domínio corrente.
+servers:
+  - url: http://localhost:3001
+security:
+  - bearerAuth: []
+paths:
+  /api/v2/providers/performance:
+    get:
+      summary: Listar desempenho dos prestadores do domínio
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 30
+            minimum: 1
+            maximum: 365
+          description: Janela anterior à data de referência.
+        - name: referenceDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Fim do período; ausente usa a data corrente.
+        - name: providerId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filtra um prestador pelo id do usuário.
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+      responses:
+        '200':
+          description: Nota, componentes e ocorrências derivadas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderPerformanceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    PerformanceComponent:
+      type: object
+      required: [pontualidade, conclusaoNoPrazo, ocorrencias]
+      properties:
+        pontualidade:
+          type: number
+          minimum: 0
+          maximum: 100
+        conclusaoNoPrazo:
+          type: number
+          minimum: 0
+          maximum: 100
+        ocorrencias:
+          type: integer
+          minimum: 0
+    ProviderOccurrence:
+      type: object
+      required: [type, date, taskId]
+      properties:
+        type:
+          type: string
+          enum: [reabertura, manutencao, rejeicao, atraso]
+        date:
+          type: string
+          format: date-time
+        taskId:
+          type: integer
+        reason:
+          type: string
+          nullable: true
+    ProviderPerformance:
+      type: object
+      required: [providerId, name, hasData]
+      properties:
+        providerId:
+          type: integer
+        name:
+          type: string
+        hasData:
+          type: boolean
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          nullable: true
+        components:
+          $ref: '#/components/schemas/PerformanceComponent'
+        occurrences:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderOccurrence'
+    ProviderPerformanceResponse:
+      type: object
+      required: [referenceDate, days, total, page, pageSize, items]
+      properties:
+        referenceDate:
+          type: string
+          format: date
+        days:
+          type: integer
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+          enum: [100]
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderPerformance'
+  responses:
+    BadRequest:
+      description: Parâmetro de período, prestador ou página inválido.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error, code]
+            properties:
+              error: { type: string }
+              code: { type: string }
+    Unauthorized:
+      description: JWT ausente ou inválido.
+    Forbidden:
+      description: Papel sem acesso à nota.

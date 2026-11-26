@@ -1,11 +1,11 @@
 # QC Report: Régua de notificação configurável (00025)
 
-**Date**: 2026-11-25T00:53:56Z  
+**Date**: 2026-11-25T01:05:22Z  
 **Feature Directory**: `specs/00025-regua-de-notificacao-configuravel`  
 **Overall Verdict**: PASS
 
 ## QC Scope Baseline
-- Baseline Commit: 32b9c71924ddc9d1ed08c1dfa4c03e6a3f872c27
+- Baseline Commit: 4cdf523f598e90efa5e7587b65c65ab34ec093a1
 - Mode: Full
 - Prior Baseline: N/A (primeira execução)
 - Changed Files: 37 (evidência listada no manifesto)
@@ -58,7 +58,7 @@
 
 ## Project Instructions Compliance — PASSED
 - Nenhuma violação. Branch `dev` preservada; `main` não promovida; `TODO.md`, `TECHNICAL.md`, `docs/roadmap.md`, `specs/project-plan.md` e `specs/plan/E023.md` atualizados com a conclusão; artefatos dentro dos limites (plan 9871 B ≤ 10 KB, tasks 4737 B ≤ 6 KB).
-- Árvore permanece suja em `dev`; nenhum commit ou push neste ciclo, conforme pedido do usuário.
+- Commit `4cdf523f598e90efa5e7587b65c65ab34ec093a1` em `dev` e push para `origin/dev` autorizados pelo usuário após o QC; `main` permanece intocada.
 
 ## Requirements Traceability — 4/4 work items verified, 6/6 SC verified
 | ID | Type | Status | Notes |
@@ -103,21 +103,21 @@
 | Path | SHA-256 |
 |------|---------|
 | AGENTS.md | 4a4337eddc5fa250474ae17540b5758e357e9c92f96d69da2c5dc3d667b2702c |
-| TECHNICAL.md | 74ea0b2cb10bcee30561ee6cbb62209e6da209ef3a674ab703b6a7f674c6c287 |
-| TODO.md | 974b3e222f1fcab0c7f98ffeee71d2d02003e50c3559d1864438d81573a8351b |
+| TECHNICAL.md | 8da1b9c102c7e338b09af341ebbe2fee8873d8523a8acd1ced063710568fc09a |
+| TODO.md | 9c958c36415f44157d3e03e24e8d6114ab85be7713e2202a044d350b2047e5ac |
 | backend/package.json | f950a727452adc8da4a5c5742714091bd0ed55623f200cd66a6c9392c23c4629 |
 | backend/src/config/database.js | 569cd1a037716d1c043f6ee1224c1ce90e3037002758a526604dd66384ed2b65 |
 | backend/src/routes/alerts.js | 08283c0b0a79d2933e51d20c9a354c3241a057f897467a61989051c743b00db5 |
 | backend/src/routes/alerts.test.js | b0d9196d3b31fa12195a56d052f1b5fd6526eb794136cdf89e6e7e286a2939a8 |
 | backend/src/routes/notificationRules.js | 33ff37a5d13e4b1828c1d382ec98248a39ac813d195ed3c92bf83fdeb14284e8 |
 | backend/src/routes/notificationRules.test.js | 18eaeda693c5c34337d11baff2f53210b01575dffb52f07daf0ad1fab73499f5 |
-| backend/src/server.js | d68368cdaf3393e77e8d90701cb6e1de2269fbb4edd93f37621564f063438cb1 |
+| backend/src/server.js | e8fad35dce8ce851b48cc49ae3fdac55eb0864686b8d583572a727b98427f880 |
 | backend/src/services/alerts.js | 2ca13b269e86c8224b188fe08f45a373093dd352cddcd2288763c367de1f35c1 |
 | backend/src/services/notificationRules.js | bc32eaa3517accf6ad293917f48afe2d3eef13c72220ba6897aa81859e7cf590 |
 | backend/src/services/notificationRules.test.js | 5b16ab7f58ed976e79182f4c0ae55156e487a1f3c7ff68c5e4f3292f09238009 |
 | backend/test.sh | 88b70e4ae65d805d78da802e8b68a5764102f9d19cd7574817d0b6584bad126a |
 | docs/pesquisa-mercado-2026-11.md | 27860964f2335ffabc9b1f89f8d56c3aff34cb1c51c2016b794abecf1f44988e |
-| docs/roadmap.md | 8c896965a48907ad7877e0688ba537d865434c310cc71effa31022d8821e96d6 |
+| docs/roadmap.md | 818a1f115909694251aa8d31036c3c0274000c9686f759eafcbab8654dd15b05 |
 | frontend/lib/screens/vencimentos_screen.dart | 8e1541da6f76f1516b253e3acdf0c57819a3c5b750677ba6b7c245014204284f |
 | frontend/lib/services/api_service.dart | 8f942e4c4acb0f84e0809a47551d971fd703a1ba7ab2014a19b8fe6080b92a2e |
 | frontend/lib/services/notification_rules_api.dart | 179ad4aae9904f4fcabf5b184164cbac8c6564c338edc8e8ba427d5c80cf7e19 |
@@ -125,7 +125,7 @@
 | frontend/test/vencimentos_screen_test.dart | 834ced9557a5014ddacab7b6902b20a44c95fba5084051d4c1cd50e8351777d6 |
 | project-instructions.md | 9260be1dac4ab97f553b523ec37daebe3773f8d0d81acc6d8f98a6cd1a39027f |
 | specs/00025-regua-de-notificacao-configuravel/analysis-report.md | 61994c1ff7da812abadf47aad4fa3c7ccc304c7af37b84a2f22fcbceb41c798c |
-| specs/00025-regua-de-notificacao-configuravel/autopilot-log.md | a7cb4d91abf3b8b2970768b4654f77cbd7525cbd242deff779df5120e68c0b72 |
+| specs/00025-regua-de-notificacao-configuravel/autopilot-log.md | bdeec4114740d9bd28b27d856a73cd4a42ba3b4c308baaaec27739e1a2de3955 |
 | specs/00025-regua-de-notificacao-configuravel/checklists/CHL001-security.md | f75cea7dc9a04d7128208cacfba6bad2b0ee0168d6343ebd4a1bb3be147af7f5 |
 | specs/00025-regua-de-notificacao-configuravel/checklists/CHL002-data-integrity.md | 215f44af8f69dfb0fa9f9209be824561dd54fe2551317ccd0d27ae9e10ac9533 |
 | specs/00025-regua-de-notificacao-configuravel/checklists/CHL003-api-quality.md | 22f612414c096c4d01e445d7ce5ecee4b91791ab7790d6f9731ad3f7469ef8d7 |
@@ -135,9 +135,9 @@
 | specs/00025-regua-de-notificacao-configuravel/research.md | 6c3d002f0e1abf4de4145695ab01b01244dfa7cdbb2d998099b531be1617d9e5 |
 | specs/00025-regua-de-notificacao-configuravel/spec.md | 250b9d4a79dbc115b1c5e5973c4c36a82e75a7ef860d3ee2c80a614ae2ee401c |
 | specs/00025-regua-de-notificacao-configuravel/tasks.md | be03e3036c323e4f04723cac1ff30ddc9b38234b7d0b024dac5bcc1be606d65e |
-| specs/plan/E023.md | 3f5217abddb133f114e832b9930d9c65cf5dbe77d49d7dac62376a17a32dc850 |
+| specs/plan/E023.md | 1cc9e836db718441578f661f8732838076f5f4b663553154aac5792c8f13277d |
 | specs/prd.md | ad5a169ab19d060f0f945bb693f4117bb3e970bc388232bb1ab33f783dd27258 |
-| specs/project-plan.md | 660dac69a8ef95c78a75355b0bbeae03652b5a1655f9ead622520c1cc56b323e |
+| specs/project-plan.md | e27e82f394a480838ca118c187b325bb0a360d9b41a2ca3cb4ad88605041cce5 |
 | specs/sad.md | 62898fc753fe57e4235ded8ef30d4255d088d5963f14e6150c3cf6fd6acaca1a |
 
 ## Tool Recommendations

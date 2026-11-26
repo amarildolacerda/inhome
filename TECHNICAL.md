@@ -5,7 +5,7 @@
 - Repositório em desenvolvimento na branch `dev`.
 - Última feature entregue: `E021` — dossiê documental do prestador (trabalhadores, documentos com vigência, checklist por finalidade e guarda de vínculo e atribuição).
 - Feature anterior: `E020` — importação de acervo (prévia e confirmação de CSV/XLSX com anexos).
-- Situação: `E015`, `E016`, `E018`, `E019`, `E020`, `E021`, `E022` e `E023` concluídos e validados. Nenhuma promoção `dev` → `main` neste ciclo.
+- Situação: `E015`, `E016`, `E018`, `E019`, `E020`, `E021`, `E022` e `E024` concluídos e validados; `E023` reaberta no plano em 2026-11-25, com implementação e QC preservados. Nenhuma promoção `dev` → `main` neste ciclo.
 
 ## Arquitetura
 
@@ -79,7 +79,7 @@ Somente `admin` e `gestor` do domínio, com `authenticateToken → scopeDomain �
 
 Escrita restrita a `admin` e `gestor`; leitura também para `prestador` no próprio dossiê. Vínculo (`POST /api/v2/contracts/:id/providers`) e atribuição/reatribuição (`POST /api/v2/contracts/:id/tasks`, `PUT /api/v2/tasks/:id`) avaliam o checklist antes de gravar e respondem 400 com `code=PROVIDER_DOCUMENTS_MISSING` e `missing[]` quando falta documento vigente e conferido. Documento que vence depois não desfaz vínculo, tarefa ou histórico. A varredura de E004 publica alertas `provider_document` em `extracted_alerts` e os remove na regularização ou no fim do vínculo.
 
-#### Régua de notificação configurável (E023 — concluída)
+#### Régua de notificação configurável (E023 — reaberta no plano)
 
 - `GET /api/v2/alerts/rules` — réguas ativas e etapas do domínio.
 - `PUT /api/v2/alerts/rules/:eventType` — cria ou ajusta régua com até cinco lembretes e intervalo em dias.
@@ -87,6 +87,12 @@ Escrita restrita a `admin` e `gestor`; leitura também para `prestador` no próp
 - `GET /api/v2/alerts/panel` — painel acrescido de `rules` e `reminders`.
 
 Duas tabelas por domínio (`notification_rules`, `notification_rule_steps`) e colunas aditivas em `alert_events`, com `alert_event_channels` para a trilha por canal. As etapas derivam das janelas ativas de E004, da menor para a maior, respeitando o intervalo; a configuração é lida uma vez por varredura. Cada lembrete tem identidade estável por `(alerta, evento, etapa, canal)`, com `UNIQUE` antes do envio. Entrega só por aviso no aplicativo (`emitDomainEvent`) e e-mail opt-in de E010 (`notify`); falha de SMTP marca `failed` sem derrubar o aviso interno. Escrita restrita a admin e gestor. WhatsApp segue fora, condicionado a `PDD-008`.
+
+#### Desempenho do prestador (E024 — concluída)
+
+- `GET /api/v2/providers/performance` — nota, componentes e ocorrências por prestador no período.
+
+A nota é calculada sob demanda, sem tabela nova: agrega o vínculo de E002, conclusões e reaberturas de E003, decisões e manutenções de E012 e indicadores de atraso de E017, no domínio corrente. Cada ocorrência carrega `type`, `date`, `taskId` e `reason` opcional, com origem em `task_history`. Leitura restrita a admin e gestor; prestador não acessa a nota nesta épica. SLA configurável, avaliação manual e app mobile seguem fora (`PDD-008`).
 
 #### Agenda de manutenção preventiva (E022 — concluída)
 
@@ -287,7 +293,8 @@ frontend/lib/
 - `TECHNICAL.md`: status atualizado para `E019` concluído em 2026-11-23, após as suítes verdes e o QC; endpoints documental adicionados.
 - `TECHNICAL.md`: status atualizado para `E022` em progresso em 2026-11-24, após o plano validado; endpoints de agenda documentados.
 - `TECHNICAL.md`: status atualizado para `E022` concluído e `E023` em progresso em 2026-11-24, após o plano da régua validado; endpoints da régua documentados.
-- `TECHNICAL.md`: status atualizado para `E023` concluído em 2026-11-25, após as suítes verdes e o QC.
+- `TECHNICAL.md`: status de `E023` reaberto no plano em 2026-11-25; implementação e QC mantidos.
+- `TECHNICAL.md`: Wave 15 concluída em 2026-11-25 para E024, com endpoint de desempenho do prestador documentado e QC PASS.
 - `README.md`: atualizado com o comportamento de contratos perpétuos e do painel.
 
 ---
